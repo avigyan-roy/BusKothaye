@@ -47,8 +47,11 @@ export function MapView(props: MapViewProps) {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const bannerRef = useRef<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'unsupported'>('loading');
-  /** Set when the configured basemap could not be fetched and the fallback is showing. */
-  const [basemapFailed, setBasemapFailed] = useState(false);
+  const [basemapState, setBasemapState] = useState<
+    'loading' | 'ready' | 'missing-key' | 'failed' | 'test' | 'degraded'
+  >('loading');
+  const [followBus, setFollowBus] = useState(false);
+  const [locationState, setLocationState] = useState<'idle' | 'locating' | 'failed'>('idle');
   const [retryKey, setRetryKey] = useState(0);
   const basemap = useMemo(() => resolveBasemap(webConfig), []);
   const onSelectStopRef = useRef(props.onSelectStop);
@@ -67,11 +70,16 @@ export function MapView(props: MapViewProps) {
     if (mapRef.current !== null) return;
 
     setStatus('loading');
-    setBasemapFailed(basemap.provider === 'none');
+    setBasemapState(
+      basemap.isMissingKey ? 'missing-key' : basemap.provider === 'none' ? 'test' : 'loading',
+    );
 
     const map = new maplibregl.Map({
       container,
-      style: basemap.provider === 'none' ? localFallbackStyle() : basemap.styleUrl,
+      style:
+        basemap.provider === 'none' || basemap.isMissingKey
+          ? localFallbackStyle()
+          : basemap.styleUrl,
       center: centreOf(props.route),
       zoom: 11,
       pitch: 0,
@@ -82,20 +90,30 @@ export function MapView(props: MapViewProps) {
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric', maxWidth: 110 }), 'bottom-left');
 
-    let usedFallback = basemap.provider === 'none';
-    map.on('error', (event) => {
-      const message = event.error?.message ?? '';
-      const isStyleFailure =
-        !usedFallback &&
-        (message.includes('style') || message.includes('Failed to fetch') || 'status' in (event.error ?? {}));
-      if (!isStyleFailure) return;
-      // A blank rectangle is not an acceptable finished feature. Fall back to the
-      // basemap-free surface so the route, the stops and the bus still draw, and
-      // say plainly that the streets are missing.
-      usedFallback = true;
-      setBasemapFailed(true);
-      map.setStyle(localFallbackStyle());
+    let styleLoaded = basemap.provider === 'none' || basemap.isMissingKey;
+    let usedFallback = styleLoaded;
+    let initialFailureTimer: number | undefined;
+    map.on('error', () => {
+      if (usedFallback) return;
+      if (styleLoaded) {
+        // MapLibre reports a dead tile, glyph or sprite through the same event as
+        // a descriptor that never loaded. A resource failure must not call
+        // setStyle(): doing so destroys every application overlay.
+        setBasemapState('degraded');
+        return;
+      }
+      // Give the descriptor a short grace period. Browsers can emit a transient
+      // resource error before the style finishes; only a style that still has not
+      // loaded is replaced with the honest basemap-free surface.
+      window.clearTimeout(initialFailureTimer);
+      initialFailureTimer = window.setTimeout(() => {
+        if (styleLoaded || usedFallback || map.isStyleLoaded()) return;
+        usedFallback = true;
+        setBasemapState('failed');
+        map.setStyle(localFallbackStyle());
+      }, 800);
     });
 
     let hasFitted = false;
@@ -103,6 +121,9 @@ export function MapView(props: MapViewProps) {
       // `setStyle` discards every source and layer, so they are added on each
       // style load rather than only on the first.
       if (map.getLayer('route-line') === undefined) addRouteLayers(map, props.route);
+      styleLoaded = true;
+      window.clearTimeout(initialFailureTimer);
+      if (!usedFallback) setBasemapState('ready');
       setStatus('ready');
       // Measure before fitting: on first paint the container may not have reached
       // its final height, and a fit computed against the wrong box leaves the
@@ -130,12 +151,21 @@ export function MapView(props: MapViewProps) {
       map.getCanvas().style.cursor = '';
     });
 
+    const cancelFollowForGesture = (event: { originalEvent?: unknown }) => {
+      if (event.originalEvent !== undefined) setFollowBus(false);
+    };
+    map.on('dragstart', cancelFollowForGesture);
+    map.on('zoomstart', cancelFollowForGesture);
+    map.on('rotatestart', cancelFollowForGesture);
+    map.on('pitchstart', cancelFollowForGesture);
+
     // The container's real size often arrives after the first paint, so the one
     // automatic fit waits for it. After that the map is the person's to pan.
     let settleTimer: number | undefined;
     const observer = new ResizeObserver(() => {
       map.resize();
       window.clearTimeout(settleTimer);
+      window.clearTimeout(initialFailureTimer);
       settleTimer = window.setTimeout(() => {
         if (!hasFitted) return;
         fitToRoute(map, props.route, bannerRef.current?.offsetHeight ?? 0);
@@ -159,6 +189,15 @@ export function MapView(props: MapViewProps) {
     // The route's identity, not its object identity, decides whether to rebuild.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.route.id, props.route.version, basemap.styleUrl, retryKey]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!followBus || map === null || props.bus === null || status !== 'ready') return;
+    map.easeTo({
+      center: [props.bus.lon, props.bus.lat],
+      duration: prefersReducedMotion() ? 0 : 350,
+    });
+  }, [followBus, props.bus, status]);
 
   // --- Selected stop highlighting. -------------------------------------------
   useEffect(() => {
@@ -236,6 +275,7 @@ export function MapView(props: MapViewProps) {
             onClick={() => {
               const map = mapRef.current;
               if (map !== null && props.bus !== null) {
+                setFollowBus(true);
                 map.easeTo({
                   center: [props.bus.lon, props.bus.lat],
                   zoom: Math.max(map.getZoom(), 14),
@@ -244,14 +284,45 @@ export function MapView(props: MapViewProps) {
               }
             }}
           >
-            {en.route.recenter}
+            {followBus ? en.route.stopFollowing : en.route.followBus}
           </button>
         ) : null}
+        <button
+          type="button"
+          className="map-view__control"
+          disabled={locationState === 'locating'}
+          onClick={() => {
+            if (!('geolocation' in navigator)) {
+              setLocationState('failed');
+              return;
+            }
+            setLocationState('locating');
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                setLocationState('idle');
+                setFollowBus(false);
+                mapRef.current?.easeTo({
+                  center: [position.coords.longitude, position.coords.latitude],
+                  zoom: Math.max(mapRef.current.getZoom(), 14),
+                  duration: prefersReducedMotion() ? 0 : 600,
+                });
+              },
+              () => setLocationState('failed'),
+              { enableHighAccuracy: true, maximumAge: 15_000, timeout: 10_000 },
+            );
+          }}
+        >
+          {locationState === 'locating' ? en.map.locating : en.route.locateMe}
+        </button>
       </div>
-      {basemapFailed ? (
+      {basemapState === 'missing-key' ? (
+        <div ref={bannerRef} className="map-view__disclosure map-view__disclosure--error">
+          {en.map.missingKey}
+        </div>
+      ) : basemapState === 'failed' ? (
         <div ref={bannerRef} className="map-view__disclosure map-view__disclosure--error">
           <span>
-            <strong>{en.errors.mapFailed}</strong> {en.errors.mapFailedHelp}
+            <strong>{en.errors.mapFailed}</strong> {en.map.providerFailed}
           </span>
           <button
             type="button"
@@ -261,9 +332,22 @@ export function MapView(props: MapViewProps) {
             {en.common.retry}
           </button>
         </div>
+      ) : basemapState === 'degraded' ? (
+        <div ref={bannerRef} className="map-view__disclosure map-view__disclosure--warning">
+          {en.map.tileDegraded}
+        </div>
+      ) : basemapState === 'test' ? (
+        <div ref={bannerRef} className="map-view__disclosure">
+          {en.map.testBasemap}
+        </div>
       ) : basemap.isDevelopmentBasemap ? (
         <div ref={bannerRef} className="map-view__disclosure">
           {en.map.developmentBasemap}
+        </div>
+      ) : null}
+      {locationState === 'failed' ? (
+        <div className="map-view__location-error" role="status">
+          {en.map.locationFailed}
         </div>
       ) : null}
     </div>

@@ -4,6 +4,7 @@ You are a senior full-stack web developer responsible for delivering a working, 
 
 ## Read first
 
+0. Read [implementation context](docs/IMPLEMENTATION_CONTEXT.md) and [PROGRESS.md](PROGRESS.md) for current code, gaps, and historical verification.
 1. Read [INSTRUCTIONS.md](INSTRUCTIONS.md) for the build order and deliverables.
 2. Read [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for product intent and background.
 3. Read [the decision record](docs/DECISIONS.md) before copying any original pseudocode.
@@ -61,4 +62,4 @@ If credentials are unavailable, finish and verify the local application, contain
 - Keep secrets out of commits; provide safe `.env.example` files and commit the lockfile.
 - Run checks that exercise behaviour, not only compilation. Follow the acceptance guide.
 - Before ending implementation, update setup commands and the manual-editing guide to match the actual files. Report what works, checks run, and any remaining blockers.
-- This repository currently contains an instruction package. When explicitly asked to build, implement the application; when asked to edit instructions, stay within documentation scope.
+- The application already exists in this repository. Inspect existing code before implementation work; do not scaffold over it. When asked to edit instructions, stay within documentation scope.

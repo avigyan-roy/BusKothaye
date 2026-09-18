@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { prepareFromDto, type PreparedRoute } from '@buskothay/shared';
 import { api } from '../lib/api.js';
+import { ApiError } from '../lib/api.js';
 
 /**
  * Loads the route once and prepares its polyline.
@@ -36,9 +37,9 @@ export function useRoute(routeId: string): UseRouteResult {
         setRoute(prepareFromDto(dto));
         setIsLoading(false);
       })
-      .catch(() => {
+      .catch((caught: unknown) => {
         if (cancelled) return;
-        setError('route-unavailable');
+        setError(caught instanceof ApiError ? caught.code : 'route-unavailable');
         setIsLoading(false);
       });
 

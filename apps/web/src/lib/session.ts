@@ -42,7 +42,20 @@ export function loadSession(): ContributorSession | null {
     const raw = store.getItem(KEY);
     if (raw === null) return null;
     const parsed = JSON.parse(raw) as ContributorSession;
-    if (typeof parsed.journeyId !== 'string' || typeof parsed.token !== 'string') return null;
+    if (
+      typeof parsed.journeyId !== 'string' ||
+      typeof parsed.routeId !== 'string' ||
+      typeof parsed.contributorId !== 'string' ||
+      typeof parsed.token !== 'string' ||
+      !['driver', 'passenger', 'conductor'].includes(parsed.role) ||
+      typeof parsed.isDemo !== 'boolean' ||
+      !Number.isSafeInteger(parsed.createdAtMs) ||
+      !Number.isSafeInteger(parsed.nextSeq) ||
+      parsed.nextSeq < 0
+    ) {
+      store.removeItem(KEY);
+      return null;
+    }
     return parsed;
   } catch {
     return null;
@@ -66,10 +79,20 @@ export function clearSession(): void {
   }
 }
 
-export function advanceSeq(session: ContributorSession, used: number): ContributorSession {
-  const next = { ...session, nextSeq: Math.max(session.nextSeq, used + 1) };
+/**
+ * Reserve sequence numbers before reports enter the in-memory queue.
+ *
+ * Persisting the reservation first means a reload or crash can skip numbers but
+ * can never reuse a number that may already have reached the API.
+ */
+export function reserveSeq(
+  session: ContributorSession,
+  count = 1,
+): { readonly firstSeq: number; readonly session: ContributorSession } {
+  const safeCount = Number.isSafeInteger(count) && count > 0 ? count : 1;
+  const next = { ...session, nextSeq: session.nextSeq + safeCount };
   saveSession(next);
-  return next;
+  return { firstSeq: session.nextSeq, session: next };
 }
 
 /**

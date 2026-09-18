@@ -27,6 +27,7 @@
     "test:e2e": "playwright test",
     "routes:validate": "npm run build:packages && node scripts/validate-routes.mjs",
     "simulate": "npm run build:packages && npm run build -w @buskothay/simulator && node apps/simulator/dist/cli.js",
+    "demo:fleet": "npm run build:packages && npm run build -w @buskothay/simulator && node apps/simulator/dist/fleet-worker.js",
     "check": "npm run lint && npm run typecheck && npm run routes:validate && npm run test && npm run build",
     "dynamodb:init": "node scripts/dynamodb-init.mjs",
     "screenshots": "node scripts/screenshots.mjs",

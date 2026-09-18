@@ -24,6 +24,10 @@
   padding-bottom: var(--space-6);
 }
 
+.route-page__directory { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
+.route-page__directory > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
+.route-page__directory[open] > summary { margin-bottom: var(--space-3); }
+
 .route-page__demo {
   display: flex;
   align-items: center;

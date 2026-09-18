@@ -1,5 +1,10 @@
 import type {
   CreateJourneyResponse,
+  AccountDto,
+  AccountRole,
+  AuthSessionResponse,
+  DemoControlDto,
+  DemoFleetConfig,
   DebugDto,
   JoinJourneyResponse,
   JourneyListResponse,
@@ -7,6 +12,7 @@ import type {
   LocationReport,
   LocationResponse,
   RouteDto,
+  RouteListResponse,
 } from '@buskothay/shared';
 import { loadWebConfig } from '../config/site.js';
 
@@ -127,9 +133,37 @@ export const api = {
       timeoutMs: 4000,
     }),
 
-  createJourney: (routeId: string, idempotencyKey: string) =>
+  listRoutes: (signal?: AbortSignal) =>
+    request<RouteListResponse>('GET', '/v1/routes', { signal }),
+
+  register: (username: string, password: string, role: AccountRole) =>
+    request<AuthSessionResponse>('POST', '/v1/auth/register', {
+      body: { username, password, role },
+    }),
+
+  login: (username: string, password: string) =>
+    request<AuthSessionResponse>('POST', '/v1/auth/login', {
+      body: { username, password },
+    }),
+
+  getAccount: (token: string) =>
+    request<AccountDto>('GET', '/v1/auth/me', { token }),
+
+  selectRole: (token: string, role: AccountRole) =>
+    request<AuthSessionResponse>('PUT', '/v1/auth/role', { token, body: { role } }),
+
+  changePassword: (token: string, currentPassword: string, newPassword: string) =>
+    request<AuthSessionResponse>('PUT', '/v1/auth/password', {
+      token,
+      body: { currentPassword, newPassword },
+    }),
+
+  logout: (token: string) => request<void>('POST', '/v1/auth/logout', { token }),
+
+  createJourney: (routeId: string, idempotencyKey: string, accountToken: string) =>
     request<CreateJourneyResponse>('POST', '/v1/journeys', {
-      body: { routeId, isDemo: false },
+      token: accountToken,
+      body: { routeId },
       idempotencyKey,
     }),
 
@@ -138,11 +172,12 @@ export const api = {
     joinCode: string,
     role: 'passenger' | 'conductor',
     idempotencyKey: string,
+    accountToken: string,
   ) =>
     request<JoinJourneyResponse>(
       'POST',
       `/v1/journeys/${encodeURIComponent(journeyId)}/contributors`,
-      { body: { joinCode, role }, idempotencyKey },
+      { token: accountToken, body: { joinCode, role }, idempotencyKey },
     ),
 
   sendLocations: (
@@ -168,8 +203,10 @@ export const api = {
       { token },
     ),
 
-  endJourney: (journeyId: string, token: string) =>
-    request<unknown>('POST', `/v1/journeys/${encodeURIComponent(journeyId)}/end`, { token }),
+  endJourney: (journeyId: string, accountToken: string) =>
+    request<unknown>('POST', `/v1/journeys/${encodeURIComponent(journeyId)}/end`, {
+      token: accountToken,
+    }),
 
   getDebug: (journeyId: string, token: string, signal?: AbortSignal) =>
     request<DebugDto>('GET', `/v1/journeys/${encodeURIComponent(journeyId)}/debug`, {
@@ -177,4 +214,23 @@ export const api = {
       signal,
       timeoutMs: 5000,
     }),
+
+  getDemoControl: (accountToken: string, signal?: AbortSignal) =>
+    request<DemoControlDto>('GET', '/v1/demo', { token: accountToken, signal }),
+
+  switchDemo: (
+    accountToken: string,
+    enabled: boolean,
+    config?: Partial<DemoFleetConfig>,
+  ) =>
+    request<DemoControlDto>('PUT', '/v1/demo', {
+      token: accountToken,
+      body: { enabled, ...(config ? { config } : {}) },
+    }),
+
+  updateDemo: (accountToken: string, config: Partial<DemoFleetConfig>) =>
+    request<DemoControlDto>('PATCH', '/v1/demo', { token: accountToken, body: config }),
+
+  resetDemo: (accountToken: string) =>
+    request<DemoControlDto>('POST', '/v1/demo/reset', { token: accountToken }),
 };

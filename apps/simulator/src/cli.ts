@@ -189,7 +189,7 @@ async function main(): Promise<void> {
     process.exit(2);
   }
 
-  const api = new ApiClient(options.api);
+  const api = new ApiClient(options.api, process.env.SIMULATOR_TOKEN);
   const outDir = resolve(options.out);
   await mkdir(outDir, { recursive: true });
 

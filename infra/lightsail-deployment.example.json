@@ -1,0 +1,48 @@
+{
+  "serviceName": "buskothay",
+  "containers": {
+    "api": {
+      "image": ":buskothay.api.REPLACE_ME",
+      "environment": {
+        "NODE_ENV": "production",
+        "PORT": "8080",
+        "DATA_DRIVER": "dynamodb",
+        "AWS_REGION": "ap-south-1",
+        "AWS_ACCESS_KEY_ID": "REPLACE_ME",
+        "AWS_SECRET_ACCESS_KEY": "REPLACE_ME",
+        "DYNAMODB_TABLE": "buskothay",
+        "CORS_ORIGINS": "https://replace-after-amplify.invalid",
+        "ROUTE_DATA_DIR": "/app/data/routes",
+        "DEFAULT_ROUTE_ID": "ac24-patuli-howrah",
+        "LOG_LEVEL": "info",
+        "TRAFFIC_REFRESH_ENABLED": "false",
+        "TRUST_PROXY_HOPS": "1",
+        "SESSION_TTL_HOURS": "168",
+        "SIMULATOR_TOKEN": "REPLACE_WITH_THE_SAME_LONG_RANDOM_VALUE"
+      },
+      "ports": {
+        "8080": "HTTP"
+      }
+    },
+    "fleet-worker": {
+      "image": ":buskothay.worker.REPLACE_ME",
+      "environment": {
+        "API_BASE_URL": "http://localhost:8080",
+        "SIMULATOR_TOKEN": "REPLACE_WITH_THE_SAME_LONG_RANDOM_VALUE",
+        "FLEET_CONTROL_POLL_MS": "2000"
+      }
+    }
+  },
+  "publicEndpoint": {
+    "containerName": "api",
+    "containerPort": 8080,
+    "healthCheck": {
+      "path": "/health",
+      "intervalSeconds": 10,
+      "timeoutSeconds": 5,
+      "healthyThreshold": 2,
+      "unhealthyThreshold": 5,
+      "successCodes": "200-399"
+    }
+  }
+}

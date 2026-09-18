@@ -1,5 +1,7 @@
 # Editing BusKothay by hand
 
+Paths below are relative to the application repository root. Read [implementation context](IMPLEMENTATION_CONTEXT.md) for setup prerequisites and unresolved gaps.
+
 Every path below exists. Nothing here needs a prompt, a regeneration step, or an
 AI to change — open the file in an ordinary editor and edit it.
 
@@ -32,7 +34,7 @@ AI to change — open the file in an ordinary editor and edit it.
 ## The routine loop
 
 1. Branch, and run the app locally (`npm run dev`).
-2. Change the smallest relevant file. Vite reloads ordinary UI edits on its own.
+2. Change the smallest relevant file. Vite reloads ordinary UI edits on its own. Restart `npm run dev` after shared/geometry edits: shared packages are built once, not watched.
 3. Look at the affected screen at a narrow mobile width and at a desktop width.
 4. Run the checks that match what you touched. Text and spacing need
    `npm run lint` and a look; maths, authorisation and persistence need
@@ -69,7 +71,7 @@ environment and rebuild — Vite embeds it at build time, so editing a local `.e
 changes nothing about a site that is already deployed. Then update `CORS_ORIGINS`
 on the API if the web origin changed.
 
-**Replace the approximate route geometry.** Run
+**Replace the approximate route geometry.** The current registry retains only one geometry per route ID; storing `routeVersion` does not preserve an old fixture. Resolve the version-handling gap in [implementation context](IMPLEMENTATION_CONTEXT.md) before replacing geometry used by retained journeys. Run
 `node scripts/fetch-route-geometry.mjs` with a routing provider, inspect the line
 on a street map, bump `version`, run `npm run routes:validate`, and only then set
 `isApproximateGeometry` to false by hand.

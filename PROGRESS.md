@@ -5,14 +5,31 @@ what was actually verified, and what to pick up next. Keep it accurate: an
 optimistic progress file is worse than none.
 
 **Last updated:** 2026-09-18
-**Status:** the application is built and locally verified. Not deployed.
+**Status:** continuation in progress; Phases 1–4 reconstructed, Phase 6 partly repaired, Phase 5/7/final verification still open. Not deployed.
+
+**Documentation review, 2026-09-18:** results below are historical, not rerun. See [implementation context](docs/IMPLEMENTATION_CONTEXT.md) for missing CI, DynamoDB test coverage, route-version handling, and corrected setup commands.
+
+## Continuation update — 2026-09-18
+
+The incoming chat summary said Phases 1–5 were committed and green, but those
+files/commits were not present in this checkout. The missing work is being rebuilt
+here. Current source includes the Amazon V2 map behavior, accounts and server-side
+authorization, 20-route catalogue, demo control plane/web console, persistent
+fleet worker, and several Phase 6 queue/DynamoDB/polling/state-size fixes. See
+[docs/IMPLEMENTATION_CONTEXT.md](docs/IMPLEMENTATION_CONTEXT.md) for the exact
+handoff and remaining work.
+
+A full post-change TypeScript/Vite build passes under Node 24 for all workspaces.
+Post-change lint, tests, Playwright, Docker/DynamoDB Local, simulator runtime,
+visual inspection, and AWS remain unverified. Earlier test counts below are
+historical and must not be presented as current.
 
 ## What this repository is
 
 The working application described by the instruction package in the parent
 folder (`AGENTS.md`, `INSTRUCTIONS.md`, `docs/`). Those specification files are
 copied in here too, so this directory is a self-contained repository the team can
-clone. The originals in the parent folder are untouched.
+clone. The parent folder now links to the application and explains documentation ownership; it is not the npm root.
 
 ## Decisions taken during the build
 
@@ -66,10 +83,12 @@ clone. The originals in the parent folder are untouched.
 - [x] **Tests** — 91 unit and API tests, 40 browser tests across mobile and
       desktop.
 - [x] **Deployment package** — Dockerfile, `compose.yaml` (memory and DynamoDB
-      Local profiles), `amplify.yml`, CI workflow, CloudFormation for the table,
+      Local profiles), `amplify.yml`, CloudFormation for the table,
       IAM, ECR, App Runner and log retention, plus `infra/RUNBOOK.md`.
 - [x] **Documentation** — README, `docs/MANUAL_EDITING.md` and `CONTRIBUTING.md`
       rewritten against the files that actually exist.
+- [ ] **Active CI workflow** — the workflow export is outside this repository; its E2E job also needs an API/shared build before testing.
+- [ ] **DynamoDB integration tests** — current API tests use memory storage.
 - [ ] **Full simulator scenario run** — stopped part-way at the user's request.
       See below.
 - [ ] **Docker image build** — no daemon in the build environment.
@@ -77,7 +96,7 @@ clone. The originals in the parent folder are untouched.
 
 ## Verified
 
-Node 24.21.0, Linux container, against a real local API.
+Historical build-session report: Node 24.21.0, Linux container, against a real local API. Not rerun during this documentation review.
 
 | Check | Result |
 |---|---|
@@ -149,7 +168,7 @@ number until the scorecard looks good is how a scorecard stops meaning anything.
 1. `docker build -t buskothay-api:local .` and run the container against
    `compose.yaml`'s DynamoDB Local profile — restart recovery and concurrent
    writers are the two things only that setup exercises.
-2. Finish the simulator scenario library and commit the scorecards.
-3. Replace the route geometry with a real road trace and inspect it.
+2. Finish the simulator scenario library and retain reviewed synthetic scorecards as release artifacts; `apps/simulator/out/` is ignored by Git.
+3. Resolve route-version lookup before replacing geometry used by retained journeys; then obtain and inspect a real road trace.
 4. When the team has an AWS account: follow `infra/RUNBOOK.md`, in order, and
    record the actual URLs and test results in the README.

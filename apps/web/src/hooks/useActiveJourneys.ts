@@ -15,14 +15,19 @@ const LIST_POLL_MS = 5000;
 export function useActiveJourneys(routeId: string): {
   journeys: readonly JourneySummary[];
   isLoading: boolean;
+  error: string | null;
 } {
   const [journeys, setJourneys] = useState<readonly JourneySummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     let timer: number | undefined;
     let controller: AbortController | null = null;
+    setJourneys([]);
+    setIsLoading(true);
+    setError(null);
 
     const poll = async () => {
       if (cancelled) return;
@@ -36,10 +41,14 @@ export function useActiveJourneys(routeId: string): {
         const response = await api.listJourneys(routeId, controller.signal);
         if (!cancelled) {
           setJourneys(response.journeys);
+          setError(null);
           setIsLoading(false);
         }
       } catch {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          setError('journey-list-unavailable');
+        }
       }
       if (!cancelled) timer = window.setTimeout(poll, LIST_POLL_MS);
     };
@@ -52,7 +61,7 @@ export function useActiveJourneys(routeId: string): {
     };
   }, [routeId]);
 
-  return { journeys, isLoading };
+  return { journeys, isLoading, error };
 }
 
 /**

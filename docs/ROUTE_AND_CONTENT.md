@@ -32,6 +32,8 @@ Use these eight major checkpoints as the first-release route list:
 
 Label the list **Selected stops** or **Route checkpoints** until exact boarding locations and the complete stop list are verified. This is a deliberate subset for the prototype. The builder must verify coordinates, road access, and the correct terminal-side position at Howrah; no guessed coordinates should be presented as surveyed stops.
 
+The current fixture and its verification limits are described in the [adjacent provenance note](../data/routes/README.md). The requirements below still apply; approximate geometry is not a completed road verification.
+
 ## Route-data deliverable
 
 Create `data/routes/ac24-patuli-howrah.json` and a short adjacent provenance note. Include route code/name, immutable version, direction, timezone, road-following GeoJSON geometry, validated checkpoints, cumulative distances, authored segment speed assumptions, and source/license details.

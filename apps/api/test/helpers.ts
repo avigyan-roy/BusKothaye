@@ -17,6 +17,7 @@ import type { JourneyRepository } from '../src/store/types.js';
 
 /** The committed AC24 fixture, resolved from the repository root. */
 export const ROUTE_DIR = resolve(import.meta.dirname, '../../../data/routes');
+export const TEST_SIMULATOR_TOKEN = 'test-simulator-token-keep-private-12345';
 
 let cachedRoute: PreparedRoute | null = null;
 
@@ -95,6 +96,7 @@ export async function startTestServer(
     ROUTE_DATA_DIR: ROUTE_DIR,
     CORS_ORIGINS: 'http://localhost:5173',
     LOG_LEVEL: 'error',
+    SIMULATOR_TOKEN: TEST_SIMULATOR_TOKEN,
     ...env,
   } as NodeJS.ProcessEnv);
 

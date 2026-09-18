@@ -6,7 +6,7 @@ The implementing AI must create and verify the files described here. This guide 
 
 Use Node 24 LTS and npm workspaces. Commit `.nvmrc`, the root lockfile, safe environment examples, and a Dockerfile. Keep root scripts running from the repository root; load API env from `apps/api/.env` explicitly and let Vite load `apps/web/.env.local`. Resolve route-data paths consistently from the repository root and include the data in the image.
 
-Once implemented, a teammate should be able to do this:
+The application exists at this repository root. Current prerequisites and container service selection are in [implementation context](IMPLEMENTATION_CONTEXT.md). For memory-mode development:
 
 ```bash
 npm ci
@@ -43,7 +43,10 @@ Document every variable and validate it at startup/build. Do not silently fall b
 | `ROUTE_DATA_DIR` | `data/routes` | `/app/data/routes` in the container |
 | `DEFAULT_ROUTE_ID` | `ac24-patuli-howrah` | Same verified route ID |
 | `LOG_LEVEL` | `info` | `info` with token/location redaction |
-| `TRAFFIC_REFRESH_ENABLED` | `false` | Optional; only enable after verification |
+| `TRAFFIC_REFRESH_ENABLED` | `false` | Reserved setting; current code has no traffic-refresh implementation |
+| `TRUST_PROXY_HOPS` | `0` | Match verified deployment proxy topology; current service template sets `1` |
+| `RATE_LIMIT_CREATE_PER_MINUTE` / `RATE_LIMIT_CREATE_BURST` | `6` / `3` | Keep production defaults unless deliberately reviewed |
+| `RATE_LIMIT_JOIN_PER_MINUTE` / `RATE_LIMIT_JOIN_BURST` | `20` / `5` | Test overrides exist; do not copy elevated E2E limits into production |
 
 AWS SDK credentials come from the runtime credential provider chain. In App Runner use the instance IAM role, never static access keys. DynamoDB Local may use dummy credentials scoped to its local process; never ship those settings to AWS. Avoid logging the full environment when validating it.
 
@@ -62,7 +65,7 @@ Production map style follows the Maps V2 descriptor format. Verify the selected 
 
 Use `https://demotiles.maplibre.org/style.json` only as the documented development rendering fallback. [MapLibre example](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/)
 
-Keep brand, default stop, and design tokens in editable source files, not an expanding list of build variables. Validate the four web settings and fail a production build if it would point at localhost or a missing Amazon key.
+Keep brand, default stop, and design tokens in editable source files, not an expanding list of build variables. The implemented `npm run build:deploy` validates deployment settings and rejects localhost or a missing Amazon key. Ordinary `npm run build` creates an optimized local preview without this deployment guard; do not publish it as a configured AWS release.
 
 ## Docker and local persistence verification
 
@@ -77,7 +80,7 @@ docker build -t buskothay-api:local .
 docker run --rm -p 3001:8080 --env-file apps/api/.env -e PORT=8080 -e ROUTE_DATA_DIR=/app/data/routes buskothay-api:local
 ```
 
-`compose.yaml` should additionally provide API + DynamoDB Local with a documented table initialization step and persistent local volume. Use a named profile if the basic memory setup is simpler. The frontend may run through `npm run dev`; document exactly which process each command starts so ports do not collide.
+`compose.yaml` should additionally provide API + DynamoDB Local with a documented table initialization step and persistent local volume. Use a named profile if the basic memory setup is simpler. With a container API already on port 3001, start only the frontend using `npm run dev -w @buskothay/web`. Root `npm run dev` would also start an API on the same port. Select Compose services explicitly as described in the implementation context; enabling the DynamoDB profile alone also includes the memory API.
 
 Use local persistence to test restart recovery, concurrent writers, invalid tokens, and expiry without spending cloud credits. Local Docker is not an HTTPS phone test.
 

@@ -1,167 +1,331 @@
-# AWS deployment runbook
+# BusKothay AWS deployment runbook
 
-**Status: not deployed.** These templates and steps have been written and
-reviewed, but no AWS resources have been created from them by the build. Nothing
-below should be described as done until someone has run it and looked at the
-resulting resources in the console.
+This runbook deploys the current repository to `ap-south-1` using:
 
-Placeholders are account-specific values you supply: `<ACCOUNT_ID>`,
-`<REGION>` (default `ap-south-1`), `<AMPLIFY_ORIGIN>`, `<IMAGE_TAG>`.
+- Amplify Hosting for the React site.
+- One Lightsail Container Service with two containers: API and demo worker.
+- One DynamoDB on-demand table.
+- Amazon Location Maps V2 with a restricted browser API key.
 
-Never paste an AWS secret key into a chat, a commit, or a support ticket. The API
-takes its credentials from the App Runner instance role; there are no static keys
-anywhere in this repository.
+Nothing here has been applied to an AWS account from this workspace. Read every
+command before running it, replace placeholders, and record the actual outputs.
 
-## Before you start
+## 1. Prepare and set spending alerts
 
-- An AWS account your team owns, with a named budget owner.
-- The AWS CLI signed in with permission to create DynamoDB tables, IAM roles, ECR
-  repositories and App Runner services.
-- Docker, to build the image.
-- A **budget alert** on the account. An alert is not a spending cap; it tells you
-  after the money is spent. Set it before you create anything chargeable.
+Install Node 24, npm, Docker, AWS CLI v2, and the Lightsail Control
+(`lightsailctl`) plugin. Verify the target account and region:
 
-## 1. Data layer
+```bash
+aws --version
+docker version
+aws sts get-caller-identity
+aws configure get region
+```
+
+Use `ap-south-1`. In **Billing and Cost Management → Budgets**, create a monthly
+cost budget for USD 50 with notifications at USD 25 and USD 40. A budget is an
+alert, not a hard cap. Confirm current DynamoDB, Lightsail, Amplify, and Location
+rates using the AWS Pricing Calculator before provisioning.
+
+Run the local acceptance checks first:
+
+```bash
+npm ci
+npm run check
+npm run test:e2e
+docker build -t buskothay-api:deploy .
+docker build -f Dockerfile.worker -t buskothay-worker:deploy .
+```
+
+Do not deploy an image that has not passed these checks on a machine with Docker.
+
+## 2. Create the DynamoDB table
 
 ```bash
 aws cloudformation deploy \
-  --region <REGION> \
+  --region ap-south-1 \
   --stack-name buskothay-data \
-  --template-file infra/01-data.yaml \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --parameter-overrides TableName=buskothay
+  --template-file infra/01-lightsail-data.yaml
 ```
 
-Then check, in the console, that:
-
-- the table exists, is on-demand, and has TTL enabled on the `ttl` attribute;
-- the instance role's policy names the table's ARN and no wildcard resource;
-- the ECR repository has immutable tags.
-
-## 2. Build and push the image
-
-Tag from the commit. A mutable tag such as `latest` makes a rollback ambiguous.
+Verify:
 
 ```bash
-TAG="git-$(git rev-parse --short HEAD)"
-REPO=$(aws cloudformation describe-stacks --region <REGION> \
+aws cloudformation describe-stacks \
+  --region ap-south-1 \
   --stack-name buskothay-data \
-  --query "Stacks[0].Outputs[?OutputKey=='RepositoryUri'].OutputValue" --output text)
+  --query 'Stacks[0].Outputs'
 
-# Build from the repository root so shared packages and route data are included.
-docker build -t "$REPO:$TAG" .
-
-aws ecr get-login-password --region <REGION> \
-  | docker login --username AWS --password-stdin "$REPO"
-docker push "$REPO:$TAG"
+aws dynamodb describe-time-to-live \
+  --region ap-south-1 \
+  --table-name buskothay
 ```
 
-Before pushing, confirm the image actually works:
+Expected: stack status `CREATE_COMPLETE`, billing mode `PAY_PER_REQUEST`, and TTL
+attribute `ttl` enabled. The template retains the table if the stack is deleted,
+so teardown cannot silently destroy data.
+
+## 3. Create the least-privilege runtime identity
+
+Lightsail Container Services do not use the App Runner instance role from the
+legacy template. The AWS SDK therefore needs a dedicated access key in the API
+container environment. Limit it to this one table and rotate/delete it after the
+demo.
+
+Get the account ID:
 
 ```bash
-docker run --rm -p 3001:8080 -e DATA_DRIVER=memory "$REPO:$TAG"
-curl -fsS http://localhost:3001/health
-curl -fsS http://localhost:3001/v1/routes/ac24-patuli-howrah | head -c 200
+aws sts get-caller-identity --query Account --output text
 ```
 
-A container that starts but cannot resolve `@buskothay/shared`, or cannot find
-the route data, is not a working image — and a source checkout will not show you
-either problem.
-
-## 3. Amazon Location map key
-
-Console-only; there is no template for this.
-
-1. Amazon Location → API keys → Create key, in `<REGION>`.
-2. Allowed actions: the map tile actions only (`geo-maps:GetTile`,
-   `geo-maps:GetStaticMap` if you use static maps). Not routing, not places.
-3. Referrers: the Amplify production and preview origins. Put `localhost` in a
-   **separate** development key, not this one.
-4. Expiry: past your demonstration period, not "never".
-5. Copy the key into the Amplify build environment as `VITE_LOCATION_API_KEY`.
-
-Then open the deployed site and watch the network panel: tiles, glyphs and
-sprites must all return 200. Creating a key is not evidence that the map works.
-
-## 4. API service
+Copy `infra/lightsail-user-policy.json` to a private temporary location, replace
+`ACCOUNT_ID`, and check that the table name and region match. Then:
 
 ```bash
-aws cloudformation deploy \
-  --region <REGION> \
-  --stack-name buskothay-api \
-  --template-file infra/02-service.yaml \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides \
-      DataStackName=buskothay-data \
-      ImageTag="$TAG" \
-      CorsOrigins="<AMPLIFY_ORIGIN>" \
-      AwsRegionForData=<REGION>
+aws iam create-user --user-name buskothay-lightsail-runtime
+
+aws iam put-user-policy \
+  --user-name buskothay-lightsail-runtime \
+  --policy-name BusKothayTableOnly \
+  --policy-document file:///absolute/private/path/lightsail-user-policy.json
+
+aws iam create-access-key --user-name buskothay-lightsail-runtime
 ```
 
-Wait for the service to reach `RUNNING`, then take the URL from the stack
-outputs and exercise the real thing:
+The last command displays the secret once. Put both values in a password manager.
+Do not put them in `.env`, Git, chat, or the example JSON in this repository.
+
+## 4. Create the Amazon Location key
+
+Console steps are safest because AWS shows the currently supported Maps V2
+action names and quotas:
+
+1. Open **Amazon Location Service** in Mumbai.
+2. Open **API keys** and create a key named `buskothay-web`.
+3. Restrict it to Maps V2 descriptor, tile, sprite, and glyph read actions only.
+4. Initially allow only your Amplify preview/main domains. Add localhost only to
+   a separate development key.
+5. Set an expiry just after the planned demo period.
+6. Set a usage quota that fits the checked cost model.
+7. Save the key in your password manager/build configuration.
+
+This is a public browser key—not an AWS access key. It is expected to appear in
+the built JavaScript, so restrictions and expiry are mandatory.
+
+## 5. Create the Lightsail service
+
+Create one Micro service at scale one. A single deployment can contain both
+containers and expose only the API:
 
 ```bash
-API=$(aws cloudformation describe-stacks --region <REGION> \
-  --stack-name buskothay-api \
-  --query "Stacks[0].Outputs[?OutputKey=='ServiceUrl'].OutputValue" --output text)
-
-curl -fsS "$API/health"
-curl -fsS "$API/v1/routes/ac24-patuli-howrah" > /dev/null
-
-# A real create → report → read cycle. Container liveness is not integration.
-npm run simulate -- --scenario happy-multi --api "$API"
+aws lightsail create-container-service \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --power micro \
+  --scale 1 \
+  --tags key=Project,value=BusKothay
 ```
 
-## 5. Web app
-
-1. Amplify Hosting → connect your team's repository and branch.
-2. Monorepo app root: `apps/web`. `amplify.yml` in this repository already sets
-   `buildPath: /` so the shared packages build.
-3. Node 24 in the build image.
-4. Build environment variables:
-   - `VITE_API_BASE_URL` = the App Runner URL from step 4
-   - `VITE_MAP_PROVIDER` = `amazon`
-   - `VITE_AWS_REGION` = `<REGION>`
-   - `VITE_LOCATION_API_KEY` = the key from step 3
-   The build fails rather than shipping a bundle that points at localhost.
-5. Add a rewrite so deep links refresh, without swallowing asset 404s:
-
-   | Source | Target | Type |
-   | --- | --- | --- |
-   | `</^[^.]+$\|\.(?!(css\|gif\|ico\|jpg\|js\|png\|txt\|svg\|woff\|woff2\|ttf\|map\|json\|webmanifest)$)([^.]+$)/>` | `/index.html` | 200 (Rewrite) |
-
-   Check afterwards that `/r/ac24-patuli-howrah`, `/drive` and `/ops/<id>` all
-   reload directly, **and** that a missing asset still returns 404 rather than
-   the HTML shell.
-6. Security headers: set them, then test the map. MapLibre uses a worker, so a
-   copied-in CSP that forbids `worker-src blob:` will break the map silently.
-
-## 6. Close the loop
-
-- Add the final Amplify origin to `CORS_ORIGINS` on the App Runner service and
-  redeploy it. Test a preflight (`OPTIONS`) request from the browser.
-- Add the same origin to the map key's referrers.
-- Run one labelled simulator scenario against the deployed API and save the
-  scorecard with the results.
-- Open the site on a phone on mobile data, and — only after consenting — share a
-  real GPS position. A browser geolocation override is not a phone test, and this
-  runbook will not let you record it as one.
-
-## Rollback
-
-Keep the previous image tag and the previous Amplify deployment. To roll the API
-back, redeploy `02-service.yaml` with the earlier `ImageTag`. Schema changes are
-backward compatible by default (`schemaVersion` on every DTO); if a rollback
-would lose data, write a migration instead of swapping images and hoping.
-
-## Teardown
+Wait until ready:
 
 ```bash
-aws cloudformation delete-stack --region <REGION> --stack-name buskothay-api
-# The table is RETAINed on purpose. Delete it by hand, once you are sure.
-aws cloudformation delete-stack --region <REGION> --stack-name buskothay-data
+aws lightsail get-container-services \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --query 'containerServices[0].state'
 ```
 
-Also delete the Amplify app, the Location API key, and any images left in ECR.
-Check the bill the following day rather than assuming the teardown was complete.
+Lightsail charges while a service is enabled **or disabled**. Delete it at the
+end of the demo to stop compute billing.
+
+## 6. Push API and worker images
+
+Build from the repository root:
+
+```bash
+docker build -t buskothay-api:deploy .
+docker build -f Dockerfile.worker -t buskothay-worker:deploy .
+```
+
+Push:
+
+```bash
+aws lightsail push-container-image \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --label api \
+  --image buskothay-api:deploy
+
+aws lightsail push-container-image \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --label worker \
+  --image buskothay-worker:deploy
+```
+
+Record the returned names, including version numbers. Never deploy `latest` when
+you need a dependable rollback.
+
+## 7. Create the two-container deployment
+
+Generate a simulator token with at least 32 random characters:
+
+```bash
+openssl rand -hex 32
+```
+
+Copy `infra/lightsail-deployment.example.json` to a location outside the repo.
+Replace:
+
+- API and worker image versions.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+- Both `SIMULATOR_TOKEN` values with the same generated value.
+- Table/region values if you changed them.
+- `CORS_ORIGINS`; before Amplify exists, use the supplied invalid HTTPS
+  placeholder, never `*` and never localhost in production.
+
+Deploy:
+
+```bash
+aws lightsail create-container-service-deployment \
+  --region ap-south-1 \
+  --cli-input-json file:///absolute/private/path/lightsail-deployment.json
+```
+
+Watch state:
+
+```bash
+aws lightsail get-container-services \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --query 'containerServices[0].{state:state,url:url,deployment:currentDeployment.state}'
+```
+
+When `currentDeployment.state` is `ACTIVE`, copy the HTTPS `url` and test:
+
+```bash
+curl -i https://YOUR-SERVICE-DOMAIN/health
+curl -i https://YOUR-SERVICE-DOMAIN/ready
+curl -i https://YOUR-SERVICE-DOMAIN/v1/routes
+```
+
+Expected: 200 from all three. `/ready` returning 503 means DynamoDB credentials,
+region, table name, or policy is wrong. Open the Lightsail service's **Containers
+→ Logs** page for separate `api` and `fleet-worker` stdout/stderr.
+
+## 8. Deploy the web app on Amplify
+
+Amplify needs a repository/branch it can read. No deployment step invents or
+pushes a Git remote.
+
+1. Amplify Hosting → **Create new app** → choose the team's repository/branch.
+2. Select **My app is a monorepo** and enter `apps/web`.
+3. Confirm the environment variable `AMPLIFY_MONOREPO_APP_ROOT=apps/web`.
+4. Amplify should detect the root `amplify.yml`; keep its artifact directory
+   `apps/web/dist`.
+5. Add these build variables:
+
+```text
+VITE_API_BASE_URL=https://YOUR-SERVICE-DOMAIN
+VITE_MAP_PROVIDER=amazon
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=YOUR_RESTRICTED_LOCATION_KEY
+```
+
+6. Deploy. The guarded build fails if the API still points at localhost, the
+   provider is not Amazon, or the key is missing.
+7. Add a rewrite in **Hosting → Rewrites and redirects** so client-side routes
+   return `/index.html` with status 200. Do not rewrite actual asset files.
+8. Copy the exact Amplify HTTPS origin (no trailing slash).
+9. Add `https://AMPLIFY-DOMAIN/*` to the Location key's allowed referrers.
+10. Put the exact origin in the API container's `CORS_ORIGINS` and create another
+    Lightsail deployment using the same image versions.
+
+Check CORS explicitly:
+
+```bash
+curl -i \
+  -H 'Origin: https://YOUR-AMPLIFY-DOMAIN' \
+  https://YOUR-SERVICE-DOMAIN/v1/routes
+```
+
+Expected `Access-Control-Allow-Origin` equals the Amplify origin exactly.
+
+## 9. Acceptance test
+
+Use a private/incognito browser as well as a signed-in browser:
+
+- Guest opens the map and route directory without signing in.
+- Amazon style, tiles, sprites, and glyphs load; attribution stays visible.
+- Account register/login/logout/role/password flows work.
+- A driver creates AC24, grants GPS on button press, and the passenger browser
+  sees a live marker and honest freshness state.
+- A passenger joins and leaves without revoking driver control.
+- A conductor joins and can end the journey; another account cannot take it over.
+- Demo console starts the shared fleet; settings change; outage produces stale
+  state; OFF ends every demo journey. Every simulated journey is labelled Demo.
+- Redeploy the API and confirm account/journey records persist.
+- Test one actual phone over mobile data with the screen awake. Record that
+  physical test separately from Playwright's emulated location.
+
+Do not call the deployment complete until these pass.
+
+## 10. Update and rollback
+
+For an API/worker release:
+
+1. Run local checks.
+2. Build and push new versioned images.
+3. Update only the image names in the private deployment JSON.
+4. Create a deployment and run the smoke test.
+
+Lightsail retains recent deployment versions. On failure, open **Deployments**
+and redeploy the last known-good version. Amplify keeps its own deployment
+history; redeploy the last green build separately. DynamoDB schema changes must
+remain backward-compatible or have a documented migration—image rollback does
+not undo data changes.
+
+## 11. Teardown
+
+Turn Demo OFF first, then:
+
+```bash
+aws lightsail delete-container-service \
+  --region ap-south-1 \
+  --service-name buskothay
+```
+
+Delete the Amplify app and Location API key in their consoles. Remove the IAM
+access key before deleting the user:
+
+```bash
+aws iam list-access-keys --user-name buskothay-lightsail-runtime
+aws iam delete-access-key --user-name buskothay-lightsail-runtime --access-key-id REPLACE_ME
+aws iam delete-user-policy --user-name buskothay-lightsail-runtime --policy-name BusKothayTableOnly
+aws iam delete-user --user-name buskothay-lightsail-runtime
+```
+
+Delete the stack:
+
+```bash
+aws cloudformation delete-stack --region ap-south-1 --stack-name buskothay-data
+```
+
+The table remains because the template uses `DeletionPolicy: Retain`. After
+exporting anything required, delete it explicitly only if destruction is intended:
+
+```bash
+aws dynamodb delete-table --region ap-south-1 --table-name buskothay
+```
+
+Finally, check Billing/Cost Explorer the next day and remove the budget only when
+all resources and unexpected charges have been reviewed.
+
+## Official references
+
+- <https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-container-services.html>
+- <https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-pushing-container-images.html>
+- <https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-container-services-deployments.html>
+- <https://docs.aws.amazon.com/amplify/latest/userguide/monorepo-configuration.html>
+- <https://docs.aws.amazon.com/location/latest/developerguide/how-to-display-a-map.html>
+- <https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/TTL.html>

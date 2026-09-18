@@ -3,6 +3,8 @@ export * from './schemas/common.js';
 export * from './schemas/route.js';
 export * from './schemas/journey.js';
 export * from './schemas/debug.js';
+export * from './schemas/account.js';
+export * from './schemas/demo.js';
 export * from './projection.js';
 export * from './route.js';
 export * from './time.js';

@@ -1,0 +1,10 @@
+.route-switcher { display: grid; gap: var(--space-3); }
+.route-switcher__list { display: grid; gap: 1px; max-height: 320px; overflow: auto; border: 1px solid var(--color-border); background: var(--color-border); }
+.route-switcher__list > a, .route-switcher__list > button, .route-switcher__list > div { min-height: 58px; display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 0; background: var(--color-surface); color: var(--color-ink); text-align: left; text-decoration: none; font: inherit; }
+.route-switcher__list > button { cursor: pointer; }
+.route-switcher__list > button:disabled { cursor: not-allowed; }
+.route-switcher__list > :is(a, button):hover, .route-switcher__list > .is-active { background: var(--color-accent-soft); }
+.route-switcher__list small { color: var(--color-muted); text-align: right; }
+.route-switcher__list .is-unavailable { opacity: .78; }
+.route-switcher--compact .route-switcher__list { max-height: 210px; }
+@media (max-width: 560px) { .route-switcher__list > a, .route-switcher__list > button, .route-switcher__list > div { grid-template-columns: 54px 1fr; } .route-switcher__list small { grid-column: 2; text-align: left; } }

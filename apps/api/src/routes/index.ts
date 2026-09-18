@@ -10,13 +10,15 @@ import {
 } from '@buskothay/shared';
 import { z } from 'zod';
 import { bearerToken } from '../auth/capabilities.js';
-import { badRequest, forbidden, rateLimited, routeNotFound } from '../http/errors.js';
+import { ApiProblem, badRequest, rateLimited, routeNotFound } from '../http/errors.js';
 import { TokenBucketLimiter } from '../http/rate-limit.js';
 import type { JourneyService } from '../service/journey-service.js';
+import type { AccountService } from '../service/account-service.js';
 import type { RouteRegistry } from './route-registry.js';
 
 export interface ApiDeps {
   readonly service: JourneyService;
+  readonly accounts: AccountService;
   readonly registry: RouteRegistry;
   readonly nowMs: () => number;
   readonly rateLimits: {
@@ -81,7 +83,16 @@ export function createApiRouter(deps: ApiDeps): Router {
 
   router.get('/routes/:routeId', (req, res) => {
     const route = deps.registry.get(req.params.routeId);
-    if (route === null) throw routeNotFound();
+    if (route === null) {
+      if (deps.registry.has(req.params.routeId)) {
+        throw new ApiProblem(
+          409,
+          'ROUTE_UNAVAILABLE',
+          'This route is listed by WBTC, but verified tracking geometry is not available yet.',
+        );
+      }
+      throw routeNotFound();
+    }
     // Route data only changes when its version changes, so it is safe to cache
     // against that version — unlike anything about a live journey.
     res.setHeader('ETag', `"${route.dto.version}"`);
@@ -114,9 +125,10 @@ export function createApiRouter(deps: ApiDeps): Router {
       );
     }
 
+    const principal = await deps.accounts.authenticate(bearerToken(req.get('Authorization')));
     const response = await deps.service.createJourney({
       routeId: parsed.data.routeId,
-      isDemo: parsed.data.isDemo,
+      principal,
       idempotencyKey: idempotencyKeyOf(req),
     });
     res.status(201).json(response);
@@ -137,10 +149,12 @@ export function createApiRouter(deps: ApiDeps): Router {
       );
     }
 
+    const principal = await deps.accounts.authenticate(bearerToken(req.get('Authorization')));
     const response = await deps.service.joinJourney({
       journeyId: req.params.journeyId,
       joinCode: parsed.data.joinCode,
       role: parsed.data.role,
+      principal,
       idempotencyKey: idempotencyKeyOf(req),
     });
     res.status(201).json(response);
@@ -188,10 +202,8 @@ export function createApiRouter(deps: ApiDeps): Router {
   router.post('/journeys/:journeyId/end', async (req, res) => {
     noStore(res);
     const token = bearerToken(req.get('Authorization'));
-    const auth = await deps.service.authoriseContributor(req.params.journeyId, token, {
-      allowEnded: true,
-    });
-    if (!auth.isDriver) throw forbidden();
+    const principal = await deps.accounts.authenticate(token);
+    await deps.service.authoriseJourneyControl(req.params.journeyId, principal);
 
     const { endedAtMs, stateVersion } = await deps.service.endJourney(req.params.journeyId);
     res.json({

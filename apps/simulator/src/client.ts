@@ -1,5 +1,6 @@
 import type {
   CreateJourneyResponse,
+  DemoControlDto,
   DebugDto,
   JourneyStateDto,
   LocationReport,
@@ -27,17 +28,20 @@ export class SimulatorApiError extends Error {
 }
 
 export class ApiClient {
-  constructor(private readonly baseUrl: string) {}
+  constructor(
+    private readonly baseUrl: string,
+    private readonly serviceToken: string | undefined = undefined,
+  ) {}
 
   async getRoute(routeId: string): Promise<RouteDto> {
     return this.request<RouteDto>('GET', `/v1/routes/${routeId}`);
   }
 
   async createJourney(routeId: string): Promise<CreateJourneyResponse> {
-    // A simulator always marks its journeys as demonstrations; the label follows
-    // them into every list and every screen.
     return this.request<CreateJourneyResponse>('POST', '/v1/journeys', {
-      body: { routeId, isDemo: true },
+      token: this.requireServiceToken(),
+      body: { routeId },
+      idempotencyKey: crypto.randomUUID(),
     });
   }
 
@@ -47,7 +51,9 @@ export class ApiClient {
     role: 'conductor' | 'passenger',
   ): Promise<{ contributorId: string; contributorToken: string }> {
     return this.request('POST', `/v1/journeys/${journeyId}/contributors`, {
+      token: this.requireServiceToken(),
       body: { joinCode, role },
+      idempotencyKey: crypto.randomUUID(),
     });
   }
 
@@ -72,14 +78,29 @@ export class ApiClient {
     });
   }
 
-  async end(journeyId: string, token: string): Promise<void> {
-    await this.request('POST', `/v1/journeys/${journeyId}/end`, { token });
+  async end(journeyId: string): Promise<void> {
+    await this.request('POST', `/v1/journeys/${journeyId}/end`, {
+      token: this.requireServiceToken(),
+    });
+  }
+
+  async demoControl(): Promise<DemoControlDto> {
+    return this.request<DemoControlDto>('GET', '/v1/demo/worker/control', {
+      token: this.requireServiceToken(),
+    });
+  }
+
+  async acquireDemoLease(ownerId: string, generation: number): Promise<{ acquired: boolean; generation: number; expiresAtMs: number }> {
+    return this.request('POST', '/v1/demo/worker/lease', {
+      token: this.requireServiceToken(),
+      body: { ownerId, generation },
+    });
   }
 
   private async request<T>(
     method: string,
     path: string,
-    options: { token?: string; body?: unknown } = {},
+    options: { token?: string; body?: unknown; idempotencyKey?: string } = {},
   ): Promise<T> {
     let response: Response;
     try {
@@ -88,6 +109,9 @@ export class ApiClient {
         headers: {
           ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
           ...(options.token === undefined ? {} : { authorization: `Bearer ${options.token}` }),
+          ...(options.idempotencyKey === undefined
+            ? {}
+            : { 'idempotency-key': options.idempotencyKey }),
         },
         ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
       });
@@ -118,5 +142,14 @@ export class ApiClient {
       throw new SimulatorApiError(response.status, code, `${method} ${path}: ${message}`);
     }
     return text.length === 0 ? (undefined as T) : (JSON.parse(text) as T);
+  }
+
+  private requireServiceToken(): string {
+    if (this.serviceToken) return this.serviceToken;
+    throw new SimulatorApiError(
+      0,
+      'SIMULATOR_TOKEN_MISSING',
+      'Set SIMULATOR_TOKEN to the same private value configured on the API.',
+    );
   }
 }

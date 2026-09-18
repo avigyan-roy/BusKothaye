@@ -42,6 +42,8 @@ export function useJourneyState(journeyId: string | null): UseJourneyStateResult
     if (journeyId === null) {
       setSnapshot(null);
       setIsLoading(false);
+      setIsReconnecting(false);
+      setError(null);
       return;
     }
 
@@ -49,6 +51,8 @@ export function useJourneyState(journeyId: string | null): UseJourneyStateResult
     latestServerTs.current = -1;
     setIsLoading(true);
     setSnapshot(null);
+    setIsReconnecting(false);
+    setError(null);
 
     let cancelled = false;
     let inFlight: AbortController | null = null;

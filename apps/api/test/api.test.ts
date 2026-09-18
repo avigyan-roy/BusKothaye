@@ -1,6 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   MAX_BATCH_REPORTS,
+  type AccountRole,
+  type AuthSessionResponse,
   type CreateJourneyResponse,
   type DebugDto,
   type JoinJourneyResponse,
@@ -10,7 +12,7 @@ import {
   type PreparedRoute,
   type RouteDto,
 } from '@buskothay/shared';
-import { http, loadAc24, reportAt, startTestServer, type TestServer } from './helpers.js';
+import { http, loadAc24, reportAt, startTestServer, TEST_SIMULATOR_TOKEN, type TestServer } from './helpers.js';
 
 /**
  * The HTTP surface, exercised through real requests against a real server.
@@ -24,6 +26,8 @@ import { http, loadAc24, reportAt, startTestServer, type TestServer } from './he
 const ROUTE_ID = 'ac24-patuli-howrah';
 let route: PreparedRoute;
 let server: TestServer;
+let accountCounter = 0;
+const ownerTokens = new Map<string, string>();
 
 beforeAll(async () => {
   route = await loadAc24();
@@ -31,17 +35,43 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   server = await startTestServer();
+  ownerTokens.clear();
 });
 
 afterEach(async () => {
   await server.close();
 });
 
-async function createJourney(isDemo = true): Promise<CreateJourneyResponse> {
+async function register(role: AccountRole): Promise<string> {
+  accountCounter += 1;
+  const result = await http<AuthSessionResponse>(server.url, 'POST', '/v1/auth/register', {
+    body: {
+      username: `test-${role}-${accountCounter}`,
+      password: 'correct horse battery staple',
+      role,
+    },
+  });
+  expect(result.status).toBe(201);
+  return result.body.token;
+}
+
+async function createJourney(isDemo = false): Promise<CreateJourneyResponse> {
+  const ownerToken = await register('driver');
+  let createToken = ownerToken;
+  if (isDemo) {
+    const enabled = await http(server.url, 'PUT', '/v1/demo', {
+      token: ownerToken,
+      body: { enabled: true },
+    });
+    expect(enabled.status).toBe(200);
+    createToken = TEST_SIMULATOR_TOKEN;
+  }
   const created = await http<CreateJourneyResponse>(server.url, 'POST', '/v1/journeys', {
-    body: { routeId: ROUTE_ID, isDemo },
+    token: createToken,
+    body: { routeId: ROUTE_ID },
   });
   expect(created.status).toBe(201);
+  ownerTokens.set(created.body.journeyId, createToken);
   return created.body;
 }
 
@@ -124,13 +154,13 @@ describe('the full contributor path', () => {
     );
     expect(live.body.mode).toBe('LIVE');
     expect(live.body.position).not.toBeNull();
-    expect(live.body.isDemo).toBe(true);
+    expect(live.body.isDemo).toBe(false);
 
     const ended = await http<{ mode: string }>(
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/end`,
-      { token: journey.contributorToken },
+      { token: ownerTokens.get(journey.journeyId) },
     );
     expect(ended.status).toBe(200);
     expect(ended.body.mode).toBe('ENDED');
@@ -142,7 +172,7 @@ describe('the full contributor path', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: journey.joinCode, role: 'passenger' } },
+      { token: await register('passenger'), body: { joinCode: journey.joinCode, role: 'passenger' } },
     );
     expect(joined.status).toBe(201);
     expect(joined.body.role).toBe('passenger');
@@ -174,7 +204,7 @@ describe('the full contributor path', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: ` ${messy} `, role: 'conductor' } },
+      { token: await register('conductor'), body: { joinCode: ` ${messy} `, role: 'conductor' } },
     );
     expect(joined.status).toBe(201);
   });
@@ -199,7 +229,7 @@ describe('privilege', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: 'BUS-ZZZZZZ', role: 'passenger' } },
+      { token: await register('passenger'), body: { joinCode: 'BUS-ZZZZZZ', role: 'passenger' } },
     );
     expect(result.status).toBe(400);
     expect(result.body.error.code).toBe('JOIN_CODE_INVALID');
@@ -208,17 +238,18 @@ describe('privilege', () => {
 
   it('does not let a passenger end the journey', async () => {
     const journey = await createJourney();
-    const joined = await http<JoinJourneyResponse>(
+    const passengerToken = await register('passenger');
+    await http<JoinJourneyResponse>(
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: journey.joinCode, role: 'passenger' } },
+      { token: passengerToken, body: { joinCode: journey.joinCode, role: 'passenger' } },
     );
     const result = await http<{ error: { code: string } }>(
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/end`,
-      { token: joined.body.contributorToken },
+      { token: passengerToken },
     );
     expect(result.status).toBe(403);
     expect(result.body.error.code).toBe('FORBIDDEN');
@@ -272,6 +303,7 @@ describe('public payloads', () => {
   it('contain no contributor identifiers, capabilities or hashes', async () => {
     const journey = await createJourney();
     await http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/contributors`, {
+      token: await register('conductor'),
       body: { joinCode: journey.joinCode, role: 'conductor' },
     });
     await report(journey, journey.contributorToken, 0, 500);
@@ -375,7 +407,7 @@ describe('input validation and limits', () => {
   it('returns 410 for a write to an ended journey', async () => {
     const journey = await createJourney();
     await http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/end`, {
-      token: journey.contributorToken,
+      token: ownerTokens.get(journey.journeyId),
     });
     const result = await http<{ error: { code: string } }>(
       server.url,
@@ -389,10 +421,12 @@ describe('input validation and limits', () => {
 
   it('rate limits journey creation and says when to retry', async () => {
     const results = [];
+    const token = await register('driver');
     for (let i = 0; i < 12; i += 1) {
       results.push(
         await http<{ error?: { code: string } }>(server.url, 'POST', '/v1/journeys', {
-          body: { routeId: ROUTE_ID, isDemo: true },
+          token,
+          body: { routeId: ROUTE_ID },
         }),
       );
     }
@@ -444,8 +478,10 @@ describe('duplicate and out-of-order handling', () => {
 describe('idempotency', () => {
   it('creates at most one journey for a repeated key', async () => {
     const key = 'test-key-create';
+    const token = await register('driver');
     const first = await http<CreateJourneyResponse>(server.url, 'POST', '/v1/journeys', {
-      body: { routeId: ROUTE_ID, isDemo: true },
+      token,
+      body: { routeId: ROUTE_ID },
       headers: { 'idempotency-key': key },
     });
     expect(first.status).toBe(201);
@@ -454,7 +490,7 @@ describe('idempotency', () => {
       server.url,
       'POST',
       '/v1/journeys',
-      { body: { routeId: ROUTE_ID, isDemo: true }, headers: { 'idempotency-key': key } },
+      { token, body: { routeId: ROUTE_ID }, headers: { 'idempotency-key': key } },
     );
     // The documented conflict path: the capabilities were shown once and cannot
     // be reissued, so a replay points at the existing journey instead of quietly
@@ -466,10 +502,12 @@ describe('idempotency', () => {
 
   it('creates at most one journey when the same key is used concurrently', async () => {
     const key = 'test-key-concurrent';
+    const token = await register('driver');
     const attempts = await Promise.all(
       Array.from({ length: 4 }, () =>
         http<CreateJourneyResponse>(server.url, 'POST', '/v1/journeys', {
-          body: { routeId: ROUTE_ID, isDemo: true },
+          token,
+          body: { routeId: ROUTE_ID },
           headers: { 'idempotency-key': key },
         }),
       ),
@@ -496,7 +534,7 @@ describe('idempotency', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: journey.joinCode, role: 'passenger' }, headers: { 'idempotency-key': key } },
+      { token: await register('passenger'), body: { joinCode: journey.joinCode, role: 'passenger' }, headers: { 'idempotency-key': key } },
     );
     expect(first.status).toBe(201);
 
@@ -504,7 +542,7 @@ describe('idempotency', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: journey.joinCode, role: 'passenger' }, headers: { 'idempotency-key': key } },
+      { token: await register('passenger'), body: { joinCode: journey.joinCode, role: 'passenger' }, headers: { 'idempotency-key': key } },
     );
     expect(replay.status).toBe(409);
   });
@@ -513,13 +551,14 @@ describe('idempotency', () => {
 describe('concurrency', () => {
   it('keeps state consistent when several contributors report at once', async () => {
     const journey = await createJourney();
+    const passengerToken = await register('passenger');
     const joiners = await Promise.all(
       Array.from({ length: 3 }, () =>
         http<JoinJourneyResponse>(
           server.url,
           'POST',
           `/v1/journeys/${journey.journeyId}/contributors`,
-          { body: { joinCode: journey.joinCode, role: 'passenger' } },
+          { token: passengerToken, body: { joinCode: journey.joinCode, role: 'passenger' } },
         ),
       ),
     );
@@ -558,12 +597,12 @@ describe('concurrency', () => {
       server.url,
       'POST',
       `/v1/journeys/${journey.journeyId}/contributors`,
-      { body: { joinCode: journey.joinCode, role: 'passenger' } },
+      { token: await register('passenger'), body: { joinCode: journey.joinCode, role: 'passenger' } },
     );
 
     const [, late] = await Promise.all([
       http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/end`, {
-        token: journey.contributorToken,
+        token: ownerTokens.get(journey.journeyId),
       }),
       http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/locations`, {
         token: joined.body.contributorToken,

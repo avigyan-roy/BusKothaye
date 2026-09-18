@@ -15,6 +15,7 @@ import {
 
 export const API_URL = process.env.E2E_API_URL ?? 'http://127.0.0.1:3101';
 export const ROUTE_ID = 'ac24-patuli-howrah';
+export const TEST_SIMULATOR_TOKEN = 'e2e-simulator-token-keep-private-12345';
 
 export interface DemoJourney {
   journeyId: string;
@@ -37,9 +38,17 @@ export async function pointAt(request: APIRequestContext, sM: number): Promise<{
 }
 
 export async function startDemoJourney(request: APIRequestContext): Promise<DemoJourney> {
-  const created = await request.post(`${API_URL}/v1/journeys`, {
-    data: { routeId: ROUTE_ID, isDemo: true },
+  const controller = await register(request, 'driver');
+  const enabled = await request.put(`${API_URL}/v1/demo`, {
+    headers: { authorization: `Bearer ${controller.token}` },
+    data: { enabled: true },
   });
+  if (!enabled.ok()) throw new Error(`Could not enable demo: ${enabled.status()}`);
+  const created = await request.post(`${API_URL}/v1/journeys`, {
+    headers: { authorization: `Bearer ${TEST_SIMULATOR_TOKEN}` },
+    data: { routeId: ROUTE_ID },
+  });
+  if (!created.ok()) throw new Error(`Could not create demo: ${created.status()}`);
   const body = (await created.json()) as {
     journeyId: string;
     contributorToken: string;
@@ -58,7 +67,7 @@ export async function startDemoJourney(request: APIRequestContext): Promise<Demo
     },
     async end() {
       await request.post(`${API_URL}/v1/journeys/${body.journeyId}/end`, {
-        headers: { authorization: `Bearer ${body.contributorToken}` },
+        headers: { authorization: `Bearer ${TEST_SIMULATOR_TOKEN}` },
       });
     },
   };
@@ -89,14 +98,41 @@ export async function endSessionJourney(
     .catch(() => null);
   if (session === null) return;
   try {
-    const parsed = JSON.parse(session) as { journeyId?: string; token?: string };
-    if (!parsed.journeyId || !parsed.token) return;
+    const parsed = JSON.parse(session) as { journeyId?: string };
+    const accountRaw = await page.evaluate(() => window.sessionStorage.getItem('buskothay.account'));
+    const account = accountRaw ? JSON.parse(accountRaw) as { token?: string } : null;
+    if (!parsed.journeyId || !account?.token) return;
     await request.post(`${API_URL}/v1/journeys/${parsed.journeyId}/end`, {
-      headers: { authorization: `Bearer ${parsed.token}` },
+      headers: { authorization: `Bearer ${account.token}` },
     });
   } catch {
     // Best effort: an already-ended journey is exactly the state we wanted.
   }
+}
+
+export async function signInAs(
+  page: Page,
+  request: APIRequestContext,
+  role: 'driver' | 'passenger' | 'conductor' = 'driver',
+): Promise<void> {
+  const session = await register(request, role);
+  await page.addInitScript((value) => {
+    window.sessionStorage.setItem('buskothay.account', JSON.stringify(value));
+  }, session);
+}
+
+async function register(request: APIRequestContext, role: 'driver' | 'passenger' | 'conductor') {
+  const username = `e2e-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const response = await request.post(`${API_URL}/v1/auth/register`, {
+    data: { username, password: 'correct horse battery staple', role },
+  });
+  if (!response.ok()) throw new Error(`Could not register test account: ${response.status()}`);
+  const body = await response.json() as {
+    token: string;
+    expiresAtMs: number;
+    account: { accountId: string; username: string; role: typeof role; kind: 'community' };
+  };
+  return body;
 }
 
 export async function selectJourney(page: Page, journeyId: string): Promise<void> {

@@ -7,6 +7,7 @@ import {
   PutCommand,
   QueryCommand,
   TransactWriteCommand,
+  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import {
   IDEMPOTENCY_RETENTION_MS,
@@ -17,6 +18,9 @@ import {
 import type { JourneySnapshot } from '../fusion/types.js';
 import {
   StorageUnavailableError,
+  type AccountRecord,
+  type AccountSessionRecord,
+  type DemoControlRecord,
   type IdempotencyRecord,
   type JourneyRepository,
   type RawReportRecord,
@@ -84,6 +88,228 @@ export class DynamoJourneyRepository implements JourneyRepository {
     }
   }
 
+  async createAccount(account: AccountRecord): Promise<boolean> {
+    try {
+      await this.client.send(
+        new TransactWriteCommand({
+          TransactItems: [
+            {
+              Put: {
+                TableName: this.table,
+                Item: {
+                  PK: accountPk(account.accountId),
+                  SK: 'PROFILE',
+                  account,
+                  authVersion: account.authVersion,
+                },
+                ConditionExpression: 'attribute_not_exists(PK)',
+              },
+            },
+            {
+              Put: {
+                TableName: this.table,
+                Item: {
+                  PK: usernamePk(account.usernameNormalised),
+                  SK: 'ACCOUNT',
+                  accountId: account.accountId,
+                },
+                ConditionExpression: 'attribute_not_exists(PK)',
+              },
+            },
+          ],
+        }),
+      );
+      return true;
+    } catch (error) {
+      if (isConditionalFailure(error)) return false;
+      throw new StorageUnavailableError(`Could not create account: ${errorName(error)}`);
+    }
+  }
+
+  async getAccountByUsername(usernameNormalised: string): Promise<AccountRecord | null> {
+    try {
+      const pointer = await this.client.send(
+        new GetCommand({
+          TableName: this.table,
+          Key: { PK: usernamePk(usernameNormalised), SK: 'ACCOUNT' },
+          ConsistentRead: true,
+        }),
+      );
+      const accountId = pointer.Item?.['accountId'];
+      return typeof accountId === 'string' ? this.getAccountById(accountId) : null;
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not read account: ${errorName(error)}`);
+    }
+  }
+
+  async getAccountById(accountId: string): Promise<AccountRecord | null> {
+    try {
+      const result = await this.client.send(
+        new GetCommand({
+          TableName: this.table,
+          Key: { PK: accountPk(accountId), SK: 'PROFILE' },
+          ConsistentRead: true,
+        }),
+      );
+      return (result.Item?.['account'] as AccountRecord | undefined) ?? null;
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not read account: ${errorName(error)}`);
+    }
+  }
+
+  async putAccount(next: AccountRecord, expectedAuthVersion: number): Promise<boolean> {
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: {
+            PK: accountPk(next.accountId),
+            SK: 'PROFILE',
+            account: next,
+            authVersion: next.authVersion,
+          },
+          ConditionExpression: 'authVersion = :expected',
+          ExpressionAttributeValues: { ':expected': expectedAuthVersion },
+        }),
+      );
+      return true;
+    } catch (error) {
+      if (isConditionalFailure(error)) return false;
+      throw new StorageUnavailableError(`Could not update account: ${errorName(error)}`);
+    }
+  }
+
+  async createAccountSession(session: AccountSessionRecord): Promise<void> {
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: {
+            PK: sessionPk(session.tokenHash),
+            SK: 'SESSION',
+            session,
+            ttl: toEpochSeconds(session.expiresAtMs),
+          },
+        }),
+      );
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not create session: ${errorName(error)}`);
+    }
+  }
+
+  async getAccountSession(tokenHash: string): Promise<AccountSessionRecord | null> {
+    try {
+      const result = await this.client.send(
+        new GetCommand({
+          TableName: this.table,
+          Key: { PK: sessionPk(tokenHash), SK: 'SESSION' },
+          ConsistentRead: true,
+        }),
+      );
+      const session = result.Item?.['session'] as AccountSessionRecord | undefined;
+      if (!session || session.expiresAtMs <= this.nowMs()) return null;
+      return session;
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not read session: ${errorName(error)}`);
+    }
+  }
+
+  async deleteAccountSession(tokenHash: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteCommand({
+          TableName: this.table,
+          Key: { PK: sessionPk(tokenHash), SK: 'SESSION' },
+        }),
+      );
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not delete session: ${errorName(error)}`);
+    }
+  }
+
+  async getDemoControl(defaultValue: DemoControlRecord): Promise<DemoControlRecord> {
+    const key = { PK: 'CONTROL#DEMO', SK: 'STATE' };
+    try {
+      const existing = await this.client.send(
+        new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true }),
+      );
+      if (existing.Item?.['control']) return existing.Item['control'] as DemoControlRecord;
+      try {
+        await this.client.send(
+          new PutCommand({
+            TableName: this.table,
+            Item: { ...key, control: defaultValue, revision: defaultValue.revision },
+            ConditionExpression: 'attribute_not_exists(PK)',
+          }),
+        );
+        return defaultValue;
+      } catch (error) {
+        if (!isConditionalFailure(error)) throw error;
+        const raced = await this.client.send(
+          new GetCommand({ TableName: this.table, Key: key, ConsistentRead: true }),
+        );
+        return (raced.Item?.['control'] as DemoControlRecord | undefined) ?? defaultValue;
+      }
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not read demo control: ${errorName(error)}`);
+    }
+  }
+
+  async putDemoControl(next: DemoControlRecord, expectedRevision: number): Promise<boolean> {
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: { PK: 'CONTROL#DEMO', SK: 'STATE', control: next, revision: next.revision },
+          ConditionExpression: 'revision = :expected',
+          ExpressionAttributeValues: { ':expected': expectedRevision },
+        }),
+      );
+      return true;
+    } catch (error) {
+      if (isConditionalFailure(error)) return false;
+      throw new StorageUnavailableError(`Could not write demo control: ${errorName(error)}`);
+    }
+  }
+
+  async acquireDemoLease(input: {
+    ownerId: string;
+    generation: number;
+    nowMs: number;
+    expiresAtMs: number;
+  }): Promise<boolean> {
+    try {
+      await this.client.send(
+        new UpdateCommand({
+          TableName: this.table,
+          Key: { PK: 'CONTROL#DEMO', SK: 'STATE' },
+          UpdateExpression:
+            'SET control.lease = :lease',
+          ConditionExpression:
+            'control.generation = :generation AND (attribute_not_exists(control.lease) OR control.lease.expiresAtMs <= :now OR control.lease.ownerId = :owner)',
+          ExpressionAttributeValues: {
+            ':generation': input.generation,
+            ':now': input.nowMs,
+            ':owner': input.ownerId,
+            ':lease': {
+              ownerId: input.ownerId,
+              generation: input.generation,
+              expiresAtMs: input.expiresAtMs,
+            },
+          },
+        }),
+      );
+      return true;
+    } catch (error) {
+      if (isConditionalFailure(error)) return false;
+      throw new StorageUnavailableError(`Could not acquire demo lease: ${errorName(error)}`);
+    }
+  }
+
+  async listDemoJourneys(): Promise<JourneySnapshot[]> {
+    return this.listMembership('DEMO#ACTIVE');
+  }
+
   async createJourney(
     snapshot: JourneySnapshot,
     idempotency: { scope: string; keyHash: string; contributorId: string } | null,
@@ -139,7 +365,22 @@ export class DynamoJourneyRepository implements JourneyRepository {
             } satisfies IdempotencyRecord,
             ttl: toEpochSeconds(this.nowMs() + IDEMPOTENCY_RETENTION_MS),
           },
-          ConditionExpression: 'attribute_not_exists(PK)',
+          ConditionExpression: 'attribute_not_exists(PK) OR ttl < :now',
+          ExpressionAttributeValues: { ':now': toEpochSeconds(this.nowMs()) },
+        },
+      });
+    }
+
+    if (snapshot.isDemo) {
+      items.push({
+        Put: {
+          TableName: this.table,
+          Item: {
+            PK: 'DEMO#ACTIVE',
+            SK: `ACTIVE#${snapshot.journeyId}`,
+            journeyId: snapshot.journeyId,
+            ttl: toEpochSeconds(snapshot.createdAtMs + JOURNEY_TOMBSTONE_MS * 2),
+          },
         },
       });
     }
@@ -262,7 +503,8 @@ export class DynamoJourneyRepository implements JourneyRepository {
                   } satisfies IdempotencyRecord,
                   ttl: toEpochSeconds(this.nowMs() + IDEMPOTENCY_RETENTION_MS),
                 },
-                ConditionExpression: 'attribute_not_exists(PK)',
+                ConditionExpression: 'attribute_not_exists(PK) OR ttl < :now',
+                ExpressionAttributeValues: { ':now': toEpochSeconds(this.nowMs()) },
               },
             },
           ],
@@ -282,21 +524,7 @@ export class DynamoJourneyRepository implements JourneyRepository {
   }
 
   async listJourneys(routeId: string): Promise<JourneySnapshot[]> {
-    try {
-      const result = await this.client.send(
-        new QueryCommand({
-          TableName: this.table,
-          KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
-          ExpressionAttributeValues: { ':pk': routePk(routeId), ':prefix': 'ACTIVE#' },
-          Limit: 100,
-        }),
-      );
-      const ids = (result.Items ?? []).map((item) => String(item['journeyId']));
-      const snapshots = await Promise.all(ids.map((id) => this.getJourney(id)));
-      return snapshots.filter((s): s is JourneySnapshot => s !== null);
-    } catch (error) {
-      throw new StorageUnavailableError(`Could not list journeys: ${errorName(error)}`);
-    }
+    return this.listMembership(routePk(routeId));
   }
 
   async appendRawReports(records: readonly RawReportRecord[]): Promise<void> {
@@ -349,12 +577,20 @@ export class DynamoJourneyRepository implements JourneyRepository {
 
   async releaseMembership(routeId: string, journeyId: string): Promise<void> {
     try {
-      await this.client.send(
-        new DeleteCommand({
-          TableName: this.table,
-          Key: { PK: routePk(routeId), SK: `ACTIVE#${journeyId}` },
-        }),
-      );
+      await Promise.all([
+        this.client.send(
+          new DeleteCommand({
+            TableName: this.table,
+            Key: { PK: routePk(routeId), SK: `ACTIVE#${journeyId}` },
+          }),
+        ),
+        this.client.send(
+          new DeleteCommand({
+            TableName: this.table,
+            Key: { PK: 'DEMO#ACTIVE', SK: `ACTIVE#${journeyId}` },
+          }),
+        ),
+      ]);
     } catch {
       // Queries filter ended journeys regardless, so this is safe to lose.
     }
@@ -389,6 +625,30 @@ export class DynamoJourneyRepository implements JourneyRepository {
     if (this.nowMs() - record.createdAtMs > IDEMPOTENCY_RETENTION_MS) return null;
     return record;
   }
+
+  private async listMembership(pk: string): Promise<JourneySnapshot[]> {
+    try {
+      const ids: string[] = [];
+      let exclusiveStartKey: Record<string, unknown> | undefined;
+      do {
+        const result = await this.client.send(
+          new QueryCommand({
+            TableName: this.table,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+            ExpressionAttributeValues: { ':pk': pk, ':prefix': 'ACTIVE#' },
+            Limit: 100,
+            ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+          }),
+        );
+        ids.push(...(result.Items ?? []).map((item) => String(item['journeyId'])));
+        exclusiveStartKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (exclusiveStartKey);
+      const snapshots = await Promise.all(ids.map((id) => this.getJourney(id)));
+      return snapshots.filter((snapshot): snapshot is JourneySnapshot => snapshot !== null);
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not list journeys: ${errorName(error)}`);
+    }
+  }
 }
 
 function journeyPk(journeyId: string): string {
@@ -401,6 +661,18 @@ function routePk(routeId: string): string {
 
 function idempotencyPk(scope: string, keyHash: string): string {
   return `IDEMPOTENCY#${scope}#${keyHash}`;
+}
+
+function accountPk(accountId: string): string {
+  return `ACCOUNT#${accountId}`;
+}
+
+function usernamePk(username: string): string {
+  return `USERNAME#${username}`;
+}
+
+function sessionPk(tokenHash: string): string {
+  return `SESSION#${tokenHash}`;
 }
 
 function isConditionalFailure(error: unknown): boolean {

@@ -18,6 +18,7 @@ const API_PORT = 3101;
 const WEB_PORT = 4173;
 const API_URL = `http://127.0.0.1:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
+const TEST_SIMULATOR_TOKEN = 'e2e-simulator-token-keep-private-12345';
 
 export default defineConfig({
   testDir: './apps/web/e2e',
@@ -56,6 +57,7 @@ export default defineConfig({
         ROUTE_DATA_DIR: 'data/routes',
         CORS_ORIGINS: `${WEB_URL},http://127.0.0.1:${WEB_PORT}`,
         LOG_LEVEL: 'error',
+        SIMULATOR_TOKEN: TEST_SIMULATOR_TOKEN,
         // A browser run legitimately creates a dozen journeys in a minute. The
         // production limits stay as they are; the API's own tests still cover
         // them with the defaults.

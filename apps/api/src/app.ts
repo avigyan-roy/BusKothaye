@@ -13,6 +13,10 @@ import { ApiProblem } from './http/errors.js';
 import { createApiRouter, markReceived } from './routes/index.js';
 import type { RouteRegistry } from './routes/route-registry.js';
 import { JourneyService } from './service/journey-service.js';
+import { AccountService } from './service/account-service.js';
+import { createAuthRouter } from './routes/auth.js';
+import { DemoService } from './service/demo-service.js';
+import { createDemoRouter } from './routes/demo.js';
 import type { JourneyRepository } from './store/types.js';
 import { createLogger, type Logger } from './observability/logger.js';
 
@@ -32,13 +36,22 @@ export interface AppDeps {
 export interface BuiltApp {
   readonly app: Express;
   readonly service: JourneyService;
+  readonly accounts: AccountService;
+  readonly demo: DemoService;
   readonly logger: Logger;
 }
 
 export function createApp(deps: AppDeps): BuiltApp {
   const clock = deps.clock ?? systemClock;
   const logger = deps.logger ?? createLogger(deps.config.logLevel);
+  const accounts = new AccountService(
+    deps.repo,
+    clock,
+    deps.config.sessionTtlMs,
+    deps.config.simulatorToken,
+  );
   const service = new JourneyService(deps.repo, deps.registry, clock, logger);
+  const demo = new DemoService(deps.repo, service, deps.registry, clock, logger);
 
   const app = express();
   app.disable('x-powered-by');
@@ -52,6 +65,12 @@ export function createApp(deps: AppDeps): BuiltApp {
     markReceived(req, clock.nowMs());
     const startedAt = clock.monotonicMs();
     res.on('finish', () => {
+      const routinePassengerRead =
+        req.method === 'GET' &&
+        res.statusCode < 400 &&
+        (/^\/v1\/journeys\/[^/]+\/state$/.test(req.path) ||
+          /^\/v1\/routes\/[^/]+\/journeys$/.test(req.path));
+      if (routinePassengerRead) return;
       logger.info('request', {
         requestId: id,
         method: req.method,
@@ -68,7 +87,7 @@ export function createApp(deps: AppDeps): BuiltApp {
   app.use(
     cors({
       origin: [...deps.config.corsOrigins],
-      methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'If-None-Match'],
       maxAge: 600,
     }),
@@ -91,9 +110,17 @@ export function createApp(deps: AppDeps): BuiltApp {
   });
 
   app.use(
+    '/v1/auth',
+    createAuthRouter(accounts),
+  );
+
+  app.use('/v1/demo', createDemoRouter(accounts, demo));
+
+  app.use(
     '/v1',
     createApiRouter({
       service,
+      accounts,
       registry: deps.registry,
       nowMs: () => clock.nowMs(),
       rateLimits: deps.config.rateLimits,
@@ -153,7 +180,7 @@ export function createApp(deps: AppDeps): BuiltApp {
     });
   });
 
-  return { app, service, logger };
+  return { app, service, accounts, demo, logger };
 }
 
 function isBodyTooLarge(error: unknown): boolean {

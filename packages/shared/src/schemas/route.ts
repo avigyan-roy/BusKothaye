@@ -129,9 +129,16 @@ export const RouteSummarySchema = z.object({
   origin: z.string(),
   destination: z.string(),
   direction: DirectionSchema,
-  lengthM: z.number(),
+  lengthM: z.number().nullable(),
   stopCount: z.number().int().nonnegative(),
   isApproximateGeometry: z.boolean(),
+  trackingAvailable: z.boolean(),
+  verificationStatus: z.enum(['geometry-available', 'geometry-missing']),
+  listedOrigin: z.string(),
+  listedDestination: z.string(),
+  officialSourceUrl: z.string().url(),
+  retrievedOn: z.string(),
+  missing: z.string().nullable(),
 });
 export type RouteSummary = z.infer<typeof RouteSummarySchema>;
 
@@ -140,3 +147,24 @@ export const RouteListResponseSchema = z.object({
   routes: z.array(RouteSummarySchema),
 });
 export type RouteListResponse = z.infer<typeof RouteListResponseSchema>;
+
+export const RouteCatalogueEntrySchema = z.object({
+  id: IdSchema,
+  code: z.string().min(1).max(16),
+  name: z.string().min(1).max(120),
+  origin: z.string().min(1).max(80),
+  destination: z.string().min(1).max(80),
+  listedOrigin: z.string().min(1).max(120),
+  listedDestination: z.string().min(1).max(120),
+  direction: DirectionSchema,
+  activeVersion: z.string().nullable(),
+  officialSourceUrl: z.string().url(),
+  retrievedOn: z.string(),
+  missing: z.string().nullable(),
+});
+export type RouteCatalogueEntry = z.infer<typeof RouteCatalogueEntrySchema>;
+
+export const RouteCatalogueSchema = z.object({
+  schemaVersion: SchemaVersionSchema,
+  routes: z.array(RouteCatalogueEntrySchema).min(1),
+});

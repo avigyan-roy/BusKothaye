@@ -13,6 +13,13 @@ import {
 import { en } from '../content/en.js';
 import { site } from '../config/site.js';
 import { useRoute } from '../hooks/useRoute.js';
+import { useRoutes } from '../hooks/useRoutes.js';
+import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
+import {
+  loadAccountSession,
+  saveAccountSession,
+  type AccountSession,
+} from '../lib/auth-session.js';
 import './drive-page.css';
 
 /**
@@ -25,7 +32,10 @@ import './drive-page.css';
  */
 export function DrivePage() {
   const [searchParams] = useSearchParams();
-  const { route } = useRoute(site.defaultRouteId);
+  const [selectedRouteId, setSelectedRouteId] = useState<string>(site.defaultRouteId);
+  const { route } = useRoute(selectedRouteId);
+  const { routes, error: routesError } = useRoutes();
+  const [account, setAccount] = useState<AccountSession | null>(() => loadAccountSession());
   const [session, setSession] = useState<ContributorSession | null>(() => loadSession());
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -43,10 +53,18 @@ export function DrivePage() {
   }, [session]);
 
   const startJourney = async () => {
+    if (account === null || account.account.role !== 'driver') {
+      setFormError(en.account.requiredForCrew);
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
-      const created = await api.createJourney(site.defaultRouteId, crypto.randomUUID());
+      const created = await api.createJourney(
+        selectedRouteId,
+        crypto.randomUUID(),
+        account.token,
+      );
       setSession({
         journeyId: created.journeyId,
         routeId: created.routeId,
@@ -67,6 +85,10 @@ export function DrivePage() {
   };
 
   const joinJourney = async () => {
+    if (account === null) {
+      setFormError(en.account.requiredForCrew);
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
@@ -76,7 +98,18 @@ export function DrivePage() {
         setFormError(en.contribute.journeyIdLabel);
         return;
       }
-      const joined = await api.joinJourney(journeyId, joinCode, joinRole, crypto.randomUUID());
+      let activeAccount = account;
+      if (activeAccount.account.role !== joinRole) {
+        activeAccount = saveAccountSession(await api.selectRole(activeAccount.token, joinRole));
+        setAccount(activeAccount);
+      }
+      const joined = await api.joinJourney(
+        journeyId,
+        joinCode,
+        joinRole,
+        crypto.randomUUID(),
+        activeAccount.token,
+      );
       setSession({
         journeyId: joined.journeyId,
         routeId: joined.routeId,
@@ -95,6 +128,10 @@ export function DrivePage() {
   };
 
   const leave = async () => {
+    if (session?.role === 'driver') {
+      sharing.pause();
+      return;
+    }
     await sharing.stop(true);
     clearSession();
     setSession(null);
@@ -104,7 +141,8 @@ export function DrivePage() {
     if (session === null) return;
     setBusy(true);
     try {
-      await api.endJourney(session.journeyId, session.token);
+      if (account === null) throw new ApiError(401, 'UNAUTHENTICATED', en.account.requiredForCrew);
+      await api.endJourney(session.journeyId, account.token);
       await sharing.stop(false);
       clearSession();
       setSession(null);
@@ -117,11 +155,13 @@ export function DrivePage() {
   };
 
   const copy = async (label: string, value: string) => {
+    let succeeded = false;
     try {
       await navigator.clipboard.writeText(value);
+      succeeded = true;
     } catch {
-      // Older browsers and insecure origins have no clipboard API; the value is
-      // visible on screen and selectable, so nothing is lost.
+      // Older browsers and insecure origins may only support selection plus the
+      // legacy copy command. The exact value remains visible if that also fails.
       const selection = window.getSelection();
       const node = document.getElementById(`copy-${label}`);
       if (node !== null && selection !== null) {
@@ -129,10 +169,16 @@ export function DrivePage() {
         range.selectNodeContents(node);
         selection.removeAllRanges();
         selection.addRange(range);
+        succeeded = document.execCommand('copy');
       }
     }
-    setCopied(label);
-    window.setTimeout(() => setCopied(null), 2000);
+    if (succeeded) {
+      setCopied(label);
+      setFormError(null);
+      window.setTimeout(() => setCopied(null), 2000);
+    } else {
+      setFormError('Copy was blocked by this browser. Select the value shown above and copy it manually.');
+    }
   };
 
   return (
@@ -147,6 +193,12 @@ export function DrivePage() {
         <h1>{en.contribute.title}</h1>
         <p className="muted">{en.contribute.intro}</p>
 
+        {account === null ? (
+          <p className="notice notice--warning">
+            {en.account.requiredForCrew} <Link to="/account?entry=crew">{en.account.title}</Link>
+          </p>
+        ) : null}
+
         {formError !== null ? <p className="notice notice--danger">{formError}</p> : null}
 
         {session === null ? (
@@ -159,6 +211,15 @@ export function DrivePage() {
               <button type="button" className="button" onClick={startJourney} disabled={busy}>
                 {en.contribute.startJourney}
               </button>
+              {routesError ? <p className="notice notice--warning">The route directory could not be loaded.</p> : null}
+              {routes.length > 0 ? (
+                <RouteSwitcher
+                  routes={routes}
+                  currentRouteId={selectedRouteId}
+                  onSelect={setSelectedRouteId}
+                  compact
+                />
+              ) : null}
             </section>
 
             <section className="panel stack">
@@ -225,6 +286,9 @@ export function DrivePage() {
                 <h2>{en.contribute.joinCodeLabel}</h2>
                 <p id="copy-code" className="drive__code">
                   {session.joinCode}
+                </p>
+                <p id="copy-link" className="drive__copy-value">
+                  {`${window.location.origin}/drive?journey=${session.journeyId}`}
                 </p>
                 <div className="drive__actions">
                   <button
@@ -309,14 +373,16 @@ export function DrivePage() {
                       : en.contribute.startSharing}
                   </button>
                 )}
-                <button type="button" className="button button--secondary" onClick={leave}>
-                  {en.contribute.stopSharing}
-                </button>
+                {session.role !== 'driver' ? (
+                  <button type="button" className="button button--secondary" onClick={leave}>
+                    {en.contribute.stopSharing}
+                  </button>
+                ) : null}
               </div>
               <p className="meta">{en.contribute.keepScreenOpen}</p>
             </section>
 
-            {session.role === 'driver' ? (
+            {session.role === 'driver' || session.role === 'conductor' ? (
               <section className="panel stack">
                 <h2>{en.contribute.endJourney}</h2>
                 {showEndConfirm ? (

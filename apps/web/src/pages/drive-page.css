@@ -11,6 +11,12 @@
   user-select: all;
 }
 
+.drive__copy-value {
+  overflow-wrap: anywhere;
+  color: var(--color-muted);
+  user-select: all;
+}
+
 .drive__actions {
   display: flex;
   flex-wrap: wrap;

@@ -3,6 +3,8 @@
 Four people should be able to clone this, change something, and push it without
 asking anyone how the project works.
 
+Run application commands from this repository root. Read [implementation context](docs/IMPLEMENTATION_CONTEXT.md) for known gaps.
+
 ## First setup
 
 1. Install the Node version in `.nvmrc` (24) and npm 10.9 or newer.

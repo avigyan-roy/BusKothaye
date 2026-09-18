@@ -16,8 +16,6 @@ import {
 
 export const CreateJourneyBodySchema = z.object({
   routeId: IdSchema,
-  /** A simulator always sets this. Demo journeys are labelled everywhere. */
-  isDemo: z.boolean().optional().default(false),
 });
 export type CreateJourneyBody = z.infer<typeof CreateJourneyBodySchema>;
 

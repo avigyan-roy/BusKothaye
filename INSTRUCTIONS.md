@@ -1,5 +1,7 @@
 # Main build brief
 
+This is the product build brief, not a completion report. The application already exists here; read [implementation context](docs/IMPLEMENTATION_CONTEXT.md) and [PROGRESS.md](PROGRESS.md) before continuing.
+
 ## Objective
 
 Build **BusKothay**, a basic but complete transport website for **AC24, Patuli → Howrah**, that a small team can understand and deploy. A passenger opens the website and immediately sees a useful map and arrival information. A driver starts a journey, other contributors join it, and several phones produce one journey position. During missing GPS, the UI gives a bounded estimate and then admits that the location is stale.

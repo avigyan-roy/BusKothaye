@@ -17,6 +17,8 @@ export interface BasemapChoice {
   /** Empty when there is no basemap to fetch at all. */
   readonly styleUrl: string;
   readonly provider: 'demo' | 'amazon' | 'none';
+  /** Amazon was selected but the public, referrer-restricted browser key is absent. */
+  readonly isMissingKey: boolean;
   /** True while the development basemap is in use and must be disclosed. */
   readonly isDevelopmentBasemap: boolean;
 }
@@ -25,18 +27,44 @@ export function resolveBasemap(config: WebConfig): BasemapChoice {
   if (config.mapProvider === 'none') {
     // Explicitly no basemap: used by the browser tests so they do not depend on
     // an external tile server.
-    return { styleUrl: '', provider: 'none', isDevelopmentBasemap: false };
+    return {
+      styleUrl: '',
+      provider: 'none',
+      isDevelopmentBasemap: false,
+      isMissingKey: false,
+    };
   }
-  if (config.mapProvider === 'amazon' && config.locationApiKey.length > 0) {
+  if (config.mapProvider === 'amazon') {
+    if (config.locationApiKey.length === 0) {
+      return {
+        styleUrl: '',
+        provider: 'amazon',
+        isDevelopmentBasemap: false,
+        isMissingKey: true,
+      };
+    }
     const url = new URL(
       `https://maps.geo.${config.awsRegion}.amazonaws.com/v2/styles/Standard/descriptor`,
     );
     url.searchParams.set('key', config.locationApiKey);
-    // A light street map, no tilt, legible labels — see docs/DESIGN_SYSTEM.md.
+    // Maps V2 takes Style in the path. These query names and enum spellings are
+    // from GetStyleDescriptor, not the retired v1 map-resource endpoint.
     url.searchParams.set('color-scheme', 'Light');
-    return { styleUrl: url.toString(), provider: 'amazon', isDevelopmentBasemap: false };
+    url.searchParams.set('poi-density', 'Sparse');
+    url.searchParams.set('political-view', 'IND');
+    return {
+      styleUrl: url.toString(),
+      provider: 'amazon',
+      isDevelopmentBasemap: false,
+      isMissingKey: false,
+    };
   }
-  return { styleUrl: DEMO_STYLE_URL, provider: 'demo', isDevelopmentBasemap: true };
+  return {
+    styleUrl: DEMO_STYLE_URL,
+    provider: 'demo',
+    isDevelopmentBasemap: true,
+    isMissingKey: false,
+  };
 }
 
 /** Whether this browser can draw a WebGL map at all. */

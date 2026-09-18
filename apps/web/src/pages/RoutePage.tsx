@@ -7,10 +7,12 @@ import { ArrivalPanel } from '../features/journeys/ArrivalPanel.js';
 import { StopList } from '../features/journeys/StopList.js';
 import { RouteDetails } from '../features/journeys/RouteDetails.js';
 import { JourneySelector } from '../features/journeys/JourneySelector.js';
+import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
 import { useRoute } from '../hooks/useRoute.js';
 import { preferredJourney, useActiveJourneys } from '../hooks/useActiveJourneys.js';
 import { useJourneyState } from '../hooks/useJourneyState.js';
 import { useProjectedJourney } from '../hooks/useProjectedJourney.js';
+import { useRoutes } from '../hooks/useRoutes.js';
 import { loadPreferredStop, savePreferredStop } from '../lib/session.js';
 import { site } from '../config/site.js';
 import { en } from '../content/en.js';
@@ -30,7 +32,8 @@ export function RoutePage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { route, isLoading: routeLoading, error: routeError, reload } = useRoute(routeId);
-  const { journeys, isLoading: journeysLoading } = useActiveJourneys(routeId);
+  const routeDirectory = useRoutes();
+  const { journeys, isLoading: journeysLoading, error: journeysError } = useActiveJourneys(routeId);
 
   const [chosenJourneyId, setChosenJourneyId] = useState<string | null>(null);
   const activeJourneyId = useMemo(() => {
@@ -98,10 +101,10 @@ export function RoutePage() {
       <>
         <Header />
         <main className="page stack">
-          <h1>{en.errors.routeUnavailable}</h1>
-          <button type="button" className="button" onClick={reload}>
-            {en.common.retry}
-          </button>
+          <h1>{routeError === 'ROUTE_UNAVAILABLE' ? 'This route is listed, but is not ready for tracking.' : en.errors.routeUnavailable}</h1>
+          <p className="muted">Choose a route with verified geometry. Directory-only routes contain no invented map coordinates.</p>
+          {routeDirectory.routes.length > 0 ? <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} /> : null}
+          <button type="button" className="button button--secondary" onClick={reload}>{en.common.retry}</button>
         </main>
       </>
     );
@@ -131,9 +134,19 @@ export function RoutePage() {
         </div>
 
         <div className="route-page__panel">
+          <details className="route-page__directory">
+            <summary>Change route · {routeDirectory.routes.length || 20} WBTC services</summary>
+            <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} compact />
+          </details>
           <p aria-live="polite" className="visually-hidden">
             {announcement}
           </p>
+
+          {journeysError ? (
+            <p className="notice notice--warning">
+              Live journey listings could not be refreshed. The stop and route information below is still available.
+            </p>
+          ) : null}
 
           {noJourney ? (
             <section className="route-page__empty">

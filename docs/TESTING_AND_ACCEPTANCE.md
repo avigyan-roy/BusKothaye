@@ -2,11 +2,13 @@
 
 Test the behaviours that could mislead a passenger or break deployment. Do not write superficial tests that only repeat implementation details. Use deterministic injected time for algorithm tests and real time for HTTP simulator runs.
 
+For current coverage gaps and historical-result boundaries, read [implementation context](IMPLEMENTATION_CONTEXT.md). A requirement below is not a claim that its test already exists. In this checkout, API tests instantiate the memory adapter; DynamoDB integration and active CI remain outstanding.
+
 ## Automated checks
 
 Use Vitest for pure and API tests, an HTTP integration helper or real ephemeral server for endpoints, and a small Playwright suite for complete browser journeys. These are selected implementation tools, not extra product features.
 
-The required `npm run check` covers lint, types, route validation, meaningful tests, and production build. CI performs these from a clean checkout with `npm ci`; it does not need cloud secrets. Include E2E checks in CI after installing the matching browser runtime.
+The required `npm run check` covers lint, types, route validation, meaningful tests, and production build. CI performs these from a clean checkout with `npm ci`; it does not need cloud secrets. Include E2E checks in CI after installing the matching browser runtime and running `npm run build`: Playwright starts compiled API output. `npm run check` itself excludes E2E, simulator runs, Docker, and DynamoDB integration.
 
 ### Geometry and fusion
 

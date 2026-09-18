@@ -70,3 +70,9 @@ Snapshot timers no longer define durability. Read-time projection computes curre
 | Deployment claim | Only after actual HTTPS verification |
 
 When changing a decision, record the reason and update every affected guide, schema, test, and environment example in the same change.
+
+## 11. Existing implementation and verification boundaries
+
+The implementation now exists in this repository. The original plan remains background; do not scaffold a replacement application. The current [implementation context](IMPLEMENTATION_CONTEXT.md) records inspected source/configuration gaps without waiving the requirements above.
+
+Use `npm run build` for a local optimized preview and `npm run build:deploy` for deployment configuration validation. A local build passing does not establish valid cloud settings. Previous-session test reports remain historical until rerun, and memory-adapter tests do not establish DynamoDB behaviour. Documentation-only reviews must not mark infrastructure or acceptance gates complete.

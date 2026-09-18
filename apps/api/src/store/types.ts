@@ -1,4 +1,39 @@
+import type { AccountRole, DemoAuditEntry, DemoFleetConfig } from '@buskothay/shared';
 import type { JourneySnapshot } from '../fusion/types.js';
+
+export interface AccountRecord {
+  readonly accountId: string;
+  readonly username: string;
+  readonly usernameNormalised: string;
+  readonly passwordHash: string;
+  readonly role: AccountRole;
+  readonly kind: 'community' | 'simulator';
+  readonly authVersion: number;
+  readonly createdAtMs: number;
+  readonly updatedAtMs: number;
+}
+
+export interface AccountSessionRecord {
+  readonly tokenHash: string;
+  readonly accountId: string;
+  readonly authVersion: number;
+  readonly createdAtMs: number;
+  readonly expiresAtMs: number;
+}
+
+export interface DemoControlRecord {
+  readonly revision: number;
+  readonly generation: number;
+  readonly status: 'OFF' | 'STARTING' | 'ON' | 'STOPPING';
+  readonly config: DemoFleetConfig;
+  readonly updatedAtMs: number;
+  readonly audit: readonly DemoAuditEntry[];
+  readonly lease: {
+    readonly ownerId: string;
+    readonly generation: number;
+    readonly expiresAtMs: number;
+  } | null;
+}
 
 /**
  * One repository interface, two adapters.
@@ -13,6 +48,8 @@ import type { JourneySnapshot } from '../fusion/types.js';
 export interface RawReportRecord {
   readonly journeyId: string;
   readonly contributorId: string;
+  /** Journey-local pseudonym safe for the protected diagnostics page. */
+  readonly sourceLabel: string;
   readonly seq: number;
   readonly serverTs: number;
   readonly requestId: string;
@@ -21,6 +58,9 @@ export interface RawReportRecord {
   readonly accuracyM: number;
   readonly accepted: boolean;
   readonly reason: string | null;
+  readonly historyOnly: boolean;
+  readonly projectedSM: number | null;
+  readonly offsetM: number | null;
   /** Epoch seconds at which this record leaves application access. */
   readonly expiresAtS: number;
 }
@@ -52,6 +92,24 @@ export interface JourneyRepository {
 
   /** True once the adapter has confirmed it can reach its backing store. */
   ready(): Promise<boolean>;
+
+  createAccount(account: AccountRecord): Promise<boolean>;
+  getAccountByUsername(usernameNormalised: string): Promise<AccountRecord | null>;
+  getAccountById(accountId: string): Promise<AccountRecord | null>;
+  putAccount(next: AccountRecord, expectedAuthVersion: number): Promise<boolean>;
+  createAccountSession(session: AccountSessionRecord): Promise<void>;
+  getAccountSession(tokenHash: string): Promise<AccountSessionRecord | null>;
+  deleteAccountSession(tokenHash: string): Promise<void>;
+
+  getDemoControl(defaultValue: DemoControlRecord): Promise<DemoControlRecord>;
+  putDemoControl(next: DemoControlRecord, expectedRevision: number): Promise<boolean>;
+  acquireDemoLease(input: {
+    ownerId: string;
+    generation: number;
+    nowMs: number;
+    expiresAtMs: number;
+  }): Promise<boolean>;
+  listDemoJourneys(): Promise<JourneySnapshot[]>;
 
   /**
    * Create the journey, its route-membership entry and any idempotency marker

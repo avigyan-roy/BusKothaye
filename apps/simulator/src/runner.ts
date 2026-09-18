@@ -90,6 +90,7 @@ export async function runScenario(
 
   const endAtMs = startWallMs + scenario.durationS * 1000;
   let inFlight = false;
+  const pendingRequests = new Set<Promise<void>>();
 
   while (Date.now() < endAtMs) {
     const tS = (Date.now() - startWallMs) / 1000;
@@ -115,19 +116,22 @@ export async function runScenario(
         .slice(-MAX_BATCH_REPORTS)
         .sort((a, b) => a.seq - b.seq);
 
-      void send(source, batch);
+      track(send(source, batch));
     }
 
     if (tS - lastPollAt >= 1) {
       lastPollAt = tS;
-      void poll(tS);
+      track(poll(tS));
     }
 
     await sleep(TICK_MS);
   }
 
-  // Let the last in-flight requests settle before reading the final diagnostics.
-  await sleep(1200);
+  // Every scheduled request is tracked. Do not read final diagnostics while a
+  // late upload can still mutate them.
+  while (inFlight || pendingRequests.size > 0) {
+    await Promise.allSettled([...pendingRequests]);
+  }
 
   let debug: DebugDto | null = null;
   try {
@@ -138,8 +142,8 @@ export async function runScenario(
 
   // The simulator ends its own journey and nobody else's.
   try {
-    await api.end(created.journeyId, created.contributorToken);
-    if (second) await api.end(second.journeyId, second.token);
+    await api.end(created.journeyId);
+    if (second) await api.end(second.journeyId);
   } catch (error) {
     transportErrors.push(`end failed: ${describe(error)}`);
   }
@@ -206,6 +210,11 @@ export async function runScenario(
     } finally {
       inFlight = false;
     }
+  }
+
+  function track(promise: Promise<void>): void {
+    pendingRequests.add(promise);
+    void promise.finally(() => pendingRequests.delete(promise));
   }
 }
 

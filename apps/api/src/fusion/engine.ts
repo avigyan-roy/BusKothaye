@@ -4,7 +4,6 @@ import {
   BACKWARD_TOLERANCE_M,
   BATCH_LIVE_MAX_AGE_MS,
   CORRIDOR_BASE_M,
-  DEBUG_DECISION_RING,
   DEBUG_EVENT_RING,
   DWELL_DETECT_S,
   DWELL_SPEED_MPS,
@@ -98,6 +97,8 @@ export interface CreateJourneyInput {
   readonly routeId: string;
   readonly routeVersion: string;
   readonly isDemo: boolean;
+  readonly demoGeneration: number | null;
+  readonly ownerAccountId: string;
   readonly nowMs: number;
   readonly driverContributorId: string;
   readonly driverTokenHash: string;
@@ -108,6 +109,7 @@ export interface CreateJourneyInput {
 export function createJourneySnapshot(input: CreateJourneyInput): JourneySnapshot {
   const driver: ContributorSnapshot = newContributor({
     contributorId: input.driverContributorId,
+    accountId: input.ownerAccountId,
     label: 'source-1',
     role: 'driver',
     tokenHash: input.driverTokenHash,
@@ -120,6 +122,8 @@ export function createJourneySnapshot(input: CreateJourneyInput): JourneySnapsho
     routeId: input.routeId,
     routeVersion: input.routeVersion,
     isDemo: input.isDemo,
+    demoGeneration: input.demoGeneration,
+    ownerAccountId: input.ownerAccountId,
     createdAtMs: input.nowMs,
     version: 1,
     baseMode: 'PENDING',
@@ -147,7 +151,6 @@ export function createJourneySnapshot(input: CreateJourneyInput): JourneySnapsho
       },
     ],
     debugEvents: [],
-    decisions: [],
     eventSeq: 1,
     failedJoinAttempts: 0,
     joinLockedUntilMs: null,
@@ -156,6 +159,7 @@ export function createJourneySnapshot(input: CreateJourneyInput): JourneySnapsho
 
 function newContributor(input: {
   contributorId: string;
+  accountId: string;
   label: string;
   role: Role;
   tokenHash: string;
@@ -163,6 +167,7 @@ function newContributor(input: {
 }): ContributorSnapshot {
   return {
     contributorId: input.contributorId,
+    accountId: input.accountId,
     label: input.label,
     role: input.role,
     tokenHash: input.tokenHash,
@@ -188,7 +193,7 @@ function newContributor(input: {
 
 export function addContributor(
   snapshot: JourneySnapshot,
-  input: { contributorId: string; role: Role; tokenHash: string; nowMs: number },
+  input: { contributorId: string; accountId: string; role: Role; tokenHash: string; nowMs: number },
 ): JourneySnapshot {
   const label = `source-${snapshot.contributors.length + 1}`;
   return {
@@ -199,6 +204,7 @@ export function addContributor(
       ...snapshot.contributors,
       newContributor({
         contributorId: input.contributorId,
+        accountId: input.accountId,
         label,
         role: input.role,
         tokenHash: input.tokenHash,
@@ -438,11 +444,6 @@ export function ingest(input: IngestInput): IngestResult {
     projectedSM: p.projectedSM,
     offsetM: p.offsetM,
   }));
-
-  next = {
-    ...next,
-    decisions: [...next.decisions, ...diagnostics].slice(-DEBUG_DECISION_RING),
-  };
 
   const decisions: ReportDecision[] = prepared.map((p) => ({
     seq: p.report.seq,
@@ -1062,6 +1063,7 @@ export function deriveDebug(
   route: PreparedRoute,
   nowMs: number,
   storage: DebugDto['storage'],
+  decisions: readonly DebugDecision[],
 ): DebugDto {
   const anchor = buildAnchor(snapshot, route);
   const cutoff = nowMs - SOURCE_FRESHNESS_S * 1000;
@@ -1106,7 +1108,7 @@ export function deriveDebug(
       lastDecision: c.lastDecision,
       isLive: c.revokedAtMs === null && c.lastAcceptedAtMs !== null && c.lastAcceptedAtMs >= cutoff,
     })),
-    decisions: [...snapshot.decisions],
+    decisions: [...decisions],
     events: [...snapshot.debugEvents],
     storage,
     serverTs: nowMs,

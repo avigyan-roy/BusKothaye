@@ -18,7 +18,9 @@ function formatKm(metres) {
 }
 
 async function main() {
-  const entries = (await readdir(routeDir)).filter((name) => name.endsWith('.json'));
+  const entries = (await readdir(routeDir)).filter(
+    (name) => name.endsWith('.json') && name !== 'catalog.json',
+  );
   if (entries.length === 0) {
     console.error(`No route fixtures found in ${routeDir}`);
     process.exit(1);

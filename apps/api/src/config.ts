@@ -49,6 +49,9 @@ const RawEnvSchema = z.object({
   RATE_LIMIT_CREATE_BURST: z.coerce.number().positive().optional(),
   RATE_LIMIT_JOIN_PER_MINUTE: z.coerce.number().positive().optional(),
   RATE_LIMIT_JOIN_BURST: z.coerce.number().positive().optional(),
+  SESSION_TTL_HOURS: z.coerce.number().positive().max(24 * 30).default(24 * 7),
+  /** Restricted service principal used only by the separately supervised demo worker. */
+  SIMULATOR_TOKEN: z.string().min(32).optional(),
 });
 
 export type AppConfig = {
@@ -70,6 +73,8 @@ export type AppConfig = {
     readonly joinPerMinute: number;
     readonly joinBurst: number;
   };
+  readonly sessionTtlMs: number;
+  readonly simulatorToken: string | undefined;
 };
 
 export class ConfigError extends Error {
@@ -165,6 +170,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       joinPerMinute: raw.RATE_LIMIT_JOIN_PER_MINUTE ?? RATE_LIMIT_JOIN_PER_MINUTE,
       joinBurst: raw.RATE_LIMIT_JOIN_BURST ?? RATE_LIMIT_JOIN_BURST,
     },
+    sessionTtlMs: raw.SESSION_TTL_HOURS * 60 * 60 * 1000,
+    simulatorToken: raw.SIMULATOR_TOKEN,
   };
 }
 

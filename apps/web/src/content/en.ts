@@ -24,6 +24,31 @@ export const en = {
     passengerLink: 'Map',
     contributeLink: 'Share GPS',
     opsLink: 'Diagnostics',
+    accountLink: 'Sign in',
+  },
+
+  account: {
+    title: 'Sign in to BusKothay',
+    passengerEntry: 'Passenger account',
+    crewEntry: 'Driver and conductor entry',
+    yourAccount: 'Your account',
+    honesty: 'Roles are self-declared for this community demo. They do not prove employment by WBTC or any bus operator.',
+    login: 'Sign in',
+    register: 'Create account',
+    create: 'Create account',
+    username: 'Username',
+    password: 'Password',
+    role: 'Selected role',
+    chooseRole: 'How will you use BusKothay?',
+    roles: { passenger: 'Passenger', driver: 'Driver', conductor: 'Conductor' },
+    openCrew: 'Open journey controls',
+    openDemo: 'Open demo console',
+    logout: 'Sign out',
+    changePassword: 'Change password',
+    currentPassword: 'Current password',
+    newPassword: 'New password (10 characters minimum)',
+    recovery: 'There is no verified email or phone on this account. If you lose the password, the deployment owner must reset the account directly.',
+    requiredForCrew: 'Sign in and choose Driver or Conductor before controlling a journey.',
   },
 
   route: {
@@ -43,6 +68,9 @@ export const en = {
     noSchedule: 'No timetable has been supplied for this route, so arrival times come only from contributors sharing their location.',
     showRoute: 'Show whole route',
     recenter: 'Centre on bus',
+    followBus: 'Follow bus',
+    stopFollowing: 'Stop following',
+    locateMe: 'Locate me',
   },
 
   journeys: {
@@ -94,7 +122,7 @@ export const en = {
     rolePassenger: 'Passenger',
     roleConductor: 'Conductor',
     roleNote:
-      'Choosing conductor is a label for the team looking at diagnostics. It does not give you any extra control over the journey.',
+      'A conductor can share location and end the journey. Roles are self-declared and do not prove operator employment.',
     copyCode: 'Copy join code',
     copyLink: 'Copy join link',
     openPassengerView: 'Open the passenger view',
@@ -103,7 +131,7 @@ export const en = {
       'Your location will help estimate this bus journey. Keep this screen open while sharing. You can stop at any time.',
     retentionSummary: 'What happens to my location?',
     retentionBody:
-      'Reports are stored against a random ID for this journey only. There is no account and no name. Sharing stops the moment you press stop, and your capability is revoked. Individual reports leave the application after 48 hours; the underlying deletion happens shortly afterwards. This is opt-in pseudonymous data, not anonymous data.',
+      'Reports are stored against a random contributor ID and the signed-in account that joined this journey. Leaving revokes the contributor capability. Individual reports leave the application after 48 hours; the underlying deletion happens shortly afterwards. This is opt-in pseudonymous data, not anonymous data.',
     startSharing: 'Start sharing my location',
     pauseSharing: 'Pause location sharing',
     resumeSharing: 'Resume sharing',
@@ -187,6 +215,15 @@ export const en = {
   map: {
     developmentBasemap:
       'Development basemap. This is not the production street map, and it has limited street detail.',
+    testBasemap: 'Street tiles are disabled for this deterministic test build.',
+    missingKey:
+      'Street map not configured. Set VITE_MAP_PROVIDER=amazon and VITE_LOCATION_API_KEY, then rebuild the website.',
+    providerFailed:
+      'The street-map style could not load. The route remains available on a plain surface.',
+    tileDegraded:
+      'Some street-map tiles did not load. Route tracking is still available.',
+    locating: 'Finding your location…',
+    locationFailed: 'Your location could not be shown. Check browser permission and location services.',
     attributionMissing: 'Map data attribution',
     busMarkerLabel: 'Bus position',
     stopMarkerLabel: 'Stop',

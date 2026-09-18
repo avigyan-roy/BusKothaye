@@ -3,6 +3,8 @@ import { RoutePage } from '../pages/RoutePage.js';
 import { DrivePage } from '../pages/DrivePage.js';
 import { OpsPage } from '../pages/OpsPage.js';
 import { NotFoundPage } from '../pages/NotFoundPage.js';
+import { AccountPage } from '../pages/AccountPage.js';
+import { DemoConsolePage } from '../pages/DemoConsolePage.js';
 import { site } from '../config/site.js';
 
 /**
@@ -16,6 +18,8 @@ export function App() {
       <Route path="/" element={<Navigate to={`/r/${site.defaultRouteId}`} replace />} />
       <Route path="/r/:routeId" element={<RoutePage />} />
       <Route path="/drive" element={<DrivePage />} />
+      <Route path="/account" element={<AccountPage />} />
+      <Route path="/demo" element={<DemoConsolePage />} />
       <Route path="/ops/:journeyId" element={<OpsPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

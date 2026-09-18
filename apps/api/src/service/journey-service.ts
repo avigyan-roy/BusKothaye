@@ -45,6 +45,8 @@ import type { JourneyRepository, RawReportRecord } from '../store/types.js';
 import { StorageUnavailableError } from '../store/types.js';
 import type { RouteRegistry } from '../routes/route-registry.js';
 import type { Logger } from '../observability/logger.js';
+import type { AccountPrincipal } from './account-service.js';
+import { defaultDemoControl } from './demo-service.js';
 import {
   ApiProblem,
   forbidden,
@@ -71,6 +73,11 @@ export interface AuthorisedContributor {
 }
 
 export class JourneyService {
+  private readonly passengerReadCache = new Map<
+    string,
+    { readonly snapshot: JourneySnapshot; readonly expiresAtMs: number }
+  >();
+
   constructor(
     private readonly repo: JourneyRepository,
     private readonly registry: RouteRegistry,
@@ -84,13 +91,24 @@ export class JourneyService {
 
   async createJourney(input: {
     routeId: string;
-    isDemo: boolean;
+    principal: AccountPrincipal;
     idempotencyKey: string | null;
   }): Promise<CreateJourneyResponse> {
     const route = this.registry.get(input.routeId);
     if (route === null) throw routeNotFound();
 
     const nowMs = this.clock.nowMs();
+    const isDemo = input.principal.account.kind === 'simulator';
+    if (!isDemo && input.principal.account.role !== 'driver') throw forbidden();
+    const demoGeneration = isDemo
+      ? (await this.repo.getDemoControl(defaultDemoControl(nowMs))).generation
+      : null;
+    if (isDemo) {
+      const control = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+      if (control.status !== 'ON') {
+        throw new ApiProblem(409, 'DEMO_DISABLED', 'The shared demo fleet is switched off.');
+      }
+    }
     const journeyId = newId('j');
     const contributorId = newId('c');
     const contributorToken = newToken();
@@ -101,7 +119,9 @@ export class JourneyService {
       journeyId,
       routeId: route.dto.id,
       routeVersion: route.dto.version,
-      isDemo: input.isDemo,
+      isDemo,
+      demoGeneration,
+      ownerAccountId: input.principal.account.accountId,
       nowMs,
       driverContributorId: contributorId,
       driverTokenHash: hashSecret(contributorToken),
@@ -137,7 +157,7 @@ export class JourneyService {
     this.logger.info('journey created', {
       journeyId,
       routeId: route.dto.id,
-      isDemo: input.isDemo,
+      isDemo,
     });
 
     return {
@@ -150,7 +170,7 @@ export class JourneyService {
       opsToken,
       joinCode,
       role: 'driver',
-      isDemo: input.isDemo,
+      isDemo,
       createdAtMs: nowMs,
     };
   }
@@ -159,6 +179,7 @@ export class JourneyService {
     journeyId: string;
     joinCode: string;
     role: JoinRole;
+    principal: AccountPrincipal;
     idempotencyKey: string | null;
   }): Promise<JoinJourneyResponse> {
     const nowMs = this.clock.nowMs();
@@ -169,8 +190,21 @@ export class JourneyService {
         ? null
         : { scope: 'join', keyHash: hashSecret(input.idempotencyKey), contributorId };
 
+    if (
+      input.principal.account.kind === 'community' &&
+      input.principal.account.role !== input.role
+    ) {
+      throw forbidden();
+    }
+
     for (let attempt = 0; attempt <= WRITE_CONFLICT_MAX_RETRIES; attempt += 1) {
       const snapshot = await this.loadActive(input.journeyId);
+      if (
+        input.principal.account.kind === 'simulator' &&
+        (!snapshot.isDemo || snapshot.ownerAccountId !== input.principal.account.accountId)
+      ) {
+        throw forbidden();
+      }
 
       if (
         snapshot.joinLockedUntilMs !== null &&
@@ -209,6 +243,7 @@ export class JourneyService {
       // driver privileges.
       const next = addContributor(snapshot, {
         contributorId,
+        accountId: input.principal.account.accountId,
         role: input.role,
         tokenHash: hashSecret(contributorToken),
         nowMs,
@@ -219,6 +254,7 @@ export class JourneyService {
       );
 
       if (written.written) {
+        this.cachePassengerSnapshot(next, nowMs);
         return {
           schemaVersion: SCHEMA_VERSION,
           journeyId: snapshot.journeyId,
@@ -299,7 +335,15 @@ export class JourneyService {
 
     for (let attempt = 0; attempt <= WRITE_CONFLICT_MAX_RETRIES; attempt += 1) {
       const snapshot = await this.loadActive(input.journeyId);
-      const route = this.requireRoute(snapshot.routeId);
+      if (snapshot.isDemo) {
+        const control = await this.repo.getDemoControl(
+          defaultDemoControl(nowMs),
+        );
+        if (control.status !== 'ON' || control.generation !== snapshot.demoGeneration) {
+          throw new ApiProblem(409, 'DEMO_DISABLED', 'The shared demo fleet is switched off.');
+        }
+      }
+      const route = this.requireRoute(snapshot.routeId, snapshot.routeVersion);
 
       // Re-check permission after every reload: the transition we lost the race to
       // may have been an end or a revoke.
@@ -322,9 +366,10 @@ export class JourneyService {
       );
 
       if (committed) {
+        this.cachePassengerSnapshot(result.snapshot, nowMs);
         // Diagnostics are queued only after the state commit, so an accepted
         // decision always corresponds to state that really exists.
-        void this.appendRaw(input, result.snapshot, nowMs).catch((error: unknown) => {
+        void this.appendRaw(input, result.diagnostics, nowMs).catch((error: unknown) => {
           this.logger.warn('diagnostic append failed', {
             journeyId: input.journeyId,
             error: error instanceof Error ? error.name : 'unknown',
@@ -348,15 +393,14 @@ export class JourneyService {
 
   private async appendRaw(
     input: { journeyId: string; contributorId: string; reports: readonly LocationReport[]; requestId: string },
-    snapshot: JourneySnapshot,
+    diagnostics: readonly import('@buskothay/shared').DebugDecision[],
     nowMs: number,
   ): Promise<void> {
-    const decisionBySeq = new Map(
-      snapshot.decisions.filter((d) => d.atMs === nowMs).map((d) => [d.seq, d]),
-    );
+    const decisionBySeq = new Map(diagnostics.map((decision) => [decision.seq, decision]));
     const records: RawReportRecord[] = input.reports.map((report) => ({
       journeyId: input.journeyId,
       contributorId: input.contributorId,
+      sourceLabel: decisionBySeq.get(report.seq)?.sourceLabel ?? 'source-unknown',
       seq: report.seq,
       serverTs: nowMs,
       requestId: input.requestId,
@@ -365,6 +409,9 @@ export class JourneyService {
       accuracyM: report.accuracyM,
       accepted: decisionBySeq.get(report.seq)?.accepted ?? false,
       reason: decisionBySeq.get(report.seq)?.reason ?? null,
+      historyOnly: decisionBySeq.get(report.seq)?.historyOnly ?? false,
+      projectedSM: decisionBySeq.get(report.seq)?.projectedSM ?? null,
+      offsetM: decisionBySeq.get(report.seq)?.offsetM ?? null,
       expiresAtS: toEpochSeconds(nowMs + RAW_REPORT_RETENTION_MS),
     }));
     await this.repo.appendRawReports(records);
@@ -381,8 +428,10 @@ export class JourneyService {
       if (!contributor) throw unauthenticated();
       if (contributor.revokedAtMs !== null) return snapshot.version;
 
-      const next = revokeContributor(snapshot, contributorId, this.clock.nowMs());
+      const nowMs = this.clock.nowMs();
+      const next = revokeContributor(snapshot, contributorId, nowMs);
       if (await this.guardStorage(() => this.repo.putJourney(next, snapshot.version))) {
+        this.cachePassengerSnapshot(next, nowMs);
         return next.version;
       }
       await sleepWithJitter(attempt);
@@ -401,6 +450,7 @@ export class JourneyService {
       const nowMs = this.clock.nowMs();
       const next = endJourney(snapshot, nowMs, 'driver');
       if (await this.guardStorage(() => this.repo.putJourney(next, snapshot.version))) {
+        this.cachePassengerSnapshot(next, nowMs);
         // Membership removal is best effort; list queries filter ended journeys
         // whether or not it succeeds.
         void this.repo.releaseMembership(snapshot.routeId, snapshot.journeyId).catch(() => {});
@@ -412,14 +462,38 @@ export class JourneyService {
     throw storageUnavailable();
   }
 
+  async authoriseJourneyControl(journeyId: string, principal: AccountPrincipal): Promise<void> {
+    const snapshot = await this.load(journeyId);
+    if (snapshot.ownerAccountId === principal.account.accountId) return;
+    const conductor = snapshot.contributors.find(
+      (contributor) =>
+        contributor.revokedAtMs === null &&
+        contributor.accountId === principal.account.accountId &&
+        contributor.role === 'conductor',
+    );
+    if (!conductor) throw forbidden();
+  }
+
   // -------------------------------------------------------------------------
   // Reads.
   // -------------------------------------------------------------------------
 
   async getState(journeyId: string): Promise<JourneyStateDto> {
-    const snapshot = await this.load(journeyId);
-    const route = this.requireRoute(snapshot.routeId);
     const nowMs = this.clock.nowMs();
+    const cached = this.passengerReadCache.get(journeyId);
+    const snapshot =
+      cached && cached.expiresAtMs > nowMs
+        ? cached.snapshot
+        : await this.load(journeyId);
+    if (!cached || cached.expiresAtMs <= nowMs) {
+      // Coalesce a crowd of one-second polls into one authoritative read while
+      // still deriving age, ETA and stale state against the current clock.
+      this.passengerReadCache.set(journeyId, {
+        snapshot,
+        expiresAtMs: nowMs + 900,
+      });
+    }
+    const route = this.requireRoute(snapshot.routeId, snapshot.routeVersion);
     return this.stateOf(snapshot, route, nowMs);
   }
 
@@ -448,10 +522,34 @@ export class JourneyService {
     });
   }
 
+  private cachePassengerSnapshot(snapshot: JourneySnapshot, nowMs: number): void {
+    this.passengerReadCache.set(snapshot.journeyId, {
+      snapshot,
+      expiresAtMs: nowMs + 900,
+    });
+  }
+
   async getDebug(journeyId: string): Promise<DebugDto> {
     const snapshot = await this.load(journeyId);
-    const route = this.requireRoute(snapshot.routeId);
-    return deriveDebug(snapshot, route, this.clock.nowMs(), this.repo.health());
+    const route = this.requireRoute(snapshot.routeId, snapshot.routeVersion);
+    const nowMs = this.clock.nowMs();
+    const reports = await this.guardStorage(() => this.repo.listRawReports(journeyId, nowMs));
+    return deriveDebug(
+      snapshot,
+      route,
+      nowMs,
+      this.repo.health(),
+      reports.slice(-100).map((report) => ({
+        atMs: report.serverTs,
+        sourceLabel: report.sourceLabel,
+        seq: report.seq,
+        accepted: report.accepted,
+        reason: report.reason as import('@buskothay/shared').RejectReason | null,
+        historyOnly: report.historyOnly,
+        projectedSM: report.projectedSM,
+        offsetM: report.offsetM,
+      })),
+    );
   }
 
   async listJourneys(routeId: string): Promise<JourneySummary[]> {
@@ -484,8 +582,8 @@ export class JourneyService {
   // Helpers.
   // -------------------------------------------------------------------------
 
-  private requireRoute(routeId: string): PreparedRoute {
-    const route = this.registry.get(routeId);
+  private requireRoute(routeId: string, routeVersion?: string): PreparedRoute {
+    const route = this.registry.get(routeId, routeVersion);
     if (route === null) throw routeNotFound();
     return route;
   }

@@ -1,5 +1,4 @@
 import type {
-  DebugDecision,
   DebugEvent,
   PublicJourneyEvent,
   RejectReason,
@@ -25,6 +24,8 @@ import type { FilterState } from './kalman.js';
 
 export interface ContributorSnapshot {
   readonly contributorId: string;
+  /** Authenticated account that owns this membership. */
+  readonly accountId: string;
   /** Journey-local pseudonym shown in diagnostics, e.g. "source-2". */
   readonly label: string;
   readonly role: Role;
@@ -69,6 +70,8 @@ export interface JourneySnapshot {
   readonly routeId: string;
   readonly routeVersion: string;
   readonly isDemo: boolean;
+  readonly demoGeneration: number | null;
+  readonly ownerAccountId: string;
   readonly createdAtMs: number;
   /** Incremented on every committed mutation; the conditional-write guard. */
   readonly version: number;
@@ -99,7 +102,6 @@ export interface JourneySnapshot {
 
   readonly events: readonly PublicJourneyEvent[];
   readonly debugEvents: readonly DebugEvent[];
-  readonly decisions: readonly DebugDecision[];
   readonly eventSeq: number;
 
   readonly failedJoinAttempts: number;

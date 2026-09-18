@@ -1,6 +1,6 @@
 # Local stacks for BusKothay.
 #
-#   docker compose up api
+#   docker compose --profile memory up
 #       The API alone, in memory mode. Nothing is durable; a restart loses every
 #       journey. This is the quickest way to check the container itself.
 #
@@ -16,6 +16,7 @@
 
 services:
   api:
+    profiles: ['memory', 'demo']
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,6 +31,20 @@ services:
       DEFAULT_ROUTE_ID: ac24-patuli-howrah
       CORS_ORIGINS: http://localhost:5173,http://localhost:4173
       LOG_LEVEL: info
+      SIMULATOR_TOKEN: local-demo-worker-token-change-me
+
+  fleet-worker:
+    profiles: ['demo']
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    image: buskothay-fleet-worker:local
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8080
+      SIMULATOR_TOKEN: local-demo-worker-token-change-me
 
   api-dynamodb:
     profiles: ['dynamodb']
@@ -58,6 +73,7 @@ services:
       DEFAULT_ROUTE_ID: ac24-patuli-howrah
       CORS_ORIGINS: http://localhost:5173,http://localhost:4173
       LOG_LEVEL: info
+      SIMULATOR_TOKEN: local-demo-worker-token-change-me
 
   dynamodb:
     profiles: ['dynamodb']

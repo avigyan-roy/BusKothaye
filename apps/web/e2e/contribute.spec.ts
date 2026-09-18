@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
-import { endSessionJourney, startDemoJourney } from './fixtures.js';
+import { endSessionJourney, signInAs, startDemoJourney } from './fixtures.js';
 
 test.describe('contributor page', () => {
+  test.beforeEach(async ({ page, request }) => {
+    await signInAs(page, request, 'driver');
+  });
   // These tests start real journeys. Leaving them running would put a bus on the
   // passenger map for every test that follows.
   test.afterEach(async ({ page, request }) => {
@@ -114,9 +117,9 @@ test.describe('contributor page', () => {
     await expect(page.getByText('Sharing your location')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText(/Accepted/).first()).toBeVisible({ timeout: 20_000 });
 
-    // Stopping clears the watcher and the capability.
-    await page.getByRole('button', { name: 'Stop sharing' }).click();
-    await expect(page.getByRole('button', { name: 'Start a journey', exact: true })).toBeVisible();
+    // A driver may pause GPS without accidentally revoking control of the bus.
+    await page.getByRole('button', { name: 'Pause location sharing' }).click();
+    await expect(page.getByRole('button', { name: 'Resume sharing' })).toBeVisible();
   });
 
   test('ending a journey asks first', async ({ page }) => {

@@ -1,248 +1,453 @@
 # BusKothay
 
-Community bus tracking for **AC24, Patuli → Howrah** in Kolkata. A passenger
-opens the site and immediately sees where the bus is, when it should reach their
-stop, and — this is the part most trackers skip — how much that answer can be
-trusted right now.
+BusKothay is a community bus-tracking web app for Kolkata. Passengers can open
+the map without an account; signed-in drivers, conductors, and passengers can
+create or join a journey and share GPS. A separately supervised demo worker can
+keep a clearly labelled simulated fleet moving even when nobody has a browser
+open.
 
-People on the bus share their phone's location. Several phones become one
-journey position. When the locations stop arriving, the app keeps answering for
-about ninety seconds within honest bounds, and then says plainly that it no
-longer knows.
+The catalogue lists 20 WBTC services. **Only AC24, Patuli → Howrah currently has
+tracking geometry**, and that geometry is an explicitly disclosed approximation.
+The other 19 routes contain no invented coordinates.
 
-**Status: working locally, not deployed.** See
-[What has actually been verified](#what-has-actually-been-verified) below — it
-distinguishes what was run from what was only written.
+> Deployment status: not deployed. Local compilation is verified under Node 24;
+> see [PROGRESS.md](PROGRESS.md) and
+> [docs/IMPLEMENTATION_CONTEXT.md](docs/IMPLEMENTATION_CONTEXT.md) for the exact
+> test status and remaining external checks.
 
----
+## What is included
 
-## Quick start
+- React, Vite, MapLibre passenger map with Amazon Location Maps V2 support.
+- Username/password accounts using Node's built-in `scrypt`; no email or OTP.
+- Driver/conductor/passenger roles and server-side journey ownership checks.
+- Multi-phone location fusion, bounded prediction, stale/off-route/ended states,
+  stop ETAs, and protected diagnostics.
+- Global demo console, generation fencing, audit history, and persistent worker.
+- Memory storage for quick local work and DynamoDB for durable deployments.
+- A real-time scenario simulator that uses the same HTTP API as contributors.
 
-Node 24 (the version in `.nvmrc`) and npm 10.9 or newer.
+## 1. Requirements
+
+Install these before starting:
+
+- Node.js **24 LTS** (`.nvmrc` contains `24`).
+- npm **10.9 or newer**.
+- Git.
+- Optional: Docker Desktop/Engine for container and DynamoDB Local checks.
+- For AWS only: AWS CLI v2, Docker, and the Lightsail Control plugin.
+
+Check the first two:
+
+```bash
+node --version
+npm --version
+```
+
+If the Node version does not begin with `v24`, use your Node version manager to
+install/select Node 24 before running `npm ci`.
+
+## 2. Run locally
+
+All commands in this README are run from the repository root—the folder that
+contains this file and the root `package.json`.
+
+### First-time setup
 
 ```bash
 npm ci
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
-npm run dev
 ```
 
-The API listens on <http://localhost:3001> and the web app on
-<http://localhost:5173>. The map shows the AC24 route and a clear "no bus is
-sharing its location right now" — because none is yet.
-
-On Windows, replace the two copy lines with:
+Windows PowerShell:
 
 ```powershell
+npm ci
 Copy-Item apps\api\.env.example apps\api\.env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-In a second terminal, put a labelled demonstration bus on the map:
+Create a private value of at least 32 characters and add it to
+`apps/api/.env`:
 
-```bash
-npm run simulate -- --scenario happy-multi --api http://localhost:3001
+```dotenv
+SIMULATOR_TOKEN=replace-with-a-long-random-private-value
 ```
 
-That drives a real journey through the ordinary public API — create, join,
-report, read, end — with four simulated phones at plausible speeds and plausible
-noise. It runs for sixty seconds at real speed, because a simulator cannot
-honestly accelerate a server's clock.
+On Linux/macOS, `openssl rand -hex 32` is a convenient generator. Do not put the
+real value in Git. The API and simulator worker must use exactly the same value.
 
-To see the contributor side, open <http://localhost:5173/drive>, press **Start a
-journey**, and then **Start sharing my location**. Nothing asks for your location
-until you press that button.
+### Start the API and website
 
-## Commands
+```bash
+npm run dev
+```
 
-| Command | What it does |
+Wait for `✓ API is responding`, then open:
+
+- Website: <http://localhost:5173>
+- API health: <http://localhost:3001/health>
+- API readiness: <http://localhost:3001/ready>
+
+The default API uses memory storage. Restarting it removes accounts, journeys,
+and demo settings. This is intentional for the quickest local setup.
+
+The local web environment defaults to the disclosed development basemap. To use
+Amazon Location locally, edit `apps/web/.env.local`:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:3001
+VITE_MAP_PROVIDER=amazon
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=your-restricted-browser-key
+```
+
+Restart `npm run dev` after changing an environment file.
+
+### Use the app manually
+
+1. Open <http://localhost:5173/account?entry=crew>.
+2. Create a username/password account and select **Driver**.
+3. Open **Journey controls**, select AC24, and start a journey.
+4. Press **Start sharing my location**. The browser asks for permission only now.
+5. Open the passenger map in another tab. The journey should appear within a few
+   seconds.
+6. A passenger or conductor can join with the journey ID and join code. Their
+   selected account role must match the role used to join.
+
+Guests can view the entire passenger map. Accounts are needed only to control a
+journey, save account-level preferences, or change the shared demo fleet.
+
+## 3. Run the simulation
+
+There are two simulation modes. Both create **Demo** journeys through the public
+API; neither writes fake state directly to the database.
+
+### Persistent demo fleet (recommended for demonstrations)
+
+Keep `npm run dev` running. In a second terminal, set the same token used in
+`apps/api/.env` and start the worker:
+
+```bash
+SIMULATOR_TOKEN=replace-with-the-same-private-value npm run demo:fleet
+```
+
+PowerShell:
+
+```powershell
+$env:SIMULATOR_TOKEN = 'replace-with-the-same-private-value'
+npm run demo:fleet
+```
+
+Then:
+
+1. Sign in at <http://localhost:5173/account>.
+2. Open <http://localhost:5173/demo>.
+3. Choose AC24, bus count, sources per bus, speed, update interval, GPS noise,
+   dwell time, loop/pause/outage settings, and starting checkpoint.
+4. Press **Turn demo on**.
+5. Return to the map. Demo buses appear after the worker's next control poll.
+
+The switch is global for this deployment. Turning it off generation-fences
+in-flight worker requests and ends the active demo journeys. A fresh database
+starts with demo OFF. If the worker restarts, its lease prevents two healthy
+workers from driving the fleet at the same time.
+
+### One measured scenario
+
+First start the persistent worker or at least turn Demo ON in `/demo`; the API
+will reject simulator-created journeys while the global switch is OFF. Then run:
+
+```bash
+SIMULATOR_TOKEN=replace-with-the-same-private-value \
+  npm run simulate -- --scenario happy-multi --api http://localhost:3001
+```
+
+List scenarios:
+
+```bash
+npm run simulate -- --list
+```
+
+Run all scenarios (they run at real time and take several minutes):
+
+```bash
+SIMULATOR_TOKEN=replace-with-the-same-private-value \
+  npm run simulate -- --scenario all --api http://localhost:3001
+```
+
+Results are written to `apps/simulator/out/` as JSON, CSV, and SVG. The command
+exits non-zero when a declared expectation fails.
+
+## 4. Local Docker and DynamoDB
+
+The Compose profiles are mutually scoped so the memory and DynamoDB APIs do not
+both claim port 3001.
+
+### Memory API container
+
+```bash
+docker compose --profile memory up --build
+```
+
+Run the web app separately:
+
+```bash
+npm run dev --workspace @buskothay/web
+```
+
+### Memory API plus persistent demo worker
+
+```bash
+docker compose --profile demo up --build
+```
+
+The Compose file contains a development-only simulator token. Do not copy that
+value to AWS.
+
+### DynamoDB Local
+
+```bash
+docker compose --profile dynamodb up -d dynamodb
+npm run dynamodb:init
+docker compose --profile dynamodb up -d --build api-dynamodb
+curl -fsS http://localhost:3001/ready
+```
+
+The named Docker volume preserves DynamoDB Local data across container restarts.
+Use `docker compose down` to stop containers. Use `docker compose down -v` only
+when you intentionally want to delete the local DynamoDB volume.
+
+## 5. Checks before a release
+
+```bash
+npm run check
+npm run build
+npx playwright install --with-deps chromium   # once per machine
+npm run test:e2e
+```
+
+Useful individual commands:
+
+| Command | Purpose |
 | --- | --- |
-| `npm ci` | Clean install from the committed lockfile |
-| `npm run dev` | Build shared packages, run API + web, shut both down on Ctrl-C |
-| `npm run build` | Build everything in dependency order. Needs no cloud settings |
-| `npm run build:deploy` | The guarded build Amplify and CI run. Refuses a web bundle that points at localhost or ships without a map key |
-| `npm run lint` | Lint every source package |
-| `npm run typecheck` | Type-check every workspace |
-| `npm test` | Unit and API tests. Deterministic, no AWS, no network |
-| `npm run test:e2e` | Browser journeys against a real API and a real static build |
-| `npm run routes:validate` | Validate route geometry, stops, distances and provenance |
-| `npm run simulate -- --scenario <name> --api <url>` | Run one scenario, or `all` |
-| `npm run screenshots` | Capture the review screenshots at four widths |
-| `npm run dynamodb:init` | Create the table in DynamoDB Local |
-| `npm run check` | Lint, types, route validation, tests, production build |
+| `npm run lint` | ESLint across the repository |
+| `npm run typecheck` | TypeScript checks for every workspace |
+| `npm test` | Geometry, shared, and API tests using memory storage |
+| `npm run routes:validate` | Route fixture geometry/provenance validation |
+| `npm run build` | Build all packages, API, worker, and web |
+| `npm run build:deploy` | Guarded web deployment build; rejects localhost or missing map settings |
+| `npm run test:e2e` | Playwright mobile/desktop flows |
+| `npm run screenshots` | Responsive screenshots from an already running web server |
 
-`npm run test:e2e` needs a browser runtime once per machine:
+`npm run check` does not replace Docker/DynamoDB Local, real Amazon map, or
+physical-phone testing. Record those separately.
 
-```bash
-npx playwright install --with-deps chromium
-```
+## 6. AWS architecture
 
-If your machine already has a Chromium build, set `CHROMIUM_PATH` to it instead.
-
-## How it works
-
-```mermaid
-flowchart LR
-  PHONE[Contributor phones] -->|Validated GPS reports| API[Express API]
-  SIM[Labelled simulator] -->|Same public HTTP contract| API
-  WEB[React passenger map] -->|Polls fused state ~1s| API
-  API <-->|Versioned conditional writes| DB[(DynamoDB)]
-  WEB -->|Street tiles| MAPS[Amazon Location Maps V2]
-  API --> LOGS[CloudWatch logs]
-  ROUTE[Committed AC24 fixture] --> API
-```
-
-Four ideas carry most of the design:
-
-**Fuse distance along the route, not latitude and longitude.** Every incoming fix
-is projected onto the committed AC24 polyline, which turns a two-dimensional
-problem into a one-dimensional one, keeps the marker exactly on the road, and
-makes "has it passed my stop?" a comparison rather than a guess.
-
-**Consensus before accuracy weighting.** A phone claiming five-metre accuracy has
-not proved anything. With three or more sources the majority cluster is found
-first with an unweighted median and a MAD filter; only then are the survivors
-weighted, and no single source may carry more than 45% of the answer. Phone
-identities are not verified, so nothing here resists a coordinated group of fake
-contributors, and nothing claims to.
-
-**One bounded projection, shared.** The server computes the passenger's position
-at read time and the browser advances the marker between polls using the *same*
-function and the *same* anchor, complete with its cap and its stale deadline.
-That is why the dot cannot walk down the route forever when the network drops.
-
-**State is authoritative in the database, not in memory.** Instance memory is a
-cache. Every mutation reads the snapshot, applies a pure transition, and writes
-it back conditionally on a version; a conflict means recompute, not overwrite.
-
-### Repository layout
+The low-cost 30-day setup is:
 
 ```text
-apps/api/        Express API: ingestion, fusion, authoritative state
-  src/fusion/      Pure engine — gates, consensus, Kalman filter, ETA, transitions
-  src/store/       One repository interface; memory and DynamoDB adapters
-  src/auth/        Capabilities, hashing, join codes
-  src/routes/      HTTP validation and response mapping
-  src/service/     Use cases between the handlers and the engine
-apps/web/        React + Vite + MapLibre: passenger map, /drive, /ops
-apps/simulator/  CLI that drives demo journeys through the public API
-packages/shared/ The one contract: Zod schemas, constants, bounded projection
-packages/geometry/ Pure route geometry — projection, interpolation, distances
-data/routes/     The committed AC24 fixture
-infra/           CloudFormation templates and the deployment runbook
-docs/            The build specification this repository was written against
+Amplify Hosting (React web)
+        │ HTTPS
+        ▼
+Lightsail Container Service, scale 1
+  ├─ API container (public port 8080)
+  └─ fleet-worker container (private, talks to localhost:8080)
+        │
+        ├─ DynamoDB on-demand table
+        └─ Amazon Location Maps V2 (browser requests with restricted key)
 ```
 
-`apps/api/src/service/` is the one addition to the layout in `INSTRUCTIONS.md`:
-business rules live there rather than inside route handlers.
+One Lightsail service runs two container entries, so there is one compute bill
+and exactly one worker at scale 1. Lightsail keeps deployment versions for
+rollback. Confirm current Mumbai prices and Amazon Location allowances before
+creating anything; [docs/COST_MODEL.md](docs/COST_MODEL.md) contains editable
+assumptions, not a billing guarantee.
 
-## The AC24 route
+### AWS prerequisites and safety
 
-The route **identity** — code, origin, destination, and the corridor through
-Ruby, Gariahat, Hazra, Exide, Park Street and Esplanade — comes from WBTC's
-published route list, retrieved on 2026-09-18.
+1. Sign in to the intended AWS account and select **Asia Pacific (Mumbai),
+   `ap-south-1`**.
+2. Create AWS Budgets alerts at $25 and $40 for the $50/30-day target. Alerts do
+   not stop spending.
+3. Install AWS CLI v2, Docker, and `lightsailctl`.
+4. Run `aws sts get-caller-identity` and confirm the account before proceeding.
+5. Never paste access keys, the simulator token, or contributor capabilities into
+   Git, screenshots, tickets, or chat.
 
-The **coordinates do not**. The machine that built this repository had no network
-route to any routing provider, so the corridor was placed by hand, accurate to
-roughly the width of a city block. It has not been checked against the
-carriageway the bus actually uses, the correct side of a divided road, or
-surveyed boarding points. The fixture is marked `isApproximateGeometry: true`,
-and every screen that shows the route says so.
+Official AWS setup references are linked in [infra/RUNBOOK.md](infra/RUNBOOK.md).
 
-To replace it with a real road trace:
+### Step A — create DynamoDB
+
+Deploy the table template:
 
 ```bash
-node scripts/fetch-route-geometry.mjs --route ac24-patuli-howrah --provider amazon --region ap-south-1
-# then look at the line on a street map, bump `version`, and re-run:
-npm run routes:validate
+aws cloudformation deploy \
+  --region ap-south-1 \
+  --stack-name buskothay-data \
+  --template-file infra/01-lightsail-data.yaml
 ```
 
-The script will not set `isApproximateGeometry` to false for you, because it
-cannot look at a map.
+The table uses string `PK`/`SK` keys, on-demand billing, encryption, point-in-time
+recovery, and TTL on `ttl`.
 
-There is **no timetable**. No departure times, fares, durations or operator feed
-have been supplied, so `schedule` is null, `delaySeconds` is always null, and the
-UI says "Schedule unavailable" rather than "On time". Arrival times come only
-from people sharing their location, and are labelled approximate.
+Create a dedicated IAM user for the Lightsail runtime, attach the table-only
+policy in `infra/lightsail-user-policy.json` after replacing `ACCOUNT_ID`, and
+create one access key. Store the two values in a password manager. This static
+key is required because Lightsail container services do not expose the App
+Runner-style instance role used by the older template. Delete/rotate it after
+the demonstration period.
 
-AC-24A is a different service that starts at Kamalgazi. It is not this route.
+### Step B — create the Amazon Location browser key
 
-## Honesty rules the code enforces
+In **Amazon Location Service → API keys**, create a key in `ap-south-1` for Maps
+V2. Allow only the map actions used by the style (`GetStyleDescriptor`,
+`GetTile`, `GetGlyphs`, and `GetSprites`), restrict referrers to the final
+Amplify domain, set an expiry after the demo, and apply a conservative quota.
 
-These are not style preferences; they are tested.
+The key is public by design and is embedded in the web bundle; referrer/action/
+expiry restrictions are what make it safe. Do not use an AWS access key here.
 
-- A predicted position never marks a stop passed. Of a passenger's questions,
-  "has it already gone?" is the one where a wrong answer costs the most.
-- Unknown position is `null`, not `[0, 0]`. Unknown arrival is `null`, not zero
-  minutes.
-- `STALE` means the estimate is frozen. The UI says **Last confirmed … ago** and
-  withdraws the arrival time rather than leaving a tempting number on screen.
-- A simulated journey is labelled **Demo** everywhere it appears.
-- Public payloads carry the fused journey only: no contributor IDs, no raw
-  positions, no capabilities, no hashes.
-- The published confidence is called **approximate accuracy**, never a
-  probability. The simulator measures how often the real error actually falls
-  inside it, and prints that number whether or not it is flattering.
+### Step C — build and push the two images
 
-## Privacy
+Create one Lightsail container service:
 
-There are no accounts. A contributor gets a random ID for one journey, and
-holding a capability is the whole of the authorisation model. Sharing stops the
-moment someone presses stop, and their capability is revoked. Individual reports
-leave application access after 48 hours; the underlying deletion happens
-asynchronously afterwards, so this is not instant erasure and the interface does
-not claim it is. These are opt-in pseudonymous reports, not anonymous data.
+```bash
+aws lightsail create-container-service \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --power micro \
+  --scale 1
+```
 
-Capabilities travel in an `Authorization` header and never in a URL — a link gets
-pasted into chats, appears in screenshots, and ends up in server logs.
+Build Linux images from the repository root:
 
-## What has actually been verified
+```bash
+docker build -t buskothay-api:deploy .
+docker build -f Dockerfile.worker -t buskothay-worker:deploy .
+```
 
-Run on Node 24.21.0 in a Linux container, against a real local API.
+Push them directly to the Lightsail service:
 
-| Check | Result |
-| --- | --- |
-| `npm ci` from the committed lockfile | passes |
-| `npm run dev` | starts the API and the web app, and confirms the API is responding |
-| `npm run lint` | passes, no warnings |
-| `npm run typecheck` | passes |
-| `npm run routes:validate` | passes; AC24 measures 17.39 km with ordered checkpoints |
-| `npm test` — 91 tests | passes |
-| `npm run test:e2e` — 40 tests, mobile and desktop | passes |
-| `npm run build` | passes |
-| Screenshots at 390, 768, 1440 and 320 px | captured; no horizontal overflow at any width |
-| Production dependency layout (compiled output + `npm ci --omit=dev` only) | starts and serves the route, so the container's runtime layout resolves `@buskothay/shared` |
-| Simulator: `happy-multi`, `all-drop-30s`, `all-drop-180s`, `bad-accuracy` | pass. Live error p50 9 m / p95 16 m; 30 s blackout max error 6 m; recovery 1.1 s; spoofed and unusable reports 100% refused |
+```bash
+aws lightsail push-container-image --region ap-south-1 --service-name buskothay --label api --image buskothay-api:deploy
+aws lightsail push-container-image --region ap-south-1 --service-name buskothay --label worker --image buskothay-worker:deploy
+```
 
-The other nine scenarios in the library **have not been run** — the full set takes
-about fifteen minutes of real time. `PROGRESS.md` lists which, and what covers
-them in the meantime.
+Copy the returned image names (for example `:buskothay.api.1` and
+`:buskothay.worker.1`).
 
-**Not verified, and not claimed:**
+### Step D — deploy API and worker
 
-- **No deployment exists.** No AWS resources have been created. The templates in
-  `infra/` and the runbook have been written and reviewed, not applied.
-- **The Docker image has not been built.** The build environment had no Docker
-  daemon. The Dockerfile is written to build from the repository root and the
-  production dependency layout was checked separately, but nobody has run
-  `docker build` on it yet. Do that before trusting it.
-- **No physical device testing.** The browser tests emulate geolocation and say
-  so. Nobody has stood on an AC24 bus with a phone.
-- **The route geometry is approximate**, as described above.
-- **The production basemap has not been seen.** Development uses the MapLibre
-  demonstration style, and the browser tests use a basemap-free fixture so they
-  do not depend on a tile server. Amazon Location tiles need a real key and a
-  look in the network panel before anyone calls the map integration done.
+Copy `infra/lightsail-deployment.example.json` outside the repository, replace
+every `REPLACE_ME` value, and keep the file private because it contains runtime
+credentials. Use one long random `SIMULATOR_TOKEN` in both containers. Initially
+use a placeholder non-localhost CORS origin; update it after Amplify supplies the
+real domain.
 
-## Working on it
+```bash
+aws lightsail create-container-service-deployment \
+  --region ap-south-1 \
+  --cli-input-json file:///absolute/private/path/lightsail-deployment.json
+```
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) — branches, pull requests, who owns what
-- [docs/MANUAL_EDITING.md](docs/MANUAL_EDITING.md) — where to change the name,
-  colours, stops, thresholds and copy
-- [infra/RUNBOOK.md](infra/RUNBOOK.md) — the AWS deployment steps, in order
-- [PROGRESS.md](PROGRESS.md) — build state and handover notes
+Wait until the deployment is `ACTIVE`, copy the HTTPS URL, then verify:
 
-The build specification this repository was written against is in
-[AGENTS.md](AGENTS.md), [INSTRUCTIONS.md](INSTRUCTIONS.md) and [docs/](docs/).
-`docs/DECISIONS.md` corrects parts of `IMPLEMENTATION_PLAN.md` and wins wherever
-the two disagree.
+```bash
+curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/health
+curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/ready
+curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/v1/routes
+```
+
+`/health` proves the process is alive; `/ready` also proves DynamoDB is reachable.
+
+### Step E — publish the web app with Amplify
+
+1. Put this repository in the Git provider/branch your team owns.
+2. Amplify Hosting → **Create new app** → select repository and branch.
+3. Select **My app is a monorepo** and enter `apps/web`.
+4. Confirm `AMPLIFY_MONOREPO_APP_ROOT=apps/web`.
+5. Keep the checked-in `amplify.yml` build settings.
+6. Add build environment variables:
+
+```text
+VITE_API_BASE_URL=https://YOUR-LIGHTSAIL-DOMAIN
+VITE_MAP_PROVIDER=amazon
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=YOUR_RESTRICTED_LOCATION_KEY
+```
+
+7. Deploy and copy the final `https://...amplifyapp.com` origin.
+8. Add an SPA rewrite from `/<*>` to `/index.html` with status `200`, while
+   retaining Amplify's normal static-asset behavior.
+9. Add that exact origin to the Location key referrer list.
+10. Update `CORS_ORIGINS` in the private Lightsail deployment JSON and redeploy.
+
+### Step F — production smoke test
+
+Check all of these before sharing the URL:
+
+- Directly refresh `/r/ac24-patuli-howrah`, `/account`, `/drive`, and `/demo`.
+- Browser network panel shows Amazon style/tile requests succeeding with no 401/
+  403 flood; attribution is visible.
+- Create an account, sign out/in, change role, and change password.
+- Start a real journey, send one browser GPS fix, view it in another browser,
+  pause, rejoin, and end it.
+- Turn the demo on, confirm worker buses appear and carry **Demo**, change speed/
+  outage settings, then turn it off and confirm they disappear.
+- Restart/redeploy the API and confirm accounts and journey state survived in
+  DynamoDB.
+- Test once on a physical phone over mobile data. Browser geolocation emulation
+  is not a physical-device test.
+
+## 7. Updating, rollback, and cleanup
+
+For an update, build and push new image versions, edit the two image references
+in the private deployment JSON, and create a new Lightsail deployment. Roll back
+from the Lightsail **Deployments** tab by selecting the last known-good version.
+Amplify keeps frontend deployment history separately.
+
+To stop all charges after the demo:
+
+1. Turn Demo OFF and export anything you need.
+2. Delete the Amplify app.
+3. Delete the Lightsail container service—**disabled services are still billed**.
+4. Delete the Location API key.
+5. Delete the runtime IAM access key and user.
+6. Delete the CloudFormation stack. The table is retained intentionally; delete
+   it manually only after confirming the data is no longer needed.
+7. Check Billing/Cost Explorer the following day.
+
+The full operational checklist, troubleshooting, and teardown commands are in
+[infra/RUNBOOK.md](infra/RUNBOOK.md).
+
+## 8. Repository map
+
+```text
+apps/api/          Express API, fusion engine, auth, DynamoDB/memory stores
+apps/web/          React/Vite passenger, account, contributor, demo, diagnostics UI
+apps/simulator/    Scenario runner and persistent demo fleet worker
+packages/shared/   Zod API contracts, configuration constants, projection logic
+packages/geometry/ Route projection and interpolation
+data/routes/       AC24 geometry plus 20-route WBTC catalogue
+infra/             AWS templates, policies, deployment examples, runbook
+docs/              product, API, design, testing, and editing guides
+```
+
+## 9. Important limitations
+
+- AC24 geometry and checkpoint coordinates are approximate and must be field-
+  verified before being described as official.
+- The app is community tracking, not an operator feed. Self-selected roles do
+  not prove WBTC employment.
+- Web pages cannot reliably record location while a phone is locked or the
+  browser is backgrounded; the UI says so.
+- Accounts have no email/phone recovery. A deployment owner must handle a lost
+  password directly.
+- No deployment, real map-key request, Docker image, or physical-phone test is
+  claimed until it is recorded in [PROGRESS.md](PROGRESS.md).
+
+For editable colours, copy, routes, and thresholds, see
+[docs/MANUAL_EDITING.md](docs/MANUAL_EDITING.md). For contribution workflow, see
+[CONTRIBUTING.md](CONTRIBUTING.md).

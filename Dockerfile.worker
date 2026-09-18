@@ -1,0 +1,37 @@
+FROM node:24-bookworm-slim AS deps
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY packages/geometry/package.json packages/geometry/
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/simulator/package.json apps/simulator/
+RUN npm ci --workspaces --include-workspace-root
+
+FROM deps AS build
+WORKDIR /app
+COPY tsconfig.base.json ./
+COPY packages/ packages/
+COPY apps/simulator/ apps/simulator/
+RUN npm run build -w @buskothay/geometry \
+ && npm run build -w @buskothay/shared \
+ && npm run build -w @buskothay/simulator
+
+FROM deps AS prod-deps
+WORKDIR /app
+RUN npm prune --omit=dev --workspaces --include-workspace-root
+
+FROM node:24-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=prod-deps /app/package.json ./package.json
+COPY --from=build /app/packages/geometry/package.json ./packages/geometry/package.json
+COPY --from=build /app/packages/geometry/dist ./packages/geometry/dist
+COPY --from=build /app/packages/shared/package.json ./packages/shared/package.json
+COPY --from=build /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build /app/apps/simulator/package.json ./apps/simulator/package.json
+COPY --from=build /app/apps/simulator/dist ./apps/simulator/dist
+USER node
+CMD ["node", "apps/simulator/dist/fleet-worker.js"]
