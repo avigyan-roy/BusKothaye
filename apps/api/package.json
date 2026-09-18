@@ -1,0 +1,28 @@
+{
+  "name": "@buskothay/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BusKothay journey API: ingestion, fusion, authoritative state.",
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "dev": "npm run build && node --watch --env-file-if-exists=.env dist/server.js",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit false --emitDeclarationOnly",
+    "watch": "tsc -b tsconfig.json --watch --preserveWatchOutput"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.679.0",
+    "@aws-sdk/lib-dynamodb": "^3.679.0",
+    "@buskothay/geometry": "*",
+    "@buskothay/shared": "*",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0"
+  }
+}

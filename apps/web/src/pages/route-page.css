@@ -1,0 +1,112 @@
+/*
+ * Mobile first: the map, then the information panel, in ordinary document flow.
+ * No bottom sheet to drag before the primary content can be read.
+ */
+.route-page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--header-height));
+}
+
+.route-page__map {
+  flex: none;
+}
+
+.route-page__panel {
+  flex: 1 1 auto;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
+  /* Pulls the panel over the map edge so the two meet rather than float apart. */
+  margin-top: -12px;
+  position: relative;
+  z-index: 1;
+  padding-bottom: var(--space-6);
+}
+
+.route-page__demo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4) 0;
+  font-size: var(--text-secondary);
+}
+
+.route-page__empty {
+  padding: var(--space-5) var(--space-4);
+}
+
+.route-page__empty h2 {
+  margin-bottom: var(--space-2);
+}
+
+.route-page__empty .button {
+  margin-top: var(--space-4);
+}
+
+.route-page__details {
+  padding: 0 var(--space-4);
+}
+
+.route-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+}
+
+.route-details__facts {
+  display: grid;
+  grid-template-columns: minmax(96px, 30%) 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  font-size: var(--text-secondary);
+}
+
+.route-details__facts dt {
+  color: var(--color-muted);
+}
+
+.route-details__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.journey-selector {
+  margin: var(--space-4);
+}
+
+/* Tablet: split when there is room, otherwise keep the mobile flow. 768px is not
+   a usability cliff. */
+@media (min-width: 768px) {
+  .route-page {
+    flex-direction: row-reverse;
+    height: calc(100dvh - var(--header-height));
+    max-width: var(--content-max);
+    margin: 0 auto;
+  }
+
+  .route-page__map {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .route-page__panel {
+    flex: none;
+    width: 320px;
+    margin-top: 0;
+    border-radius: 0;
+    border-top: 0;
+    /* A subtle divider, not a floating card for every datum. */
+    border-right: 1px solid var(--color-border);
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .route-page__panel {
+    width: var(--panel-width);
+  }
+}

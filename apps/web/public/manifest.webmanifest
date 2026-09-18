@@ -1,0 +1,17 @@
+{
+  "name": "BusKothay",
+  "short_name": "BusKothay",
+  "description": "Community bus tracking for AC24, Patuli to Howrah.",
+  "start_url": "/r/ac24-patuli-howrah",
+  "display": "standalone",
+  "background_color": "#F5F4EF",
+  "theme_color": "#F5F4EF",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

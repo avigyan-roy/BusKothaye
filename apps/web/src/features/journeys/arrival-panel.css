@@ -1,0 +1,70 @@
+.arrival {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.arrival__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.arrival__stop-name {
+  font-size: var(--text-heading);
+  font-weight: 600;
+}
+
+@media (min-width: 1024px) {
+  .arrival__stop-name {
+    font-size: var(--text-heading-lg);
+  }
+}
+
+.arrival__eta {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-eta);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+@media (min-width: 1024px) {
+  .arrival__eta {
+    font-size: var(--text-eta-lg);
+  }
+}
+
+.arrival__eta-unit {
+  font-size: var(--text-body);
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+/* Replaces the number entirely — 16px, never a 12px footnote under a stale figure. */
+.arrival__unavailable {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-body);
+  color: var(--color-ink);
+}
+
+.arrival__status {
+  margin: 0 0 var(--space-1);
+}
+
+.arrival__reconnecting {
+  font-size: var(--text-secondary);
+  color: var(--color-warning);
+}
+
+.arrival__detail {
+  margin: 0 0 var(--space-3);
+}
+
+.arrival__detail:empty {
+  display: none;
+}
+
+.arrival .notice {
+  margin-top: var(--space-2);
+}

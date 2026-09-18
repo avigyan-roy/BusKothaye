@@ -1,0 +1,18 @@
+{
+  "name": "driver-drops",
+  "description": "The driver's phone stops reporting halfway through. The remaining fresh sources keep the journey LIVE, and a passenger sees no event at all — the state machine keys on time since any accepted fix, not on who sent it.",
+  "seed": 20260920,
+  "durationS": 60,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 60, "speedMps": 7.5 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4, "activeUntilS": 25 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 },
+    { "name": "passenger", "role": "passenger", "cadenceS": 5, "accuracyRangeM": [12, 28], "alongNoiseM": 12, "crossNoiseM": 8 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 35, "toS": 60, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "maxFalseRejectionRate": 0.1
+  }
+}

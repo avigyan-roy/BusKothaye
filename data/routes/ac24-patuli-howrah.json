@@ -1,0 +1,201 @@
+{
+  "id": "ac24-patuli-howrah",
+  "version": "2026-09-18-approx-1",
+  "code": "AC24",
+  "name": "AC24 Patuli → Howrah",
+  "origin": "Patuli",
+  "destination": "Howrah",
+  "direction": "outbound",
+  "timezone": "Asia/Kolkata",
+  "provenance": {
+    "officialSource": "West Bengal Transport Corporation published route list — AC-24, Patuli to Howrah, corridor Ruby → Gariahat → Hazra → Exide → Park Street → Esplanade",
+    "officialSourceUrl": "https://wbtconline.in/home",
+    "geometrySource": "Hand-authored corridor approximation for this project. It is not a routed road trace and was not generated from a map provider.",
+    "geometryLicense": "Original work created for BusKothay; no third-party map data is embedded in this file.",
+    "geometrySourceUrl": null,
+    "verifiedOn": "2026-09-18",
+    "isApproximateGeometry": true,
+    "areStopsApproximate": true,
+    "notes": "The route identity (code, origin, destination and the six intermediate corridor landmarks) comes from the WBTC published route list retrieved on 2026-09-18. The coordinates do not. They are an approximation of the corridor placed by hand, accurate to roughly the width of a city block, and they have not been checked against the carriageway the bus actually uses, against the correct side of a divided road, or against surveyed boarding points — the Howrah terminal position in particular is the station forecourt area rather than a verified AC24 bay. Run scripts/fetch-route-geometry.mjs with a routing provider to replace this line with a real road trace, then bump `version`, re-run `npm run routes:validate`, and set isApproximateGeometry and areStopsApproximate to false only once someone has inspected the result on a street map. Until then every surface that shows this route must disclose that the geometry is approximate. AC-24A is a different service starting at Kamalgazi and must not be merged into this file."
+  },
+  "schedule": null,
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [88.3975, 22.4762],
+      [88.398, 22.48],
+      [88.3985, 22.4841],
+      [88.3991, 22.4884],
+      [88.3997, 22.4926],
+      [88.4002, 22.4966],
+      [88.4007, 22.5006],
+      [88.4012, 22.5046],
+      [88.4016, 22.5086],
+      [88.4019, 22.5116],
+      [88.4021, 22.5137],
+      [88.3996, 22.5141],
+      [88.3961, 22.5145],
+      [88.3926, 22.5149],
+      [88.3891, 22.5152],
+      [88.3856, 22.5155],
+      [88.3821, 22.5159],
+      [88.3786, 22.5163],
+      [88.3751, 22.5167],
+      [88.3716, 22.5171],
+      [88.3688, 22.5176],
+      [88.366, 22.518],
+      [88.3631, 22.519],
+      [88.3601, 22.52],
+      [88.3571, 22.521],
+      [88.3541, 22.5219],
+      [88.3511, 22.5228],
+      [88.3484, 22.5238],
+      [88.3455, 22.5245],
+      [88.3458, 22.527],
+      [88.3462, 22.5295],
+      [88.3465, 22.5318],
+      [88.3469, 22.5341],
+      [88.3472, 22.536],
+      [88.3475, 22.5375],
+      [88.3481, 22.54],
+      [88.3491, 22.5425],
+      [88.35, 22.545],
+      [88.3508, 22.5476],
+      [88.3514, 22.5501],
+      [88.3518, 22.5521],
+      [88.352, 22.5535],
+      [88.352, 22.5561],
+      [88.3518, 22.5586],
+      [88.3515, 22.5611],
+      [88.3512, 22.5631],
+      [88.351, 22.5645],
+      [88.3508, 22.5661],
+      [88.3505, 22.5676],
+      [88.3501, 22.569],
+      [88.3497, 22.5697],
+      [88.3491, 22.5711],
+      [88.3485, 22.5726],
+      [88.348, 22.5741],
+      [88.3477, 22.5756],
+      [88.3474, 22.5771],
+      [88.3471, 22.5786],
+      [88.3469, 22.5801],
+      [88.3467, 22.5816],
+      [88.3468, 22.5829],
+      [88.347, 22.5838],
+      [88.3458, 22.5843],
+      [88.3446, 22.5845],
+      [88.3434, 22.5843],
+      [88.3425, 22.5839]
+    ]
+  },
+  "stops": [
+    {
+      "id": "patuli",
+      "name": "Patuli",
+      "lat": 22.4762,
+      "lon": 88.3975,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby",
+      "lat": 22.5137,
+      "lon": 88.4021,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "gariahat",
+      "name": "Gariahat",
+      "lat": 22.518,
+      "lon": 88.366,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "hazra",
+      "name": "Hazra",
+      "lat": 22.5245,
+      "lon": 88.3455,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "exide",
+      "name": "Exide",
+      "lat": 22.5375,
+      "lon": 88.3475,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "park-street",
+      "name": "Park Street",
+      "lat": 22.5535,
+      "lon": 88.352,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "esplanade",
+      "name": "Esplanade",
+      "lat": 22.5645,
+      "lon": 88.351,
+      "isSelectedCheckpoint": true
+    },
+    {
+      "id": "howrah",
+      "name": "Howrah",
+      "lat": 22.5839,
+      "lon": 88.3425,
+      "isSelectedCheckpoint": true
+    }
+  ],
+  "segments": [
+    {
+      "fromStopId": "patuli",
+      "toStopId": "ruby",
+      "typicalSpeedMps": 8.5,
+      "dwellAllowanceS": 20,
+      "note": "EM Bypass: the fastest stretch of the corridor."
+    },
+    {
+      "fromStopId": "ruby",
+      "toStopId": "gariahat",
+      "typicalSpeedMps": 5.0,
+      "dwellAllowanceS": 25,
+      "note": "Kasba and Gariahat Road; slow and heavily signalled."
+    },
+    {
+      "fromStopId": "gariahat",
+      "toStopId": "hazra",
+      "typicalSpeedMps": 5.5,
+      "dwellAllowanceS": 20,
+      "note": "Rashbehari Avenue."
+    },
+    {
+      "fromStopId": "hazra",
+      "toStopId": "exide",
+      "typicalSpeedMps": 6.0,
+      "dwellAllowanceS": 20,
+      "note": "AJC Bose Road northbound."
+    },
+    {
+      "fromStopId": "exide",
+      "toStopId": "park-street",
+      "typicalSpeedMps": 5.5,
+      "dwellAllowanceS": 25,
+      "note": "Chowringhee."
+    },
+    {
+      "fromStopId": "park-street",
+      "toStopId": "esplanade",
+      "typicalSpeedMps": 4.5,
+      "dwellAllowanceS": 25,
+      "note": "Central business district; the slowest stretch."
+    },
+    {
+      "fromStopId": "esplanade",
+      "toStopId": "howrah",
+      "typicalSpeedMps": 5.0,
+      "dwellAllowanceS": 30,
+      "note": "Strand Road and the Howrah bridge approach."
+    }
+  ]
+}

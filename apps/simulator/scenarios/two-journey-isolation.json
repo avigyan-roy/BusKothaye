@@ -1,0 +1,18 @@
+{
+  "name": "two-journey-isolation",
+  "description": "Two journeys exist on AC24 at the same time, but only one has contributors. The second must stay PENDING with a null position: the backend keeps independent state per journey rather than one global bus.",
+  "seed": 20260930,
+  "durationS": 45,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 45, "speedMps": 8 }],
+  "secondJourney": true,
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 45, "modes": ["LIVE", "DWELLING"] }],
+    "requireJourneyIsolation": true,
+    "maxFalseRejectionRate": 0.1
+  }
+}

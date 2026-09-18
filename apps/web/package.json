@@ -1,0 +1,29 @@
+{
+  "name": "@buskothay/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BusKothay passenger map, contributor page and diagnostics.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b tsconfig.json && vite build --mode preview",
+    "build:deploy": "tsc -b tsconfig.json && vite build",
+    "build:local": "npm run build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@buskothay/geometry": "*",
+    "@buskothay/shared": "*",
+    "maplibre-gl": "^4.7.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "vite": "^5.4.10"
+  }
+}

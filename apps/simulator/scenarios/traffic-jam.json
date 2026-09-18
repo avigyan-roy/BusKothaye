@@ -1,0 +1,21 @@
+{
+  "name": "traffic-jam",
+  "description": "The bus slows to a crawl and then stops for half a minute. Tracking must stay accurate through the slowdown, the stationary period must not be turned back into movement by the authored segment speed, and arrival estimates must lengthen rather than hold their earlier value.",
+  "seed": 20260929,
+  "durationS": 90,
+  "startSM": 200,
+  "speedProfile": [
+    { "untilS": 25, "speedMps": 8 },
+    { "untilS": 90, "speedMps": 1.5 }
+  ],
+  "dwells": [{ "atS": 50, "forS": 30 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 90, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "maxFalseRejectionRate": 0.1
+  }
+}

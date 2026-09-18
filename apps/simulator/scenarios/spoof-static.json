@@ -1,0 +1,27 @@
+{
+  "name": "spoof-static",
+  "description": "A contributor reports a fixed coordinate several kilometres off the corridor. Every one of its reports must be refused, and the honest sources must be unaffected.",
+  "seed": 20260923,
+  "durationS": 60,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 60, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 },
+    {
+      "name": "spoofer",
+      "role": "passenger",
+      "cadenceS": 3,
+      "accuracyRangeM": [5, 8],
+      "alongNoiseM": 0,
+      "crossNoiseM": 0,
+      "spoof": { "kind": "static", "lat": 22.62, "lon": 88.44 }
+    }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 60, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "minSpoofRejectionRate": 1.0,
+    "maxFalseRejectionRate": 0.1
+  }
+}

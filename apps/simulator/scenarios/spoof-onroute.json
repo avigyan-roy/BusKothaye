@@ -1,0 +1,29 @@
+{
+  "name": "spoof-onroute",
+  "description": "The hard case: a contributor reports a position that is on the route but 400 m wrong, claiming five-metre accuracy. Passing the corridor check must not be enough — the majority cluster has to exclude it. This is the regression case for one unusually precise liar.",
+  "seed": 20260924,
+  "durationS": 70,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 70, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [10, 18], "alongNoiseM": 7, "crossNoiseM": 5 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 3, "accuracyRangeM": [12, 22], "alongNoiseM": 9, "crossNoiseM": 6 },
+    { "name": "passenger", "role": "passenger", "cadenceS": 3, "accuracyRangeM": [14, 28], "alongNoiseM": 11, "crossNoiseM": 7 },
+    {
+      "name": "precise-liar",
+      "role": "passenger",
+      "cadenceS": 3,
+      "activeFromS": 12,
+      "accuracyRangeM": [5, 5],
+      "alongNoiseM": 0,
+      "crossNoiseM": 0,
+      "spoof": { "kind": "onroute", "offsetM": 400, "claimedAccuracyM": 5 }
+    }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 15, "toS": 70, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 120,
+    "minSpoofRejectionRate": 0.85,
+    "maxFalseRejectionRate": 0.12
+  }
+}

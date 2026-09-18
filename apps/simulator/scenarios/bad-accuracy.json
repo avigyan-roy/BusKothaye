@@ -1,0 +1,26 @@
+{
+  "name": "bad-accuracy",
+  "description": "One phone falls back to a cell-tower fix and reports 150 m accuracy. Those reports are refused without crashing anything and without dragging the good sources down with them.",
+  "seed": 20260925,
+  "durationS": 55,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 55, "speedMps": 7.5 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 },
+    {
+      "name": "cell-tower-phone",
+      "role": "passenger",
+      "cadenceS": 3,
+      "forceAccuracyM": 150,
+      "alongNoiseM": 60,
+      "crossNoiseM": 40
+    }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 55, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "minSpoofRejectionRate": 1.0,
+    "maxFalseRejectionRate": 0.1
+  }
+}

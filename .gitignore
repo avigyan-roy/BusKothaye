@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files — only the .example variants are committed
+.env
+.env.*
+!.env.example
+
+# Test and tooling artefacts
+coverage/
+playwright-report/
+test-results/
+.vitest/
+
+# Simulator output: contains measured runs, not source
+apps/simulator/out/
+
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Local DynamoDB data volume
+.dynamodb-local/

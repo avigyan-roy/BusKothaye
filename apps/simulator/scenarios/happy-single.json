@@ -1,0 +1,23 @@
+{
+  "name": "happy-single",
+  "description": "One driver phone tracks the journey. Confidence must stay conservative because there is nothing to check it against.",
+  "seed": 20260918,
+  "durationS": 45,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 45, "speedMps": 8 }],
+  "sources": [
+    {
+      "name": "driver",
+      "role": "driver",
+      "cadenceS": 3,
+      "accuracyRangeM": [8, 16],
+      "alongNoiseM": 6,
+      "crossNoiseM": 5
+    }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 45, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "maxFalseRejectionRate": 0.05
+  }
+}

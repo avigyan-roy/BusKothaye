@@ -1,0 +1,57 @@
+/*
+ * Design tokens — the one place colours, radii and spacing are defined.
+ *
+ * Change a value here and it changes everywhere. Do not search and replace hex
+ * codes through components; see docs/MANUAL_EDITING.md.
+ *
+ * Green is both the accent and a status colour, so every tracking state also
+ * carries an icon and a word. Nothing in this interface is distinguished by
+ * colour alone.
+ */
+:root {
+  --color-canvas: #F5F4EF;
+  --color-surface: #FFFFFF;
+  --color-ink: #202923;
+  --color-muted: #59635C;
+  --color-border: #D8DED6;
+  --color-accent: #285C45;
+  --color-accent-hover: #1D4935;
+  --color-accent-soft: #E7EEE6;
+  --color-warning: #85540E;
+  --color-warning-soft: #FFF0D6;
+  --color-danger: #A33333;
+  --color-danger-soft: #FBEAEA;
+  --color-focus: #245F87;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Type scale. Metadata never carries a primary action or an ETA qualifier. */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --text-meta: 12px;
+  --text-secondary: 14px;
+  --text-body: 16px;
+  --text-heading: 24px;
+  --text-heading-lg: 30px;
+  --text-eta: 32px;
+  --text-eta-lg: 36px;
+
+  /* Layout */
+  --header-height: 56px;
+  --header-height-lg: 64px;
+  --content-max: 1440px;
+  --panel-width: 380px;
+  --touch-min: 44px;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --header-height: var(--header-height-lg);
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "jump-recovery",
+  "description": "A source teleports two kilometres ahead for ten seconds and then returns to the truth. The impossible movement must be refused, and normal tracking must resume without the journey having been dragged down the route.",
+  "seed": 20260926,
+  "durationS": 80,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 80, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    {
+      "name": "jumper",
+      "role": "passenger",
+      "cadenceS": 3,
+      "accuracyRangeM": [8, 14],
+      "alongNoiseM": 4,
+      "crossNoiseM": 3,
+      "spoof": { "kind": "jump", "fromS": 30, "toS": 40, "offsetM": 2000 }
+    }
+  ],
+  "expect": {
+    "modeWindows": [
+      { "fromS": 10, "toS": 80, "modes": ["LIVE", "DWELLING"] }
+    ],
+    "maxLiveP95ErrorM": 120,
+    "maxFalseRejectionRate": 0.35
+  }
+}

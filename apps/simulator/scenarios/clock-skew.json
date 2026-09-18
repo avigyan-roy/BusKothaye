@@ -1,0 +1,17 @@
+{
+  "name": "clock-skew",
+  "description": "Two phones whose wall clocks are two hours fast and two hours slow. Device timestamps are advisory, so neither the bus position nor the freshness of the journey may change because of them.",
+  "seed": 20260927,
+  "durationS": 55,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 55, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver-fast-clock", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4, "clockSkewMs": 7200000 },
+    { "name": "conductor-slow-clock", "role": "conductor", "cadenceS": 3, "accuracyRangeM": [10, 18], "alongNoiseM": 7, "crossNoiseM": 5, "clockSkewMs": -7200000 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 55, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 80,
+    "maxFalseRejectionRate": 0.1
+  }
+}

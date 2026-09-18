@@ -1,0 +1,22 @@
+{
+  "name": "all-drop-30s",
+  "description": "Every source goes quiet for thirty seconds. The estimate keeps moving within its bounds, the journey reports ESTIMATED rather than LIVE, and it returns to LIVE quickly when GPS comes back.",
+  "seed": 20260921,
+  "durationS": 80,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 80, "speedMps": 8 }],
+  "blackouts": [{ "fromS": 25, "toS": 55 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4, "outages": [{ "fromS": 25, "toS": 55 }] },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6, "outages": [{ "fromS": 25, "toS": 55 }] }
+  ],
+  "expect": {
+    "modeWindows": [
+      { "fromS": 40, "toS": 54, "modes": ["ESTIMATED"] },
+      { "fromS": 65, "toS": 80, "modes": ["LIVE", "DWELLING"] }
+    ],
+    "maxBlackoutErrorM": 200,
+    "maxRecoveryS": 8,
+    "maxFalseRejectionRate": 0.1
+  }
+}

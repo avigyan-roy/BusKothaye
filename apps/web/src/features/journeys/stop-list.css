@@ -1,0 +1,113 @@
+.stop-list {
+  padding: var(--space-4) 0 var(--space-5);
+}
+
+.stop-list__heading {
+  padding: 0 var(--space-4) var(--space-2);
+  font-size: var(--text-body);
+  color: var(--color-muted);
+}
+
+.stop-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.stop-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stop-row:hover {
+  background: var(--color-canvas);
+}
+
+.stop-row--selected {
+  background: var(--color-accent-soft);
+}
+
+.stop-row__marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  flex: none;
+  align-self: stretch;
+  /* The route line continues through the list, which is what makes it read as a
+     route rather than as a set of unrelated cards. */
+  background:
+    linear-gradient(var(--color-border), var(--color-border)) center / 2px 100% no-repeat;
+}
+
+.stop-row__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+}
+
+.stop-row__dot--passed {
+  border-color: var(--color-muted);
+  background: var(--color-muted);
+}
+
+.stop-row__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.stop-row__name {
+  display: block;
+  font-size: var(--text-body);
+  font-weight: 600;
+  /* Long stop names wrap rather than being cut off. */
+  overflow-wrap: anywhere;
+}
+
+.stop-row__selected-label {
+  font-weight: 400;
+  color: var(--color-muted);
+  font-size: var(--text-secondary);
+}
+
+.stop-row__secondary {
+  display: block;
+  font-size: var(--text-secondary);
+  color: var(--color-muted);
+}
+
+.stop-row__eta {
+  flex: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stop-row__eta-number {
+  font-size: var(--text-body);
+  font-weight: 600;
+}
+
+.stop-row__eta-unit {
+  font-size: var(--text-secondary);
+  color: var(--color-muted);
+}
+
+.stop-row__eta-none {
+  color: var(--color-muted);
+}
+
+.stop-list__note {
+  padding: var(--space-3) var(--space-4) 0;
+  margin: 0;
+}

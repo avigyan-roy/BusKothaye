@@ -1,0 +1,116 @@
+.map-view {
+  position: relative;
+  /* A nonzero responsive height: about 44dvh on a phone, the full column on a
+     desktop where the panel sits beside it. */
+  height: 44dvh;
+  min-height: 240px;
+  background: var(--color-border);
+}
+
+@media (min-width: 768px) {
+  .map-view {
+    height: 100%;
+    min-height: 320px;
+  }
+}
+
+/* On a short landscape phone the map gives way rather than squeezing the
+   arrival information off the screen. */
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 767px) {
+  .map-view {
+    height: 56dvh;
+    min-height: 180px;
+  }
+}
+
+.map-view__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.map-view--message {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4);
+  height: auto;
+  min-height: 0;
+  background: var(--color-canvas);
+}
+
+.map-view__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgba(245, 244, 239, 0.94);
+}
+
+.map-view__controls {
+  position: absolute;
+  left: var(--space-3);
+  /* Clear of the attribution, which must never be covered or cropped. */
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
+.map-view__control {
+  min-height: var(--touch-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(32, 41, 35, 0.12);
+}
+
+.map-view__control:hover {
+  background: var(--color-accent-soft);
+}
+
+/* Sits clear of the zoom control in the top-right corner. */
+.map-view__disclosure {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  right: 56px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--text-meta);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.map-view__disclosure--error {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.map-view__retry {
+  flex: none;
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: inherit;
+  font-size: var(--text-meta);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* MapLibre's own controls, brought into the type scale. */
+.maplibregl-ctrl-attrib {
+  font-size: var(--text-meta);
+}

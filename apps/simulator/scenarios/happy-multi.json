@@ -1,0 +1,19 @@
+{
+  "name": "happy-multi",
+  "description": "A driver, a conductor and two passengers on one bus produce a single stable journey estimate.",
+  "seed": 20260919,
+  "durationS": 60,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 60, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4 },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 22], "alongNoiseM": 8, "crossNoiseM": 6 },
+    { "name": "passenger-a", "role": "passenger", "cadenceS": 5, "accuracyRangeM": [12, 30], "alongNoiseM": 12, "crossNoiseM": 8 },
+    { "name": "passenger-b", "role": "passenger", "cadenceS": 6, "accuracyRangeM": [15, 35], "alongNoiseM": 14, "crossNoiseM": 9 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 60, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 60,
+    "maxFalseRejectionRate": 0.1
+  }
+}

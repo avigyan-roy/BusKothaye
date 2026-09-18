@@ -1,0 +1,20 @@
+{
+  "name": "@buskothay/simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Labelled demo journeys driven through the public BusKothay API.",
+  "type": "module",
+  "main": "./dist/cli.js",
+  "bin": {
+    "buskothay-simulate": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit false --emitDeclarationOnly"
+  },
+  "dependencies": {
+    "@buskothay/geometry": "*",
+    "@buskothay/shared": "*",
+    "zod": "^3.23.8"
+  }
+}

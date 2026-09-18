@@ -1,0 +1,70 @@
+.site-header {
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 var(--space-4) var(--space-2);
+}
+
+.site-header__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--header-height);
+  gap: var(--space-3);
+}
+
+.site-header__wordmark {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.site-header__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-min);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  font-size: var(--text-secondary);
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.site-header__action:hover {
+  background: var(--color-accent-soft);
+}
+
+.site-header__route {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-1);
+}
+
+.site-header__direction {
+  font-size: var(--text-secondary);
+  color: var(--color-muted);
+}
+
+/* The route code is the strongest branding element after the wordmark. */
+.route-badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: 3px;
+  background: var(--color-ink);
+  color: var(--color-surface);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.demo-badge {
+  display: inline-block;
+  padding: 1px var(--space-2);
+  border-radius: 3px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--text-meta);
+  font-weight: 700;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "partition",
+  "description": "One phone loses its network for twenty-five seconds while still recording fixes, then reconnects and uploads the backlog in one batch. The old reports must be kept as history only — the newest fresh report is what drives current state, and the backlog must not walk the bus back down the route.",
+  "seed": 20260928,
+  "durationS": 70,
+  "startSM": 0,
+  "speedProfile": [{ "untilS": 70, "speedMps": 8 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4, "partitions": [{ "fromS": 20, "toS": 45 }] },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6 }
+  ],
+  "expect": {
+    "modeWindows": [{ "fromS": 10, "toS": 70, "modes": ["LIVE", "DWELLING"] }],
+    "maxLiveP95ErrorM": 90,
+    "maxFalseRejectionRate": 0.6
+  }
+}

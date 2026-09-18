@@ -1,0 +1,20 @@
+{
+  "name": "all-drop-180s",
+  "description": "A three-minute total blackout while the bus approaches Ruby. The estimate must freeze at the stop rather than claim the bus went past it, and the journey must report STALE instead of a confident position. The large blackout error is the expected outcome, not a failure: the point is that the app stops pretending to know.",
+  "seed": 20260922,
+  "durationS": 200,
+  "startSM": 4000,
+  "speedProfile": [{ "untilS": 200, "speedMps": 8 }],
+  "blackouts": [{ "fromS": 15, "toS": 195 }],
+  "sources": [
+    { "name": "driver", "role": "driver", "cadenceS": 3, "accuracyRangeM": [8, 14], "alongNoiseM": 5, "crossNoiseM": 4, "outages": [{ "fromS": 15, "toS": 195 }] },
+    { "name": "conductor", "role": "conductor", "cadenceS": 4, "accuracyRangeM": [10, 20], "alongNoiseM": 8, "crossNoiseM": 6, "outages": [{ "fromS": 15, "toS": 195 }] }
+  ],
+  "expect": {
+    "modeWindows": [
+      { "fromS": 60, "toS": 190, "modes": ["STALE"] }
+    ],
+    "noStopPassedWindows": [{ "fromS": 15, "toS": 195 }],
+    "maxFalseRejectionRate": 0.1
+  }
+}

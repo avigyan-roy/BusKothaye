@@ -1,0 +1,72 @@
+# Local stacks for BusKothay.
+#
+#   docker compose up api
+#       The API alone, in memory mode. Nothing is durable; a restart loses every
+#       journey. This is the quickest way to check the container itself.
+#
+#   docker compose --profile dynamodb up
+#       The API against DynamoDB Local, with a persistent volume. Use this to
+#       test restart recovery, concurrent writers, capability expiry and TTL
+#       filtering without spending anything in the cloud.
+#       Create the table once with:  npm run dynamodb:init
+#
+# The web app is not in here. Run it with `npm run dev` (port 5173) or
+# `npm run build:local && npm run preview -w @buskothay/web` (port 4173), so the
+# ports never collide with these services.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: buskothay-api:local
+    ports:
+      - '3001:8080'
+    environment:
+      NODE_ENV: development
+      PORT: '8080'
+      DATA_DRIVER: memory
+      ROUTE_DATA_DIR: /app/data/routes
+      DEFAULT_ROUTE_ID: ac24-patuli-howrah
+      CORS_ORIGINS: http://localhost:5173,http://localhost:4173
+      LOG_LEVEL: info
+
+  api-dynamodb:
+    profiles: ['dynamodb']
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: buskothay-api:local
+    depends_on:
+      dynamodb:
+        condition: service_started
+    ports:
+      - '3001:8080'
+    environment:
+      NODE_ENV: development
+      PORT: '8080'
+      DATA_DRIVER: dynamodb
+      DYNAMODB_TABLE: buskothay-dev
+      DYNAMODB_ENDPOINT: http://dynamodb:8000
+      AWS_REGION: ap-south-1
+      # DynamoDB Local ignores these; they exist only so the SDK's credential
+      # chain resolves. They are not AWS credentials and must never be used
+      # against a real account.
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      ROUTE_DATA_DIR: /app/data/routes
+      DEFAULT_ROUTE_ID: ac24-patuli-howrah
+      CORS_ORIGINS: http://localhost:5173,http://localhost:4173
+      LOG_LEVEL: info
+
+  dynamodb:
+    profiles: ['dynamodb']
+    image: amazon/dynamodb-local:latest
+    command: ['-jar', 'DynamoDBLocal.jar', '-sharedDb', '-dbPath', '/data']
+    ports:
+      - '8000:8000'
+    volumes:
+      - dynamodb-data:/data
+
+volumes:
+  dynamodb-data:

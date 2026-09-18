@@ -1,0 +1,148 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  BusKothay data layer: one on-demand DynamoDB table with TTL, and the IAM role
+  App Runner uses at runtime. Deploy this before the service stack.
+
+  Nothing here is applied automatically. Apply it yourself and check the
+  resulting resources in the console before treating them as real.
+
+Parameters:
+  TableName:
+    Type: String
+    Default: buskothay
+    Description: Name of the journey table.
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    Description: CloudWatch log retention. Bounded on purpose; logs cost money.
+
+Resources:
+  JourneyTable:
+    Type: AWS::DynamoDB::Table
+    # The table holds the only durable record of a journey. Retain it so that a
+    # stack delete cannot quietly destroy live data.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Ref TableName
+      # On-demand: a demo has no predictable traffic, and provisioned capacity
+      # would be either wasted or throttled.
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      # No GSI: every access pattern in docs/BACKEND_INSTRUCTIONS.md is a Get or
+      # a Query on the partition key.
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Project
+          Value: BusKothay
+
+  # The application's runtime role. It can read and write the table's own items
+  # and nothing else — no table creation, no other table, no wildcard resource.
+  ApiInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TableName}-api-instance'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: tasks.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: journey-table-access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:BatchWriteItem
+                  - dynamodb:TransactWriteItems
+                Resource: !GetAtt JourneyTable.Arn
+      Tags:
+        - Key: Project
+          Value: BusKothay
+
+  # Separate from the instance role: pulling an image is a build-time concern and
+  # has nothing to do with what the running application may touch.
+  ApiAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${TableName}-api-ecr-access'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: build.apprunner.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppRunnerServicePolicyForECRAccess
+
+  ApiRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${TableName}-api'
+      ImageTagMutability: IMMUTABLE
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Keep the last 10 images",
+                "selection": {
+                  "tagStatus": "any",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  ApiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apprunner/${TableName}-api/application'
+      RetentionInDays: !Ref LogRetentionDays
+
+Outputs:
+  TableName:
+    Value: !Ref JourneyTable
+    Export:
+      Name: !Sub '${AWS::StackName}-TableName'
+  InstanceRoleArn:
+    Value: !GetAtt ApiInstanceRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceRoleArn'
+  AccessRoleArn:
+    Value: !GetAtt ApiAccessRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-AccessRoleArn'
+  RepositoryUri:
+    Value: !GetAtt ApiRepository.RepositoryUri
+    Export:
+      Name: !Sub '${AWS::StackName}-RepositoryUri'

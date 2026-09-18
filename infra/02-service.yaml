@@ -1,0 +1,112 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  BusKothay API on App Runner, from an image already pushed to the ECR repository
+  created by 01-data.yaml.
+
+  Deploy this only after an image with the given tag exists: App Runner pulls it
+  during creation, and a missing image fails the stack.
+
+Parameters:
+  DataStackName:
+    Type: String
+    Default: buskothay-data
+    Description: Name of the stack created from 01-data.yaml.
+  ImageTag:
+    Type: String
+    Description: >-
+      Immutable, commit-derived tag of the image to deploy, e.g. git-1a2b3c4.
+      Never "latest": a mutable tag makes a rollback ambiguous.
+  CorsOrigins:
+    Type: String
+    Description: >-
+      Comma-separated Amplify origins, exactly as the browser sends them,
+      e.g. https://main.d111111abcdef8.amplifyapp.com
+  AwsRegionForData:
+    Type: String
+    Default: ap-south-1
+
+Resources:
+  ApiService:
+    Type: AWS::AppRunner::Service
+    Properties:
+      ServiceName: buskothay-api
+      SourceConfiguration:
+        AutoDeploymentsEnabled: false # Turn on deliberately; never mid-demo.
+        AuthenticationConfiguration:
+          AccessRoleArn:
+            Fn::ImportValue: !Sub '${DataStackName}-AccessRoleArn'
+        ImageRepository:
+          ImageIdentifier: !Sub
+            - '${Uri}:${ImageTag}'
+            - Uri:
+                Fn::ImportValue: !Sub '${DataStackName}-RepositoryUri'
+          ImageRepositoryType: ECR
+          ImageConfiguration:
+            Port: '8080'
+            RuntimeEnvironmentVariables:
+              - Name: NODE_ENV
+                Value: production
+              - Name: PORT
+                Value: '8080'
+              - Name: DATA_DRIVER
+                Value: dynamodb
+              - Name: AWS_REGION
+                Value: !Ref AwsRegionForData
+              - Name: DYNAMODB_TABLE
+                Value:
+                  Fn::ImportValue: !Sub '${DataStackName}-TableName'
+              - Name: CORS_ORIGINS
+                Value: !Ref CorsOrigins
+              - Name: ROUTE_DATA_DIR
+                Value: /app/data/routes
+              - Name: DEFAULT_ROUTE_ID
+                Value: ac24-patuli-howrah
+              - Name: LOG_LEVEL
+                Value: info
+              - Name: TRAFFIC_REFRESH_ENABLED
+                Value: 'false'
+              # App Runner puts exactly one proxy in front of the container.
+              - Name: TRUST_PROXY_HOPS
+                Value: '1'
+      InstanceConfiguration:
+        Cpu: 1024
+        Memory: 2048
+        InstanceRoleArn:
+          Fn::ImportValue: !Sub '${DataStackName}-InstanceRoleArn'
+      HealthCheckConfiguration:
+        Protocol: HTTP
+        Path: /health
+        Interval: 10
+        Timeout: 5
+        HealthyThreshold: 1
+        UnhealthyThreshold: 5
+      AutoScalingConfigurationArn: !Ref ApiAutoScaling
+      NetworkConfiguration:
+        EgressConfiguration:
+          # No VPC connector: DynamoDB and Location are reached over their public
+          # endpoints, and adding one would buy nothing but cost and complexity.
+          EgressType: DEFAULT
+      Tags:
+        - Key: Project
+          Value: BusKothay
+
+  ApiAutoScaling:
+    Type: AWS::AppRunner::AutoScalingConfiguration
+    Properties:
+      AutoScalingConfigurationName: buskothay-demo
+      # A small demo capacity choice. It is NOT a guarantee of a single process
+      # or of durable in-memory state: deployments replace instances, and
+      # DynamoDB conditional writes are what keep concurrent writers correct.
+      MinSize: 1
+      MaxSize: 1
+      MaxConcurrency: 80
+      Tags:
+        - Key: Project
+          Value: BusKothay
+
+Outputs:
+  ServiceUrl:
+    Description: Public HTTPS origin. Add it to nothing until it has been tested.
+    Value: !Sub 'https://${ApiService.ServiceUrl}'
+  ServiceArn:
+    Value: !GetAtt ApiService.ServiceArn
