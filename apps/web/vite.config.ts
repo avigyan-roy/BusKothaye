@@ -33,13 +33,6 @@ export default defineConfig(({ command, mode }) => {
     build: {
       outDir: 'dist',
       sourcemap: true,
-      rollupOptions: {
-        output: {
-          // MapLibre is large and only the map screens need it, so it gets its own
-          // chunk: the stop list and arrival panel become usable sooner.
-          manualChunks: { maplibre: ['maplibre-gl'] },
-        },
-      },
     },
   };
 });

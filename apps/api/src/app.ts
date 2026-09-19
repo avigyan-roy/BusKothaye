@@ -17,6 +17,7 @@ import { AccountService } from './service/account-service.js';
 import { createAuthRouter } from './routes/auth.js';
 import { DemoService } from './service/demo-service.js';
 import { createDemoRouter } from './routes/demo.js';
+import { createAdminRoutesRouter } from './routes/admin-routes.js';
 import type { JourneyRepository } from './store/types.js';
 import { createLogger, type Logger } from './observability/logger.js';
 
@@ -91,6 +92,15 @@ export function createApp(deps: AppDeps): BuiltApp {
       allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'If-None-Match'],
       maxAge: 600,
     }),
+  );
+
+  // A high-quality Google route can contain thousands of coordinates. Keep the
+  // larger allowance scoped to the authenticated route editor; passenger and
+  // contributor payloads retain the deliberately small global limit below.
+  app.use(
+    '/v1/admin/routes',
+    json({ limit: 1024 * 1024 }),
+    createAdminRoutesRouter(accounts, deps.repo, deps.registry, () => clock.nowMs()),
   );
 
   app.use(json({ limit: MAX_BODY_BYTES }));

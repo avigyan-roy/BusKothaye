@@ -85,25 +85,19 @@ Dockerfile stay exactly as they are — only the thing that runs the image chang
 **Recommendation: Lightsail for the API and worker; keep App Runner documented
 as the scale-up path.**
 
-### 4. Map tiles are the one number I could not verify
+### 4. Google Maps and Routes must be checked separately
 
-After the three fixes above, everything except map tiles comes to **$29.83** for
-30 days at 10 buses / 5 s / 50 viewers. That leaves **$20 of headroom** to the
-$50 ceiling.
+The AWS application costs and Google Maps Platform costs now come from separate
+billing systems. `scripts/cost-model.mjs` uses an explicitly labelled planning
+placeholder for dynamic map loads and does not yet include Routes-library
+computations from the administrator console. Current SKU prices, regional terms,
+free usage, quotas, and taxes can change.
 
-I could not find a per-1,000 map tile price on any AWS page reachable from this
-machine. The script uses **$0.05 per 1,000 as a placeholder**, which is a guess.
-At that rate the headroom is roughly 400,000 tiles over 30 days, about 13,000 a
-day.
-
-Amazon Location advertises **500,000 free map tile requests a month for the first
-three months** on a new account. If that applies to yours, tiles are probably
-free for this demo entirely. Your student account may also carry credits. Neither
-is something to plan on without confirming.
-
-**Confirm the tile rate and your free-tier eligibility first.** It is the only
-figure that decides whether this fits, and the difference between "comfortably
-inside budget" and "over" is entirely in that one number.
+**Check the current Maps JavaScript dynamic-map and Routes prices in the Google
+Cloud billing console before enabling the key.** Set API quotas and budget alerts
+there as well as the AWS budget. Do not infer the bill from tile counts: Google
+bills the configured SKUs, and generating an admin route is distinct from
+opening a passenger map.
 
 ## What I propose
 
@@ -119,9 +113,9 @@ inside budget" and "over" is entirely in that one number.
 | Log retention | 7 days | Bounded on purpose |
 | Demo duty cycle | Your choice | 12 h/day saves a further $7 |
 
-That lands at **about $30 plus tiles** for 30 continuous days.
+That lands at **about $30 plus Google Maps/Routes usage** for 30 continuous days.
 
-If the tile rate turns out to be expensive and the free tier does not apply, the
+If map usage turns out to be expensive and free usage does not apply, the
 next levers in order of least damage: cut the demo to 5 buses (−$7), duty-cycle
 it (−$7), then raise the poll interval to 2 s, which is the first change a
 passenger would actually notice.
@@ -132,8 +126,8 @@ one driver at 3 s is 1/10th of the fleet traffic.
 
 ## Before you enable anything billed
 
-1. Confirm the `ap-south-1` rates for DynamoDB on-demand, Lightsail, CloudWatch
-   Logs and **Amazon Location map tiles**, and put them in `scripts/cost-model.mjs`.
+1. Confirm the AWS `ap-south-1` rates and the current Google Maps/Routes SKUs,
+   and put the selected planning rate in `scripts/cost-model.mjs`.
 2. Confirm what your student account actually includes. Do not assume credits.
 3. Re-run the model and check the total.
 4. Record the deployment start date. The 30 days end exactly 30 days later.
@@ -149,4 +143,4 @@ one driver at 3 s is 1/10th of the fleet traffic.
 - [App Runner pricing](https://aws.amazon.com/apprunner/pricing/) — provisioned vs active billing; no `ap-south-1` rate listed.
 - [App Runner in Mumbai](https://aws.amazon.com/about-aws/whats-new/2023/11/aws-app-runner-london-mumbai-paris-regions/) — region availability confirmed.
 - [Lightsail pricing](https://aws.amazon.com/lightsail/pricing/) — $5 instance, container plans, halved transfer allowance in Mumbai.
-- [Amazon Location pricing](https://aws.amazon.com/location/pricing/) — free-tier tile allowance; per-1,000 rate not exposed to this review.
+- [Google Maps Platform pricing](https://mapsplatform.google.com/pricing/) — verify current Maps and Routes SKU pricing, quotas, and free usage for the deployment account.

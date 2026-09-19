@@ -3,6 +3,8 @@ import {
   MAX_BATCH_REPORTS,
   type BoardJourneyResponse,
   type AccountRole,
+  type AdminRouteListResponse,
+  type AdminRouteRecord,
   type AuthSessionResponse,
   type CreateJourneyResponse,
   type DebugDto,
@@ -170,6 +172,42 @@ describe('routes', () => {
     );
     expect(result.status).toBe(404);
     expect(result.body.error.code).toBe('ROUTE_NOT_FOUND');
+  });
+
+  it('keeps the route editor admin-only and activates a validated revision', async () => {
+    const passenger = await register('passenger');
+    const denied = await http(server.url, 'GET', '/v1/admin/routes', { token: passenger });
+    expect(denied.status).toBe(403);
+
+    const admin = await loginAdmin();
+    const listing = await http<AdminRouteListResponse>(server.url, 'GET', '/v1/admin/routes', {
+      token: admin,
+    });
+    expect(listing.status).toBe(200);
+    const ac24 = listing.body.routes.find((record) => record.route.id === ROUTE_ID);
+    expect(ac24).toBeDefined();
+
+    const edited = structuredClone(ac24!.route);
+    edited.version = 'test-admin-revision-1';
+    edited.schedule = {
+      source: 'API route editor test',
+      timezone: edited.timezone,
+      isIllustrative: true,
+      departures: ['06:30'],
+    };
+    const saved = await http<AdminRouteRecord>(
+      server.url,
+      'PUT',
+      `/v1/admin/routes/${ROUTE_ID}`,
+      { token: admin, body: { route: edited } },
+    );
+    expect(saved.status).toBe(200);
+    expect(saved.body.updatedBy).toBe('admin');
+
+    const publicRoute = await http<RouteDto>(server.url, 'GET', `/v1/routes/${ROUTE_ID}`);
+    expect(publicRoute.body.version).toBe('test-admin-revision-1');
+    expect(publicRoute.body.schedule?.source).toBe('API route editor test');
+    expect(await server.repo.listRouteOverrides()).toHaveLength(1);
   });
 });
 

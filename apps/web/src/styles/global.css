@@ -19,7 +19,11 @@ body,
 
 body {
   margin: 0;
-  background: var(--color-canvas);
+  min-height: 100dvh;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 68px 68px;
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-body);
@@ -136,11 +140,11 @@ textarea {
 }
 
 .panel {
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--color-border-strong);
-  border-radius: 0;
-  padding: var(--space-4) 0 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+  box-shadow: var(--shadow);
 }
 
 .stack > * + * {
@@ -156,7 +160,7 @@ textarea {
   min-height: var(--touch-min);
   min-width: var(--touch-min);
   padding: 0 var(--space-4);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -214,7 +218,7 @@ textarea {
   min-height: var(--touch-min);
   padding: 0 var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-ink);
 }
@@ -235,7 +239,7 @@ textarea {
  */
 .notice {
   border: 1px solid var(--color-border-strong);
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   padding: var(--space-3);
   background: transparent;
   font-size: var(--text-secondary);

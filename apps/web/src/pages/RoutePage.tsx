@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { positionAt, type JourneyMode, type StopEta } from '@buskothay/shared';
 import { Header } from '../components/Header.js';
-import { NavMenu } from '../components/NavMenu.js';
 import { MapView } from '../features/map/MapView.js';
 import { ArrivalPanel } from '../features/journeys/ArrivalPanel.js';
 import { JourneySheet } from '../features/journeys/JourneySheet.js';
@@ -235,16 +234,10 @@ export function RoutePage() {
   }
 
   const noJourney = activeJourneyId === null;
-  const openCatalogue = () => {
-    setSheetExpanded(true);
-    setCatalogueOpen(true);
-    window.setTimeout(() => {
-      catalogueRef.current?.scrollIntoView({ block: 'nearest' });
-    }, 200);
-  };
-
   return (
-    <main className="route-page">
+    <>
+      <Header routeCode={route.dto.code} routeDirection={`${route.dto.origin} → ${route.dto.destination}`} />
+      <main className="route-page">
       <MapView
         route={route.dto}
         stops={stops}
@@ -257,7 +250,6 @@ export function RoutePage() {
       />
 
       <div className="route-page__top">
-        <NavMenu onOpenRoutes={openCatalogue} />
         <JourneyStatus
           mode={mode}
           ageSeconds={projected?.ageSeconds ?? state?.lastFixAgeSeconds ?? null}
@@ -356,7 +348,8 @@ export function RoutePage() {
           <RouteDetails route={route.dto} />
         </div>
       </JourneySheet>
-    </main>
+      </main>
+    </>
   );
 }
 

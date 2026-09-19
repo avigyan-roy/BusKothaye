@@ -28,6 +28,8 @@ Implement this contract in `packages/shared/src/` as Zod runtime schemas with in
 | `GET /v1/routes` | Public | Available route summaries; only AC24 required initially |
 | `GET /v1/routes/:routeId` | Public | Full route, selected stops, provenance, and any verified schedule |
 | `GET /v1/routes/:routeId/journeys` | Public | Non-expired, non-ended journeys; includes `isDemo` and mode |
+| `GET /v1/admin/routes` | Administrator account | List editable active route fixtures with update audit metadata |
+| `PUT /v1/admin/routes/:routeId` | Administrator account | Validate, persist, and activate a new immutable route revision |
 | `POST /v1/journeys` | Driver account or simulator, rate limited | Create journey and issue driver + ops capabilities and join code |
 | `POST /v1/journeys/:id/contributors` | Matching account role + join code | Join as passenger or conductor; never grants driver or ops rights |
 | `POST /v1/journeys/:id/board` | Passenger account, current boardable stop | Board without a join code and issue/restore a passenger capability |
@@ -44,6 +46,12 @@ Implement this contract in `packages/shared/src/` as Zod runtime schemas with in
 | `POST /v1/demo/worker/lease` | Simulator service identity | Acquire/refresh the single-worker generation lease |
 
 The driver uses separate controls for **Pause location sharing** (stop watch without revoking driver control) and **End journey**. Do not accidentally revoke the only driver capability when the driver merely pauses GPS. Passenger/conductor **Stop sharing** clears the watcher, queue, and own capability via DELETE.
+
+### Route administration
+
+The save body is `{ route: RouteFixture }`, using the same runtime schema as files in `data/routes/`. The path route ID and body ID must match. An update to an existing route must use a new version string; the server rejects reuse of the active version. Before the durable write it derives route length and stop distances, checks stop ordering and line proximity, validates contiguous segments, and validates a non-illustrative timetable has departures.
+
+The web editor may use Google Maps to propose a road-following path, but Google does not decide the verification flags. The administrator must explicitly record whether the full alignment and boarding-point pins were reviewed. The public route endpoint immediately serves the activated revision. Existing journeys stay bound to their route version.
 
 ## Accounts and administrator bootstrap
 

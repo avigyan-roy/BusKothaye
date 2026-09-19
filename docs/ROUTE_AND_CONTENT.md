@@ -40,7 +40,9 @@ Create `data/routes/ac24-patuli-howrah.json` and a short adjacent provenance not
 
 Default route ID: `ac24-patuli-howrah`. Public path: `/r/ac24-patuli-howrah`. Timezone: `Asia/Kolkata`.
 
-Generate geometry once using Amazon Location or another appropriately licensed source, with enough verified waypoints to preserve the actual corridor. Inspect the line on a street map; routing through only endpoints may choose a different route. Do not draw a straight line through the eight checkpoint coordinates and call it road-following.
+Use the authenticated route editor to place the ordered checkpoints and explicitly ask the Google Maps Routes library for a high-quality driving path through them. Inspect the entire result against WBTC's published corridor; Google can select a valid road that is not the bus alignment. Routing only Patuli to Howrah is not sufficient. Do not draw a straight line through checkpoint coordinates and call it road-following.
+
+The route editor stores each publish as a new immutable version and records route identity, geometry source, timetable source, notes, and independent verification flags for line and stop pins. Cloud overrides live in DynamoDB; the committed JSON remains the seed and recovery baseline. Review Google Maps Platform terms before retaining generated path data.
 
 If exact geometry is not verified yet, label the fixture **Approximate AC24 demo route** and disclose that in route details. A useful local demo may proceed while exact verification is pending; it must not pretend to be an official operational feed.
 

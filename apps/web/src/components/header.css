@@ -1,90 +1,135 @@
-/*
- * The header belongs to the ordinary pages — contributor, account, diagnostics,
- * not found. The passenger map has no header at all: it is the map, and the
- * navigation lives in the menu over it.
- */
 .site-header {
-  border-bottom: 1px solid var(--color-border);
-  padding: var(--inset-top) max(var(--space-4), var(--inset-right)) var(--space-2)
-    max(var(--space-4), var(--inset-left));
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  min-height: calc(var(--header-h) + var(--inset-top));
+  padding: var(--inset-top) max(22px, var(--inset-right)) 0 max(22px, var(--inset-left));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.site-header::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+  content: '';
 }
 
 .site-header__bar {
   display: flex;
+  width: 100%;
+  max-width: var(--maxw);
+  min-height: var(--header-h);
+  margin: 0 auto;
   align-items: center;
-  justify-content: space-between;
-  min-height: var(--header-height);
-  gap: var(--space-3);
+  gap: 16px;
 }
 
 .site-header__wordmark {
-  font-family: var(--font-mono);
-  font-size: var(--text-body);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 21px;
   font-weight: 700;
-  letter-spacing: -0.04em;
-  color: var(--color-ink);
+  letter-spacing: -0.01em;
   text-decoration: none;
+}
+
+.site-header__wordmark svg { width: 26px; height: 30px; color: var(--accent); }
+.site-header__wordmark strong { color: var(--accent); font-weight: 400; }
+
+.site-header__city {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
 }
 
 .site-header__actions {
   display: flex;
+  margin-left: auto;
   align-items: center;
-  gap: var(--space-1);
+  gap: 8px;
 }
 
 .site-header__action {
   display: inline-flex;
+  min-height: 38px;
+  padding: 8px 13px;
   align-items: center;
-  min-height: var(--touch-min);
-  padding: 0 var(--space-3);
-  border-bottom: 1px solid transparent;
-  border-radius: 0;
-  font-size: var(--text-secondary);
-  font-weight: 600;
-  color: var(--color-muted);
+  gap: 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
   text-decoration: none;
 }
 
-.site-header__action:hover {
-  border-bottom-color: var(--color-accent);
-  background: transparent;
-  color: var(--color-ink);
-}
+.site-header__action:hover { border-color: var(--accent); color: var(--text-primary); }
 
-.site-header__route {
+.site-header__clock {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding-bottom: var(--space-1);
+  padding-right: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.05;
+}
+.site-header__clock b { font-size: 17px; font-weight: 600; }
+.site-header__clock small { color: var(--text-faint); font-size: 10px; letter-spacing: 0.14em; }
+
+.site-header__avatar {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
 }
 
-.site-header__direction {
-  font-size: var(--text-secondary);
-  color: var(--color-muted);
-}
+.site-header__route { display: flex; align-items: center; gap: 8px; }
+.site-header__direction { color: var(--text-secondary); font-size: 13px; }
 
-/* The route code is the strongest identifier in the interface after the name. */
 .route-badge {
-  display: inline-block;
-  flex: none;
-  padding: 1px 6px;
-  border-radius: 1px;
-  background: var(--color-accent);
-  color: var(--color-on-accent);
-  font-size: var(--text-secondary);
-  font-family: var(--font-mono);
+  display: inline-flex;
+  padding: 5px 10px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
 }
 
 .demo-badge {
   display: inline-block;
-  flex: none;
-  padding: 1px 6px;
-  border: 1px solid var(--color-warning);
-  border-radius: 0;
-  color: var(--color-warning);
-  font-size: var(--text-meta);
+  padding: 2px 6px;
+  border: 1px solid var(--current);
+  border-radius: 3px;
+  color: var(--current);
+  font-size: 11px;
   font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .site-header { padding-inline: 14px; }
+  .site-header__city,
+  .site-header__clock,
+  .site-header__route,
+  .site-header__action span { display: none; }
+  .site-header__action { min-width: 38px; padding-inline: 10px; justify-content: center; }
 }

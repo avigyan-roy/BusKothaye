@@ -33,7 +33,7 @@ BusKothay should feel like a quiet transit instrument at night:
 What already worked and was retained:
 
 - map-first passenger screen instead of a marketing landing page;
-- one amber accent and labelled operational colours;
+- one cyan accent and labelled operational colours;
 - real route, stop, ETA and freshness information;
 - no purple gradient, fake statistic, testimonial, stock photo, emoji navigation or abstract hero art;
 - consistent SVG map controls and meaningful labelled status glyphs;

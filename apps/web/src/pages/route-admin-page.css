@@ -1,0 +1,64 @@
+.route-admin { width: min(100% - 36px, 1480px); margin: 0 auto; padding: 34px 0 90px; }
+.route-admin__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; margin-bottom: 24px; }
+.route-admin__heading h1 { font-size: clamp(30px, 4vw, 46px); }
+.route-admin__heading p:not(.route-admin__eyebrow) { max-width: 720px; margin-top: 8px; color: var(--text-secondary); }
+.route-admin__eyebrow { margin-bottom: 6px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+.route-admin > .notice { margin-bottom: 16px; }
+.route-admin__workspace { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 18px; }
+.route-admin__directory { position: sticky; top: calc(var(--header-h) + 18px); overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.route-admin__directory h2 { padding: 16px; border-bottom: 1px solid var(--border); font-size: 15px; }
+.route-admin__directory > .muted { padding: 16px; }
+.route-admin__directory > button { display: grid; width: 100%; min-height: 62px; padding: 12px 14px; grid-template-columns: 4px 50px minmax(0, 1fr); align-items: center; gap: 10px; border: 0; border-bottom: 1px solid var(--border); background: transparent; text-align: left; cursor: pointer; }
+.route-admin__directory > button:hover, .route-admin__directory > button.is-selected { background: var(--accent-soft); }
+.route-admin__directory > button.is-selected { box-shadow: inset 2px 0 var(--accent); }
+.route-admin__directory > button > span { width: 4px; height: 34px; border-radius: 3px; }
+.route-admin__directory b { color: var(--text-primary); }
+.route-admin__directory small { overflow: hidden; color: var(--text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.route-admin__directory-note { padding: 14px; color: var(--text-faint); font-size: 11px; }
+.route-admin__editor { display: grid; min-width: 0; gap: 18px; }
+.admin-form-section { padding: 22px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.admin-form-section__title { display: flex; margin-bottom: 20px; align-items: flex-start; gap: 12px; }
+.admin-form-section__title > span { display: grid; width: 30px; height: 30px; flex: 0 0 auto; place-items: center; border: 1px solid var(--accent); border-radius: 50%; color: var(--accent); font-size: 11px; font-weight: 700; }
+.admin-form-section__title h2 { font-size: 19px; }
+.admin-form-section__title p { margin-top: 3px; color: var(--text-secondary); font-size: 13px; }
+.admin-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+.admin-form-grid__wide { grid-column: 1 / -1; }
+.route-admin .field__input { border-color: var(--border-strong); background: var(--surface-sunken); }
+.route-admin .field__input:disabled { color: var(--text-faint); opacity: .7; }
+.route-admin .field__color { padding: 5px 8px; }
+.route-admin__textarea { height: auto; padding: 10px 12px; resize: vertical; }
+.route-admin__check { display: flex; grid-column: 1 / -1; align-items: flex-start; gap: 9px; color: var(--text-secondary); font-size: 13px; }
+.route-admin__check input { margin-top: 3px; accent-color: var(--accent); }
+.route-stop-table { display: grid; margin-bottom: 14px; gap: 7px; }
+.route-stop-row { display: grid; padding: 8px; grid-template-columns: 36px minmax(100px, .7fr) minmax(150px, 1.4fr) minmax(112px, .8fr) minmax(112px, .8fr) auto; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); }
+.route-stop-row__number { color: var(--accent); font-size: 12px; text-align: center; }
+.route-stop-row input { width: 100%; min-height: 38px; padding: 0 9px; border: 1px solid transparent; border-radius: 4px; background: var(--surface-elevated); color: var(--text-primary); }
+.route-stop-row input:focus { border-color: var(--accent); }
+.route-stop-row__actions { display: flex; gap: 4px; }
+.route-stop-row__actions button { width: 34px; height: 34px; border: 1px solid var(--border-strong); border-radius: 4px; background: var(--surface-elevated); cursor: pointer; }
+.route-stop-row__actions button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.route-stop-row__actions button:disabled { opacity: .3; }
+.route-admin__publish { position: sticky; z-index: 5; bottom: 14px; display: flex; padding: 14px 16px; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: 0 18px 50px rgba(0, 0, 0, .38); backdrop-filter: blur(16px); }
+.route-admin__publish b, .route-admin__publish span { display: block; }
+.route-admin__publish span { margin-top: 3px; color: var(--text-secondary); font-size: 12px; }
+@media (max-width: 1000px) {
+  .route-admin__workspace { grid-template-columns: 1fr; }
+  .route-admin__directory { position: static; display: flex; overflow-x: auto; }
+  .route-admin__directory h2, .route-admin__directory-note { display: none; }
+  .route-admin__directory > button { min-width: 220px; border-right: 1px solid var(--border); border-bottom: 0; }
+  .route-stop-row { grid-template-columns: 36px 1fr 1.5fr; }
+  .route-stop-row input[type='number'] { grid-column: auto; }
+  .route-stop-row__actions { grid-column: 2 / -1; justify-content: flex-end; }
+}
+@media (max-width: 680px) {
+  .route-admin { width: min(100% - 24px, 1480px); padding-top: 22px; }
+  .route-admin__heading { align-items: stretch; flex-direction: column; }
+  .route-admin__heading .button { width: 100%; }
+  .admin-form-section { padding: 16px; }
+  .admin-form-grid { grid-template-columns: 1fr; }
+  .admin-form-grid__wide, .route-admin__check { grid-column: auto; }
+  .route-stop-row { grid-template-columns: 32px 1fr; }
+  .route-stop-row input, .route-stop-row input[type='number'], .route-stop-row__actions { grid-column: 2; }
+  .route-admin__publish { align-items: stretch; flex-direction: column; }
+  .route-admin__publish .button { width: 100%; }
+}

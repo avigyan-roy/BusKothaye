@@ -14,6 +14,9 @@ import type {
   LocationResponse,
   RouteDto,
   RouteListResponse,
+  AdminRouteListResponse,
+  AdminRouteRecord,
+  RouteFixture,
 } from '@buskothay/shared';
 import { loadWebConfig } from '../config/site.js';
 
@@ -136,6 +139,19 @@ export const api = {
 
   listRoutes: (signal?: AbortSignal) =>
     request<RouteListResponse>('GET', '/v1/routes', { signal }),
+
+  listAdminRoutes: (accountToken: string, signal?: AbortSignal) =>
+    request<AdminRouteListResponse>('GET', '/v1/admin/routes', {
+      token: accountToken,
+      signal,
+    }),
+
+  saveAdminRoute: (accountToken: string, route: RouteFixture) =>
+    request<AdminRouteRecord>(
+      'PUT',
+      `/v1/admin/routes/${encodeURIComponent(route.id)}`,
+      { token: accountToken, body: { route }, timeoutMs: 15_000 },
+    ),
 
   register: (username: string, password: string, role: AccountRole) =>
     request<AuthSessionResponse>('POST', '/v1/auth/register', {

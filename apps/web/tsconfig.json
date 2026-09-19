@@ -11,7 +11,7 @@
     "declaration": false,
     "declarationMap": false,
     "allowImportingTsExtensions": true,
-    "types": ["vite/client", "geojson"]
+    "types": ["vite/client", "google.maps"]
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "vite.config.ts", "e2e/**/*.ts"]
 }

@@ -1,4 +1,9 @@
-import type { AccountRole, DemoAuditEntry, DemoFleetConfig } from '@buskothay/shared';
+import type {
+  AccountRole,
+  DemoAuditEntry,
+  DemoFleetConfig,
+  RouteFixture,
+} from '@buskothay/shared';
 import type { JourneySnapshot } from '../fusion/types.js';
 
 export interface AccountRecord {
@@ -35,6 +40,12 @@ export interface DemoControlRecord {
     readonly generation: number;
     readonly expiresAtMs: number;
   } | null;
+}
+
+export interface RouteOverrideRecord {
+  readonly route: RouteFixture;
+  readonly updatedAtMs: number;
+  readonly updatedBy: string;
 }
 
 /**
@@ -112,6 +123,10 @@ export interface JourneyRepository {
     expiresAtMs: number;
   }): Promise<boolean>;
   listDemoJourneys(): Promise<JourneySnapshot[]>;
+
+  /** Administrator-authored routes override the bundled seed catalogue. */
+  listRouteOverrides(): Promise<RouteOverrideRecord[]>;
+  putRouteOverride(record: RouteOverrideRecord): Promise<void>;
 
   /**
    * Create the journey, its route-membership entry and any idempotency marker

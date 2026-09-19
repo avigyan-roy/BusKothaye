@@ -25,31 +25,21 @@ export const site = {
  */
 export interface WebConfig {
   readonly apiBaseUrl: string;
-  /**
-   * `amazon` in production, `demo` for credential-free development, and `none`
-   * for browser tests, which must not depend on an external tile server.
-   */
-  readonly mapProvider: 'demo' | 'amazon' | 'none';
-  readonly awsRegion: string;
-  readonly locationApiKey: string;
+  /** Public, HTTP-referrer-restricted Google Maps JavaScript API key. */
+  readonly googleMapsApiKey: string;
+  /** Google cloud map ID; DEMO_MAP_ID is acceptable for local development. */
+  readonly googleMapsMapId: string;
 }
 
 export function loadWebConfig(env: {
   VITE_API_BASE_URL?: string | undefined;
-  VITE_MAP_PROVIDER?: string | undefined;
-  VITE_AWS_REGION?: string | undefined;
-  VITE_LOCATION_API_KEY?: string | undefined;
+  VITE_GOOGLE_MAPS_API_KEY?: string | undefined;
+  VITE_GOOGLE_MAPS_MAP_ID?: string | undefined;
 }): WebConfig {
   return {
     apiBaseUrl: (env.VITE_API_BASE_URL ?? 'http://localhost:3001').replace(/\/$/, ''),
-    mapProvider:
-      env.VITE_MAP_PROVIDER === 'amazon'
-        ? 'amazon'
-        : env.VITE_MAP_PROVIDER === 'none'
-          ? 'none'
-          : 'demo',
-    awsRegion: env.VITE_AWS_REGION ?? 'ap-south-1',
-    locationApiKey: env.VITE_LOCATION_API_KEY ?? '',
+    googleMapsApiKey: env.VITE_GOOGLE_MAPS_API_KEY ?? '',
+    googleMapsMapId: env.VITE_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID',
   };
 }
 
@@ -69,13 +59,11 @@ export function productionConfigProblems(config: WebConfig): string[] {
   if (!config.apiBaseUrl.startsWith('https://')) {
     problems.push('VITE_API_BASE_URL must be an https origin');
   }
-  if (config.mapProvider === 'amazon' && config.locationApiKey.length === 0) {
-    problems.push('VITE_LOCATION_API_KEY is required when VITE_MAP_PROVIDER is "amazon"');
+  if (config.googleMapsApiKey.length === 0) {
+    problems.push('VITE_GOOGLE_MAPS_API_KEY is required for a deployment build');
   }
-  if (config.mapProvider !== 'amazon') {
-    problems.push(
-      `VITE_MAP_PROVIDER is "${config.mapProvider}". Only "amazon" is a production street map; set it with a restricted browser key before deploying`,
-    );
+  if (config.googleMapsMapId.length === 0 || config.googleMapsMapId === 'DEMO_MAP_ID') {
+    problems.push('VITE_GOOGLE_MAPS_MAP_ID must be a production Google Cloud map ID');
   }
   return problems;
 }

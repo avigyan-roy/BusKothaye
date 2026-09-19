@@ -1,6 +1,6 @@
 # Decisions and corrections to the original plan
 
-These decisions are part of the current build brief. They preserve the original product and AWS stack while correcting gaps that would otherwise produce a misleading or fragile implementation. The original plan remains unchanged for reference.
+These decisions are part of the current build brief. They preserve the product and AWS application hosting while correcting gaps and recording explicit user changes. The original plan remains unchanged for historical reference.
 
 ## 1. Node 24 instead of Node 20
 
@@ -48,13 +48,13 @@ Add `PENDING` before the first accepted fix. Cover `DWELLING → ESTIMATED → S
 
 Do not promise a calibrated probability from an unvalidated Kalman sigma. The UI says **Approximate accuracy**. Record empirical coverage in simulator output. Browser location accuracy is a 95% radial measure, not directly the filter's one-dimensional standard deviation; make the approximation explicit in measurement-noise code. [Geolocation accuracy definition](https://developer.mozilla.org/en-US/docs/Web/API/GeolocationCoordinates/accuracy)
 
-## 10. Traffic, map providers, and scheduling
+## 10. Google Maps, route geometry, and scheduling
 
-Live traffic is optional. CalculateRoutes through the same stops can still choose different roads; accept segment timing only after checking compatibility with the committed geometry. Otherwise use authored typical speeds and report the basis honestly.
+Google Maps JavaScript API is the only browser map provider. The passenger view uses the Maps and Advanced Marker libraries, Google traffic, provider-owned attribution, and a referrer-restricted browser key. The old Amazon Location and MapLibre integration is removed.
 
-Amazon Location Maps V2 is the production map source, with MapLibre as renderer. [AWS display-map guide](https://docs.aws.amazon.com/location/latest/developerguide/how-to-display-a-map.html)
+The administrator route editor uses the Google Maps Routes library to compute a high-quality driving path through ordered stop pins. A computed road path is not automatically an operator-verified bus alignment: AC24 must still be checked against WBTC's published corridor and local route evidence. Keep `isApproximateGeometry` and `areStopsApproximate` true until that review is complete. Live tracking and ETA fusion continue to use the versioned route saved by the administrator, not a fresh external routing call on every poll.
 
-For credential-free development only, the MapLibre demonstration style can establish real map rendering. It is not the production street-map service or an offline guarantee. [MapLibre display-map example](https://maplibre.org/maplibre-gl-js/docs/examples/display-a-map/)
+Routine CI omits the browser key and verifies the honest text fallback. A configured browser smoke test is required before claiming Google tiles, traffic, markers, route computation, restrictions, or attribution work in production. Google Maps Platform usage and storage terms must be reviewed by the deployment owner before retaining generated path data.
 
 Snapshot timers no longer define durability. Read-time projection computes current state; operational tasks such as log flushing and cleanup may use timers, but correctness and expiry must not depend on a background timer running on an idle container.
 
@@ -76,3 +76,9 @@ When changing a decision, record the reason and update every affected guide, sch
 The implementation now exists in this repository. The original plan remains background; do not scaffold a replacement application. The current [implementation context](IMPLEMENTATION_CONTEXT.md) records inspected source/configuration gaps without waiving the requirements above.
 
 Use `npm run build` for a local optimized preview and `npm run build:deploy` for deployment configuration validation. A local build passing does not establish valid cloud settings. Previous-session test reports remain historical until rerun, and memory-adapter tests do not establish DynamoDB behaviour. Documentation-only reviews must not mark infrastructure or acceptance gates complete.
+
+## 12. Prototype-led interface and route administration
+
+The supplied `buskothay-prototype final.html` is a visual and interaction reference, not an instruction document or a data authority. Its current design language supersedes the earlier amber, full-screen-map-only direction: Archivo type, cyan `#38D0FF`, near-black gridded canvas, compact Kolkata header, stop-first route finder, clean cards, restrained radii, light-theme option, and a desktop map/detail split. Real API states, accessibility, security, and honest provenance still take precedence over prototype placeholder data.
+
+Route CRUD is no longer deferred. `/admin/routes` is protected by the existing server-owned administrator role and edits versioned route fixtures. The editor manages route identity, ordered draggable stop pins, generated road path, timetable, speeds/dwell, provenance, and verification flags. Cloud mode stores active overrides in DynamoDB; local memory mode resets on API restart. Publishing must create a new immutable route version so active journeys keep their original version.

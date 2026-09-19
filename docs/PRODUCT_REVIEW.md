@@ -1,6 +1,6 @@
 # Product review for the next BusKothay release
 
-Reviewed 2026-09-18. Evidence: local source/configuration inspection and the official web sources below. No fresh browser, unit, Docker, AWS, or physical-device tests were run in this review. Items marked as risks need reproduction; this is not a claim that every possible bug has been found.
+Reviewed 2026-09-18. Historical review only: its MapLibre/Amazon, account, catalogue, and demo findings describe the pre-migration checkout and are superseded where the 2026-09-19 decision record or current source differs. Keep still-relevant defect ideas, but do not use this file as the current provider or design brief.
 
 ## Confirmed product gaps
 

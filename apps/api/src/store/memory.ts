@@ -11,6 +11,7 @@ import type {
   IdempotencyRecord,
   JourneyRepository,
   RawReportRecord,
+  RouteOverrideRecord,
   StorageHealth,
 } from './types.js';
 
@@ -31,6 +32,7 @@ export class MemoryJourneyRepository implements JourneyRepository {
   private readonly accountsById = new Map<string, AccountRecord>();
   private readonly accountIdsByUsername = new Map<string, string>();
   private readonly accountSessions = new Map<string, AccountSessionRecord>();
+  private readonly routeOverrides = new Map<string, RouteOverrideRecord>();
   private demoControl: DemoControlRecord | null = null;
   private lastWriteOk = true;
   private writeConflicts = 0;
@@ -117,6 +119,14 @@ export class MemoryJourneyRepository implements JourneyRepository {
 
   async listDemoJourneys(): Promise<JourneySnapshot[]> {
     return [...this.journeys.values()].filter((journey) => journey.isDemo);
+  }
+
+  async listRouteOverrides(): Promise<RouteOverrideRecord[]> {
+    return [...this.routeOverrides.values()];
+  }
+
+  async putRouteOverride(record: RouteOverrideRecord): Promise<void> {
+    this.routeOverrides.set(record.route.id, record);
   }
 
   async createJourney(
@@ -245,6 +255,7 @@ export class MemoryJourneyRepository implements JourneyRepository {
     this.accountsById.clear();
     this.accountIdsByUsername.clear();
     this.accountSessions.clear();
+    this.routeOverrides.clear();
     this.demoControl = null;
   }
 

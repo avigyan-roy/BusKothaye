@@ -2,11 +2,11 @@ import { expect, test } from '@playwright/test';
 import { expandSheet, selectJourney, startDemoJourney } from './fixtures.js';
 
 test.describe('passenger map', () => {
-  test('opening the site lands on the route, not a marketing page', async ({ page }) => {
+  test('opening the site lands on the prototype stop-and-route finder', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveURL(/\/r\/ac24-patuli-howrah/);
-    await expect(page.locator('.route-badge')).toHaveText('AC24');
-    await expect(page.getByText('Patuli → Howrah').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Patuli' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'I know where I’m going' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'AC24' })).toBeVisible();
   });
 
   test('shows the route, its stops and the map without any journey', async ({ page }) => {
@@ -17,18 +17,11 @@ test.describe('passenger map', () => {
     for (const name of ['Patuli', 'Ruby', 'Gariahat', 'Hazra', 'Exide', 'Park Street', 'Esplanade', 'Howrah']) {
       await expect(page.getByRole('button', { name: new RegExp(name) }).first()).toBeVisible();
     }
-    await expect(page.locator('.maplibregl-canvas')).toBeVisible();
-    // The attribution control is present and is never positioned off-screen or
-    // covered. It renders empty here only because the test basemap is the local
-    // fixture, which has nothing to attribute; with a real basemap it carries the
-    // provider's credit, and the controls are laid out to clear it.
-    await expect(page.locator('.maplibregl-ctrl-attrib')).toBeAttached();
-    const attribution = await page.locator('.maplibregl-ctrl-attrib').boundingBox();
-    const viewport = page.viewportSize();
-    if (attribution !== null && viewport !== null) {
-      expect(attribution.x).toBeGreaterThanOrEqual(0);
-      expect(attribution.x + attribution.width).toBeLessThanOrEqual(viewport.width + 1);
-    }
+    await expect(page.locator('.map-view__canvas')).toBeVisible();
+    // Routine CI has no billable Google credential. It verifies the intentional
+    // textual fallback; a deployment smoke test covers Google-rendered tiles and
+    // Google's own attribution UI.
+    await expect(page.getByText('Google Maps is not configured')).toBeVisible();
   });
 
   test('never shows a bus it does not have evidence for', async ({ page }) => {

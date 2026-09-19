@@ -242,7 +242,7 @@ export const en = {
       'Development basemap. This is not the production street map, and it has limited street detail.',
     testBasemap: 'Street tiles are disabled for this deterministic test build.',
     missingKey:
-      'Street map not configured. Set VITE_MAP_PROVIDER=amazon and VITE_LOCATION_API_KEY, then rebuild the website.',
+      'Google Maps is not configured. Set VITE_GOOGLE_MAPS_API_KEY, then rebuild the website.',
     providerFailed:
       'The street-map style could not load. The route remains available on a plain surface.',
     tileDegraded:

@@ -1,70 +1,70 @@
-/*
- * Design tokens — the one place colours, radii and spacing are defined.
- *
- * Change a value here and it changes everywhere. Do not search and replace hex
- * codes through components; see docs/MANUAL_EDITING.md.
- *
- * The interface is a dark, map-first surface: the basemap is the background and
- * transit information is the only thing allowed to be bright. There is one
- * accent, one live colour, one demo/warning colour, one error colour and three
- * surface levels. Nothing more.
- *
- * Every status colour is paired with a word and a glyph in the components, so no
- * state is ever distinguished by colour alone.
- *
- * Contrast (WCAG 2.1, measured against --color-surface #151817):
- *   ink #EEF0EA 15.57:1 · muted #A8ADA6 7.82:1 · faint #858B84 5.13:1
- *   accent #E5BD45 9.96:1 · live #69B77B 7.37:1 · demo #D79B45 7.37:1
- *   stale #D87355 5.54:1 · danger #D65F5F 4.82:1 · focus #8EB6FF 8.75:1
- */
 :root {
   color-scheme: dark;
+  font-family: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --bg: #05080c;
+  --surface: #0a1017;
+  --surface-elevated: #101a23;
+  --surface-sunken: #070c12;
+  --grid: rgba(56, 208, 255, 0.045);
+  --text-primary: #e9f3f9;
+  --text-secondary: #8397a6;
+  --text-faint: #5c7180;
+  --border: #1a2a36;
+  --border-strong: #263d4d;
+  --accent: #38d0ff;
+  --accent-ink: #03131c;
+  --accent-soft: rgba(56, 208, 255, 0.12);
+  --accent-glow: rgba(56, 208, 255, 0.34);
+  --live: #33e08d;
+  --passed: #33e08d;
+  --current: #ffc42e;
+  --approaching: #ff5c46;
+  --passed-soft: rgba(51, 224, 141, 0.13);
+  --current-soft: rgba(255, 196, 46, 0.14);
+  --approaching-soft: rgba(255, 92, 70, 0.13);
+  --map-land: #080e15;
+  --map-park: #0b1a16;
+  --map-water: #0b1f2c;
+  --map-road: #152430;
+  --map-label: #9db2c0;
+  --map-halo: #05080c;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.02), 0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  --header-h: 62px;
+  --maxw: 1180px;
 
-  /* Surfaces. Three levels: the map, a sheet, a raised row inside it. */
-  --color-canvas: #0D0F0E;
-  --color-surface: #151817;
-  --color-surface-raised: #1B1F1D;
-  /* Floating controls are opaque, like physical transit signage. */
-  --color-surface-overlay: #151817;
-
-  --color-border: rgba(255, 255, 255, 0.12);
-  --color-border-strong: rgba(255, 255, 255, 0.2);
-
-  --color-ink: #EEF0EA;
-  --color-muted: #A8ADA6;
-  --color-faint: #858B84;
-
-  /* One accent. It is the route, the bus and the primary action. */
-  --color-accent: #E5BD45;
-  --color-accent-hover: #F0CA5C;
-  --color-accent-soft: rgba(229, 189, 69, 0.12);
-  /* Text and icons drawn on top of the accent. */
-  --color-on-accent: #14170F;
-
-  --color-live: #69B77B;
-  /* Demo and warning are the same amber: both mean "not ordinary live data". */
-  --color-warning: #D79B45;
-  --color-warning-soft: rgba(215, 155, 69, 0.14);
-  --color-stale: #D87355;
-  --color-danger: #D65F5F;
-  --color-danger-hover: #E07474;
-  --color-on-danger: #1A0E0E;
-  --color-danger-soft: rgba(214, 95, 95, 0.16);
-  --color-focus: #8EB6FF;
-
-  /* Drawn on the map itself, where the tokens above cannot reach. */
-  --map-route: #E5BD45;
-  --map-route-casing: #0B0D0C;
-  --map-stop: #C9CEC6;
-  --map-stop-passed: #6B716A;
-  --map-vehicle: #EEF0EA;
-  --map-user: #8EB6FF;
-
-  /* Rectilinear by default. Curves are reserved for geographic/status marks. */
-  --radius-control: 2px;
-  --radius-panel: 0px;
-  --radius-sheet: 0px;
-
+  --color-canvas: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-elevated);
+  --color-surface-overlay: var(--surface);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: #74dfff;
+  --color-accent-soft: var(--accent-soft);
+  --color-on-accent: var(--accent-ink);
+  --color-live: var(--live);
+  --color-warning: var(--current);
+  --color-warning-soft: var(--current-soft);
+  --color-stale: var(--approaching);
+  --color-danger: var(--approaching);
+  --color-danger-hover: #ff7b69;
+  --color-on-danger: #160503;
+  --color-danger-soft: var(--approaching-soft);
+  --color-focus: var(--accent);
+  --map-route: var(--accent);
+  --map-route-casing: var(--map-halo);
+  --map-stop: var(--map-label);
+  --map-stop-passed: var(--passed);
+  --map-vehicle: var(--accent);
+  --map-user: var(--accent);
+  --radius-control: var(--radius-sm);
+  --radius-panel: var(--radius);
+  --radius-sheet: var(--radius);
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -72,11 +72,8 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
-
-  /* Type scale. Nothing smaller than 12px; metadata never carries an action. */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Noto Sans Bengali', 'Noto Sans', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
   --text-meta: 12px;
   --text-secondary: 14px;
   --text-body: 16px;
@@ -84,26 +81,46 @@
   --text-heading-lg: 24px;
   --text-eta: 28px;
   --text-eta-lg: 32px;
-
-  /* Layout */
-  --header-height: 56px;
-  --header-height-lg: 64px;
-  --content-max: 1100px;
-  --panel-width: 360px;
+  --header-height: var(--header-h);
+  --header-height-lg: var(--header-h);
+  --content-max: var(--maxw);
+  --panel-width: 430px;
   --touch-min: 44px;
-
-  /* Safe areas. Used by every floating control so notches never clip one. */
   --inset-top: env(safe-area-inset-top, 0px);
   --inset-bottom: env(safe-area-inset-bottom, 0px);
   --inset-left: env(safe-area-inset-left, 0px);
   --inset-right: env(safe-area-inset-right, 0px);
-
-  /* Depth comes from opaque surfaces and borders, not glow or glass. */
-  --shadow-float: none;
+  --shadow-float: var(--shadow);
 }
 
-@media (min-width: 1024px) {
-  :root {
-    --header-height: var(--header-height-lg);
-  }
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #eef2f5;
+  --surface: #ffffff;
+  --surface-elevated: #f6f9fb;
+  --surface-sunken: #e7edf1;
+  --grid: rgba(10, 45, 65, 0.05);
+  --text-primary: #0b1a24;
+  --text-secondary: #53687a;
+  --text-faint: #7b8fa0;
+  --border: #d6e0e7;
+  --border-strong: #b6c7d3;
+  --accent: #0077a8;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(0, 119, 168, 0.1);
+  --accent-glow: rgba(0, 119, 168, 0.22);
+  --live: #1c8a55;
+  --passed: #1c8a55;
+  --current: #a37400;
+  --approaching: #cc3a22;
+  --passed-soft: rgba(28, 138, 85, 0.12);
+  --current-soft: rgba(163, 116, 0, 0.14);
+  --approaching-soft: rgba(204, 58, 34, 0.11);
+  --map-land: #e8edf0;
+  --map-park: #dde9e0;
+  --map-water: #cfe0ea;
+  --map-road: #d5dee4;
+  --map-label: #3d5464;
+  --map-halo: #e8edf0;
+  --shadow: 0 1px 2px rgba(11, 26, 36, 0.06), 0 14px 30px -22px rgba(11, 26, 36, 0.5);
 }

@@ -17,9 +17,9 @@
   max-height: var(--sheet-max);
   overflow: hidden;
   border-top: 1px solid var(--color-border);
-  border-radius: 0;
-  background: var(--color-surface);
-  box-shadow: none;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .journey-sheet__summary {
@@ -36,7 +36,7 @@
   width: 34px;
   height: 3px;
   margin-bottom: 2px;
-  border-radius: 0;
+  border-radius: 999px;
   background: var(--color-border-strong);
 }
 
@@ -166,17 +166,21 @@
 /* Desktop: the same sheet, re-laid out as a narrow drawer beside the map. */
 @media (min-width: 900px) {
   .journey-sheet {
-    left: max(var(--space-3), var(--inset-left));
-    right: auto;
-    top: calc(var(--space-3) + var(--inset-top) + var(--touch-min) + var(--space-2));
-    bottom: auto;
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: 0;
     width: var(--panel-width);
-    --sheet-max: calc(
-      100dvh - var(--inset-top) - var(--inset-bottom) - var(--touch-min) - var(--space-7)
-    );
-    border: 1px solid var(--color-border);
+    --sheet-max: 100%;
+    max-height: 100%;
+    border: 0;
+    border-left: 1px solid var(--border);
     border-radius: 0;
     box-shadow: var(--shadow-float);
+  }
+
+  .journey-sheet[data-expanded='true'] .journey-sheet__detail {
+    max-height: calc(100dvh - var(--header-h) - var(--summary-h, 140px));
   }
 
   .journey-sheet__summary {

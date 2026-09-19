@@ -1,6 +1,6 @@
 # Current implementation context
 
-Last updated **2026-09-18** during the continuation session. This is the primary
+Last updated **2026-09-19**. This is a historical handoff plus current provider/design correction; the decision record and source code are authoritative when this file describes superseded work.
 technical handoff for Claude, Codex, or another maintainer. Read it with
 [PROGRESS.md](../PROGRESS.md) and the authoritative build request at
 `../Claude outputs/CLAUDE_BUILD_PROMPT.md` in the supplied workspace.
@@ -15,11 +15,11 @@ those counts have not been reproduced from this checkout.
 
 | Phase | Status in this working tree |
 | --- | --- |
-| 1 — Amazon Location map | Implemented; compiles. Real Amazon tiles remain unverified without a key/network access. |
+| 1 — Google Maps | Maps/Advanced Markers/traffic and Routes-based admin editor implemented; real provider remains unverified without a configured Google key/network access. |
 | 2 — Accounts and authorization | Implemented; compiles. Tests still need migration and expansion. |
 | 3 — 20-route WBTC catalogue | Implemented. AC24 has approximate geometry; 19 entries deliberately have no coordinate fields. |
 | 4 — demo console and persistent fleet | Console, API control plane, lease, and worker implemented; compile verified, live end-to-end run still pending. |
-| 5 — RDR2 visual redesign | **Not yet applied in this continuation.** Current tokens are still the older green/white palette. |
+| 5 — Prototype visual redesign | Implemented from the supplied HTML reference: Archivo, cyan/grid system, stop-first home, theme toggle, and map/detail layout. Browser visual QA still required. |
 | 6 — defects and audit | In progress; main fixes listed below. Full test repair and verification remain. |
 | 7 — beginner README/runbook | Pending. The user specifically requested detailed local, simulator, and AWS instructions. |
 | 8 — final verification | Pending. No Docker daemon or AWS deployment is available in this environment. |
