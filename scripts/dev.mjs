@@ -33,6 +33,11 @@ const localEnv = { ...process.env, SIMULATOR_TOKEN: simulatorToken };
 
 function run(name, command, args, options = {}) {
   const child = spawn(command, args, { stdio: 'inherit', shell: false, ...options });
+  const needsShell =
+    process.platform === 'win32' &&
+    typeof command === 'string' &&
+    (command.endsWith('.cmd') || command.endsWith('.bat'));
+  const child = spawn(command, args, { stdio: 'inherit', shell: needsShell, ...options });
   child.on('exit', (code, signal) => {
     if (shuttingDown) return;
     if (code !== 0 && signal === null) {
@@ -64,6 +69,10 @@ process.on('SIGTERM', () => shutdown(0));
 function npmRun(args) {
   return new Promise((resolve, reject) => {
     const child = spawn(npm, args, { stdio: 'inherit', shell: false });
+    const child = spawn(npm, args, {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+    });
     child.on('exit', (code) =>
       code === 0 ? resolve() : reject(new Error(`${args.join(' ')} failed with code ${code}`)),
     );
