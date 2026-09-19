@@ -5,10 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Two deliberate choices. The web app is *built and previewed*, not run through
  * the dev server, because "every deep link refreshes after a static build" is one
- * of the things being tested. And the basemap is the local fixture
- * (`VITE_MAP_PROVIDER=none`), so the suite still runs MapLibre but does not fail
- * when a tile server is slow — the route line, the stops and the bus marker are
- * what these tests are about.
+ * of the things being tested. Routine CI omits a Google browser key, so it
+ * verifies the honest map fallback without making billable calls. A configured
+ * deployment smoke test covers Google tiles, markers, traffic and attribution.
  *
  * Prerequisite: `npx playwright install --with-deps chromium`.
  * On a machine that already has a browser, set `CHROMIUM_PATH` instead.
@@ -91,7 +90,6 @@ export default defineConfig({
       stderr: 'pipe',
       env: {
         VITE_API_BASE_URL: API_URL,
-        VITE_MAP_PROVIDER: 'none',
       },
     },
   ],

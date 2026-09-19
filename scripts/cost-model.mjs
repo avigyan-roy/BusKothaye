@@ -42,10 +42,10 @@ const RATES = {
   lightsailContainerNano: 7.0, // 0.25 vCPU, 512 MB
   lightsailContainerMicro: 10.0, // 0.25 vCPU, 1 GB
 
-  // Amazon Location Maps V2 vector tiles. The pricing page did not expose a
-  // per-1,000 figure to this review. This is a placeholder. CHECK — it is the
-  // single least certain number here.
-  mapTilesPer1000: 0.05,
+  // Google Maps JavaScript dynamic map loads. This is only an editable planning
+  // placeholder. CHECK the current Maps SKU, regional terms, free usage and
+  // Routes calls in the Google Cloud billing console before provisioning.
+  googleMapLoadsPer1000: 7.0,
 
   // CloudWatch Logs ingestion. CHECK for Mumbai.
   logsPerGbIngested: 0.57,
@@ -79,9 +79,8 @@ const input = {
   pollS: arg('poll', 1),
   /** Fraction of the 30 days the demo fleet is actually ON. 1 = continuous. */
   dutyCycle: arg('duty', 1),
-  /** Map sessions per day across all viewers, and tiles fetched per session. */
+  /** New interactive map sessions per day across all viewers. */
   mapSessionsPerDay: arg('sessions', 120),
-  tilesPerSession: arg('tiles', 250),
 };
 
 // ---------------------------------------------------------------------------
@@ -155,8 +154,8 @@ function model(variant, compute) {
   const logGb = (loggedRequests * 300) / 1e9;
   const logCost = logGb * RATES.logsPerGbIngested + logGb * RATES.logsPerGbStored;
 
-  const tiles = input.mapSessionsPerDay * input.tilesPerSession * DAYS;
-  const tileCost = (tiles / 1000) * RATES.mapTilesPer1000;
+  const mapLoads = input.mapSessionsPerDay * DAYS;
+  const mapCost = (mapLoads / 1000) * RATES.googleMapLoadsPer1000;
 
   // Amplify: ~30 builds of ~3 minutes, a 1 MB bundle, modest transfer.
   const amplifyCost =
@@ -179,7 +178,7 @@ function model(variant, compute) {
       ['DynamoDB reads', readCost],
       ['DynamoDB storage', storageCost],
       ['CloudWatch Logs', logCost],
-      ['Location map tiles', tileCost],
+      ['Google dynamic map loads', mapCost],
       ['Amplify Hosting', amplifyCost],
       ['ECR storage', ecrCost],
       ['Cognito', cognitoCost],
@@ -243,42 +242,36 @@ report(model(VARIANTS.optimised, COMPUTE.lightsail));
 report(model(VARIANTS.lean, COMPUTE.lightsail));
 
 // ---------------------------------------------------------------------------
-// Sensitivity: map tiles are the one cost this model cannot pin down, so show
+// Sensitivity: browser map pricing is the one cost this model cannot pin down, so show
 // the headroom rather than pretending to a total.
 // ---------------------------------------------------------------------------
 const lean = model(VARIANTS.lean, COMPUTE.lightsail);
-const withoutTiles = lean.lines
-  .filter(([name]) => name !== 'Location map tiles')
+const withoutMaps = lean.lines
+  .filter(([name]) => name !== 'Google dynamic map loads')
   .reduce((sum, [, cost]) => sum + cost, 0);
 
 const TARGET = 35;
 const CEILING = 50;
 
-console.log('\n--- Map tile sensitivity ---');
+console.log('\n--- Google Maps sensitivity ---');
 console.log(
-  `Everything except map tiles, lean on Lightsail: ${money(withoutTiles)} for ${DAYS} days.`,
+  `Everything except Google Maps, lean on Lightsail: ${money(withoutMaps)} for ${DAYS} days.`,
 );
 console.log(
-  `Headroom for tiles: ${money(TARGET - withoutTiles)} to the $${TARGET} target, ` +
-    `${money(CEILING - withoutTiles)} to the $${CEILING} ceiling.`,
+  `Headroom for maps and route computations: ${money(TARGET - withoutMaps)} to the $${TARGET} target, ` +
+    `${money(CEILING - withoutMaps)} to the $${CEILING} ceiling.`,
 );
 console.log(
-  `At the placeholder $${RATES.mapTilesPer1000}/1,000 that is ` +
-    `${(((TARGET - withoutTiles) / RATES.mapTilesPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} tiles ` +
-    `to target, about ${Math.round(((TARGET - withoutTiles) / RATES.mapTilesPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
+  `At the placeholder $${RATES.googleMapLoadsPer1000}/1,000 that is ` +
+    `${(((TARGET - withoutMaps) / RATES.googleMapLoadsPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} dynamic map loads ` +
+    `to target, about ${Math.round(((TARGET - withoutMaps) / RATES.googleMapLoadsPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
 );
-console.log(
-  'Amazon Location advertises 500,000 free map tile requests a month for the first',
-);
-console.log(
-  'three months on a new account. If that applies, tiles are likely free for this',
-);
-console.log('demo — but do not plan on an allowance you have not confirmed.');
+console.log('Routes-library computations are a separate billable SKU and are not modelled here.');
 
 console.log(
-  '\nRates marked CHECK in this file are unverified for ap-south-1. The map tile',
+  '\nRates marked CHECK in this file are unverified. Google Maps pricing and free usage',
 );
 console.log(
-  'rate could not be confirmed from any reachable AWS page and is a placeholder.',
+  'can change and the value above is a placeholder.',
 );
-console.log('Confirm it first: it is the only figure that decides the outcome.');
+console.log('Confirm Maps and Routes SKUs first: they can decide the outcome.');

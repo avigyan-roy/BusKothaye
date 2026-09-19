@@ -1,5 +1,7 @@
 # Community-Powered Transport Information Layer — 3-Day Implementation Plan
 
+> Historical background only. The 2026-09-19 decision record replaces this plan's Amazon Location/MapLibre provider choice, route-editing deferral, and visual direction with Google Maps Platform, an authenticated route editor, and the supplied HTML prototype. Do not copy provider-specific pseudocode from this file into the current application.
+
 **Target event:** WeMakeDevs × AWS *Bharat Builds Tour*, Event 01 — **First Commit**, 17–20 Sept 2026
 **Track we are targeting:** **Ship It** (deployed on AWS, live URL, architecture is scored)
 **Team size:** 4

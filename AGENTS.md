@@ -27,9 +27,9 @@ These files are the current implementation brief. Explicit user requests take pr
 - Purpose: help a passenger see a bus journey's position, next stops, estimated arrival, and how current the information is.
 - Initial route: **AC24, Patuli → Howrah**, with eight selected checkpoints and one featured journey. Verify road geometry and exact stop coordinates; keep journey IDs independent from route IDs.
 - Mobile first; desktop is a fully designed layout, not a stretched phone screen.
-- Visual direction: a dark, map-first surface — near-black map, charcoal sheets, a single amber accent; flat surfaces, crisp typography, hairline borders, restrained space. This replaces the original warm off-white and forest-green direction. Follow the exact tokens and layouts in the design guide.
-- Start at the useful map screen. No marketing landing page, giant slogan, decorative gradient, purple glow, fake statistics, testimonial cards, or AI/chat interface.
-- Stack: TypeScript throughout; React + Vite + MapLibre GL JS; Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; Amazon Location Maps V2; CloudWatch logging. See the decision record for the Node version update.
+- Visual direction: follow `buskothay-prototype final.html` as the current visual reference — Archivo typography, near-black gridded canvas, charcoal panels, cyan accent, compact Kolkata header, stop-first home screen, and a balanced map/detail split on desktop. A light theme is supported. Follow the exact tokens and layouts in the design guide.
+- Start at the useful stop-and-route finder from the reference prototype. No marketing landing page, giant slogan, decorative gradient, fake statistics, testimonial cards, or AI/chat interface.
+- Stack: TypeScript throughout; React + Vite + Google Maps JavaScript API (Maps, Marker, and Routes libraries); Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; CloudWatch logging. See the decision record for the provider and Node updates.
 - Ordinary HTTP ingestion and approximately one-second passenger polling. No WebSockets, ML, Bedrock, login platform, payment flow, or native app in this build.
 - Region default: `ap-south-1`; route timezone default: `Asia/Kolkata`. Both are configuration, not scattered string literals.
 - A simulator uses the same public API as real contributors. Mark simulated journeys as **Demo** everywhere they appear.
@@ -50,7 +50,7 @@ These files are the current implementation brief. Explicit user requests take pr
 
 ## Visual anti-template rules
 
-For any frontend, copy or visual change, read `docs/DESIGN_SYSTEM.md` and `docs/design/ANTI_VIBE_UI.md` before editing. BusKothay is a dark, map-first Kolkata transit utility, not a SaaS landing page or generic dashboard. Preserve the rectilinear transit-instrument language: opaque charcoal surfaces, one amber route/action accent, labelled operational colours, ruled sections, purposeful typography and the map as the dominant visual.
+For any frontend, copy or visual change, read `docs/DESIGN_SYSTEM.md` before editing. BusKothay is a stop-first Kolkata transit utility, not a SaaS landing page or generic dashboard. Preserve the attached prototype's hierarchy: compact header, gridded dark canvas, cyan route/action accent, labelled operational colours, clean panels, restrained rounding, and a useful map/detail composition.
 
 Do not introduce decorative gradient/glow, glass blur, nested cards, rounded card grids, pill spam, arbitrary coloured side bars, emoji icons, generic marketing copy, fake product evidence or motion without state meaning. A circle, colour, border, animation or bounded panel is allowed only when it communicates geography, selection, focus, operational state or independent interaction.
 
