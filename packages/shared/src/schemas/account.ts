@@ -39,6 +39,8 @@ export const AccountDtoSchema = z.object({
   username: z.string(),
   role: AccountRoleSchema,
   kind: z.enum(['community', 'simulator']),
+  /** Server-owned permission. It is never accepted by register or role-change bodies. */
+  isAdmin: z.boolean().default(false),
 });
 export type AccountDto = z.infer<typeof AccountDtoSchema>;
 
@@ -49,4 +51,3 @@ export const AuthSessionResponseSchema = z.object({
   account: AccountDtoSchema,
 });
 export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;
-

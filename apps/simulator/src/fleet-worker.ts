@@ -32,6 +32,8 @@ let stopped = false;
 let route: PreparedRoute | null = null;
 let buses: FleetBus[] = [];
 let fleetKey = '';
+let routeStartSM = 0;
+let routeEndSM = 0;
 
 process.on('SIGTERM', () => { stopped = true; });
 process.on('SIGINT', () => { stopped = true; });
@@ -80,6 +82,7 @@ async function reconcile(control: DemoControlDto): Promise<void> {
     control.generation,
     config.routeId,
     config.startStopId ?? 'origin',
+    config.endStopId ?? 'destination',
     config.busCount,
     config.sourcesPerBus,
   ].join(':');
@@ -94,6 +97,12 @@ async function reconcile(control: DemoControlDto): Promise<void> {
     ? route.dto.stops.find((stop) => stop.id === config.startStopId)?.sM
     : undefined;
   const baseStart = selectedStart ?? 0;
+  const selectedEnd = config.endStopId
+    ? route.dto.stops.find((stop) => stop.id === config.endStopId)?.sM
+    : undefined;
+  routeStartSM = baseStart;
+  routeEndSM = selectedEnd ?? route.dto.lengthM;
+  const dispatchLengthM = Math.max(1, routeEndSM - routeStartSM);
   const created: FleetBus[] = [];
 
   for (let index = 0; index < config.busCount; index += 1) {
@@ -103,10 +112,10 @@ async function reconcile(control: DemoControlDto): Promise<void> {
       const joined = await api.join(journey.journeyId, journey.joinCode, 'passenger');
       sources.push({ token: joined.contributorToken, seq: 0 });
     }
-    const spacing = route.dto.lengthM / Math.max(1, config.busCount);
+    const spacing = dispatchLengthM / Math.max(1, config.busCount);
     const sM = config.loop
-      ? (baseStart + index * spacing) % route.dto.lengthM
-      : Math.min(route.dto.lengthM, baseStart + index * Math.min(500, spacing));
+      ? baseStart + index * spacing
+      : Math.min(routeEndSM, baseStart + index * Math.min(500, spacing));
     created.push({
       journeyId: journey.journeyId,
       sources,
@@ -140,12 +149,17 @@ async function tick(control: DemoControlDto): Promise<void> {
         bus.dwellUntilMs = nowMs + config.dwellSeconds * 1000;
         bus.nextStopIndex += 1;
       }
-      if (bus.sM >= route.dto.lengthM) {
+      if (bus.sM >= routeEndSM) {
         if (config.loop) {
-          bus.sM %= route.dto.lengthM;
-          bus.nextStopIndex = firstStopAfter(route, bus.sM);
+          if (bus.dwellUntilMs > nowMs) {
+            bus.sM = routeEndSM;
+          } else {
+            const dispatchLengthM = Math.max(1, routeEndSM - routeStartSM);
+            bus.sM = routeStartSM + ((bus.sM - routeStartSM) % dispatchLengthM);
+            bus.nextStopIndex = firstStopAfter(route, bus.sM);
+          }
         } else {
-          bus.sM = route.dto.lengthM;
+          bus.sM = routeEndSM;
         }
       }
     }

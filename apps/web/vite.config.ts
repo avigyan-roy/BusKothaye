@@ -28,7 +28,7 @@ export default defineConfig(({ command, mode }) => {
 
   return {
     plugins: [react()],
-    server: { port: 5173, strictPort: true },
+    server: { port: 5173, strictPort: true, host: true },
     preview: { port: 4173, strictPort: true },
     build: {
       outDir: 'dist',

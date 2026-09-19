@@ -4,8 +4,8 @@
   "description": "Community bus tracking for AC24, Patuli to Howrah.",
   "start_url": "/r/ac24-patuli-howrah",
   "display": "standalone",
-  "background_color": "#F5F4EF",
-  "theme_color": "#F5F4EF",
+  "background_color": "#111312",
+  "theme_color": "#111312",
   "icons": [
     {
       "src": "/favicon.svg",

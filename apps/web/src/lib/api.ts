@@ -1,5 +1,6 @@
 import type {
   CreateJourneyResponse,
+  BoardJourneyResponse,
   AccountDto,
   AccountRole,
   AuthSessionResponse,
@@ -178,6 +179,18 @@ export const api = {
       'POST',
       `/v1/journeys/${encodeURIComponent(journeyId)}/contributors`,
       { token: accountToken, body: { joinCode, role }, idempotencyKey },
+    ),
+
+  boardJourney: (
+    journeyId: string,
+    stopId: string,
+    idempotencyKey: string,
+    accountToken: string,
+  ) =>
+    request<BoardJourneyResponse>(
+      'POST',
+      `/v1/journeys/${encodeURIComponent(journeyId)}/board`,
+      { token: accountToken, body: { stopId }, idempotencyKey },
     ),
 
   sendLocations: (

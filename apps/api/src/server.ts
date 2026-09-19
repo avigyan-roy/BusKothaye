@@ -28,7 +28,10 @@ async function main(): Promise<void> {
   const logger = createLogger(config.logLevel);
   const registry = await RouteRegistry.load(config.routeDataDir);
   const repo = createRepository(config);
-  const { app } = createApp({ config, repo, registry, logger });
+  const { app, accounts } = createApp({ config, repo, registry, logger });
+  // Bootstrap before listening so a half-configured deployment never exposes a
+  // demo console that nobody can administer.
+  await accounts.ensureAdminAccount(config.adminUsername, config.adminPassword);
 
   const server = app.listen(config.port, '0.0.0.0', () => {
     logger.info('api listening', { config: describeConfig(config) });

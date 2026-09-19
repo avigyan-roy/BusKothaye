@@ -22,6 +22,9 @@ export interface ContributorSession {
   readonly joinCode?: string;
   readonly isDemo: boolean;
   readonly createdAtMs: number;
+  /** Present when the passenger joined from the map's explicit boarding action. */
+  readonly joinedVia?: 'boarding' | 'join-code';
+  readonly boardedStopId?: string;
   /** Next sequence number to use. Persisted so a reload cannot reuse one. */
   readonly nextSeq: number;
 }
@@ -49,6 +52,8 @@ export function loadSession(): ContributorSession | null {
       typeof parsed.token !== 'string' ||
       !['driver', 'passenger', 'conductor'].includes(parsed.role) ||
       typeof parsed.isDemo !== 'boolean' ||
+      (parsed.joinedVia !== undefined && !['boarding', 'join-code'].includes(parsed.joinedVia)) ||
+      (parsed.boardedStopId !== undefined && typeof parsed.boardedStopId !== 'string') ||
       !Number.isSafeInteger(parsed.createdAtMs) ||
       !Number.isSafeInteger(parsed.nextSeq) ||
       parsed.nextSeq < 0

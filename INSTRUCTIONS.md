@@ -27,7 +27,7 @@ Do not cut the real map, real API connection, mobile usability, or honest state 
 
 ## Deferred work
 
-Accounts, OTP, payment, chat, WhatsApp/SMS, native apps, ML, multiple cities, route CRUD, background web location promises, dark mode, advanced analytics, journey replay, and a multi-bus comparison interface are outside the first release.
+Accounts, OTP, payment, chat, WhatsApp/SMS, native apps, ML, multiple cities, route CRUD, background web location promises, a light/dark theme switch, advanced analytics, journey replay, and a multi-bus comparison interface are outside the first release. The interface itself is now dark by design, not by preference; see the design guide.
 
 Keep the backend journey model independent enough to support two journeys and test their isolation. A sophisticated multi-bus UI is not required. Live traffic refresh, a CloudWatch dashboard, and advanced diversion recovery come after the required release; the app must work without them.
 

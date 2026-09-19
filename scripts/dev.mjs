@@ -13,12 +13,23 @@
  * would fail on the first import with a confusing "cannot find module app.js".
  */
 import { spawn } from 'node:child_process';
-import process from 'node:process';
+import { randomBytes } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import process, { loadEnvFile } from 'node:process';
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const API_URL = 'http://localhost:3001';
 const children = [];
 let shuttingDown = false;
+
+// Keep local demo dispatch genuinely one-command. The API and worker receive
+// the same per-run credential even when the developer has not created an .env
+// yet. A configured value still wins, which keeps manual simulator commands and
+// restart-persistent local setups working as documented.
+if (existsSync('apps/api/.env')) loadEnvFile('apps/api/.env');
+const simulatorToken =
+  process.env.SIMULATOR_TOKEN ?? randomBytes(32).toString('hex');
+const localEnv = { ...process.env, SIMULATOR_TOKEN: simulatorToken };
 
 function run(name, command, args, options = {}) {
   const child = spawn(command, args, { stdio: 'inherit', shell: false, ...options });
@@ -60,28 +71,35 @@ function npmRun(args) {
 }
 
 try {
-  console.log('Building shared packages and the API…');
+  console.log('Building shared packages, the API, and the demo worker…');
   await npmRun(['run', 'build:packages']);
   await npmRun(['run', 'build', '-w', '@buskothay/api']);
+  await npmRun(['run', 'build', '-w', '@buskothay/simulator']);
 } catch (error) {
   console.error(error.message);
   process.exit(1);
 }
 
-console.log(`\nAPI   → ${API_URL}`);
-console.log('Web   → http://localhost:5173');
-console.log(`Try   → npm run simulate -- --scenario happy-multi --api ${API_URL}\n`);
+console.log(`\nAPI    → ${API_URL}`);
+console.log('Web    → http://localhost:5173');
+console.log('Worker → watching the admin demo switch');
+console.log(`Try    → open http://localhost:5173/admin and sign in with admin / admin\n`);
 
 // Recompile the API on change; `node --watch` then restarts on the new output.
-run('api:watch', npm, ['run', 'watch', '-w', '@buskothay/api']);
+run('api:watch', npm, ['run', 'watch', '-w', '@buskothay/api'], { env: localEnv });
 run('api', process.execPath, [
   '--watch',
   // So that copying apps/api/.env.example to apps/api/.env actually does
   // something. Missing file is fine — every setting has a default.
   '--env-file-if-exists=apps/api/.env',
   'apps/api/dist/server.js',
-]);
-run('web', npm, ['run', 'dev', '-w', '@buskothay/web']);
+], { env: localEnv });
+run('simulator:watch', npm, ['run', 'watch', '-w', '@buskothay/simulator'], { env: localEnv });
+run('fleet-worker', process.execPath, [
+  '--watch',
+  'apps/simulator/dist/fleet-worker.js',
+], { env: { ...localEnv, API_BASE_URL: API_URL } });
+run('web', npm, ['run', 'dev', '-w', '@buskothay/web'], { env: localEnv });
 
 // Say clearly whether the API is actually up. A silent failure here is what
 // makes the simulator fail later with nothing but "fetch failed".

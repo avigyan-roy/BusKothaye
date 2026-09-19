@@ -49,7 +49,7 @@ export function resolveBasemap(config: WebConfig): BasemapChoice {
     url.searchParams.set('key', config.locationApiKey);
     // Maps V2 takes Style in the path. These query names and enum spellings are
     // from GetStyleDescriptor, not the retired v1 map-resource endpoint.
-    url.searchParams.set('color-scheme', 'Light');
+    url.searchParams.set('color-scheme', 'Dark');
     url.searchParams.set('poi-density', 'Sparse');
     url.searchParams.set('political-view', 'IND');
     return {

@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from 'express';
 import {
+  BoardJourneyBodySchema,
   CreateJourneyBodySchema,
   JoinJourneyBodySchema,
   LocationBodySchema,
@@ -154,6 +155,31 @@ export function createApiRouter(deps: ApiDeps): Router {
       journeyId: req.params.journeyId,
       joinCode: parsed.data.joinCode,
       role: parsed.data.role,
+      principal,
+      idempotencyKey: idempotencyKeyOf(req),
+    });
+    res.status(201).json(response);
+  });
+
+  router.post('/journeys/:journeyId/board', async (req, res) => {
+    noStore(res);
+    const decision = joinLimiter.take(clientKey(req));
+    if (!decision.allowed) throw rateLimited(decision.retryAfterSeconds);
+
+    const parsed = BoardJourneyBodySchema.safeParse(req.body ?? {});
+    if (!parsed.success) {
+      throw badRequest(
+        'That boarding request was not valid.',
+        parsed.error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          reason: issue.message,
+        })),
+      );
+    }
+    const principal = await deps.accounts.authenticate(bearerToken(req.get('Authorization')));
+    const response = await deps.service.boardJourney({
+      journeyId: req.params.journeyId,
+      stopId: parsed.data.stopId,
       principal,
       idempotencyKey: idempotencyKeyOf(req),
     });

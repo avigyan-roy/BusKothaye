@@ -1,60 +1,85 @@
 /*
- * Mobile first: the map, then the information panel, in ordinary document flow.
- * No bottom sheet to drag before the primary content can be read.
+ * The passenger screen is the map. Everything else is placed on top of it.
+ *
+ * `--sheet-h` is how far up from the bottom of the viewport the map's own
+ * furniture has to sit. The sheet measures itself into `--sheet-measured-h`
+ * (see JourneySheet), so the map controls and the attribution move with it
+ * instead of guessing at a fixed height and overlapping a long stop name.
  */
 .route-page {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100dvh - var(--header-height));
+  position: fixed;
+  inset: 0;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--color-canvas);
+  --sheet-h: var(--sheet-measured-h, 128px);
+  --panel-inset: 0px;
 }
 
-.route-page__map {
-  flex: none;
+@media (min-width: 900px) {
+  .route-page {
+    /* The drawer is beside the map, so the bottom of the map is clear and the
+       left edge is not. */
+    --sheet-h: var(--inset-bottom);
+    --panel-inset: calc(var(--panel-width) + var(--space-5));
+  }
 }
 
-.route-page__panel {
-  flex: 1 1 auto;
-  background: var(--color-surface);
-  border-top: 1px solid var(--color-border);
-  border-radius: var(--radius-panel) var(--radius-panel) 0 0;
-  /* Pulls the panel over the map edge so the two meet rather than float apart. */
-  margin-top: -12px;
-  position: relative;
-  z-index: 1;
-  padding-bottom: var(--space-6);
-}
-
-.route-page__directory { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
-.route-page__directory > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; }
-.route-page__directory[open] > summary { margin-bottom: var(--space-3); }
-
-.route-page__demo {
+/* The menu and the status strip, inside the safe area. */
+.route-page__top {
+  position: absolute;
+  top: calc(var(--space-3) + var(--inset-top));
+  left: max(var(--space-3), var(--inset-left));
+  right: max(var(--space-3), var(--inset-right));
+  z-index: 3;
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4) 0;
+  min-width: 0;
+  /* Only the controls themselves take the pointer; the rest is map. */
+  pointer-events: none;
+}
+
+.route-page__top > * {
+  pointer-events: auto;
+}
+
+@media (min-width: 900px) {
+  .route-page__top {
+    /* Clear of the desktop drawer below it. */
+    right: auto;
+    max-width: calc(100% - var(--space-6));
+  }
+}
+
+/* The route catalogue inside the sheet. */
+.route-page__directory > summary {
+  min-height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--color-muted);
   font-size: var(--text-secondary);
+  font-weight: 600;
 }
 
-.route-page__empty {
-  padding: var(--space-5) var(--space-4);
+.route-page__directory > summary:hover {
+  color: var(--color-ink);
 }
 
-.route-page__empty h2 {
-  margin-bottom: var(--space-2);
+.route-page__directory[open] > summary {
+  margin-bottom: var(--space-3);
 }
 
-.route-page__empty .button {
-  margin-top: var(--space-4);
-}
-
-.route-page__details {
-  padding: 0 var(--space-4);
+.route-details {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  padding: var(--space-3);
 }
 
 .route-details summary {
   cursor: pointer;
+  font-size: var(--text-secondary);
   font-weight: 600;
   min-height: var(--touch-min);
   display: flex;
@@ -63,14 +88,14 @@
 
 .route-details__facts {
   display: grid;
-  grid-template-columns: minmax(96px, 30%) 1fr;
+  grid-template-columns: minmax(96px, 34%) 1fr;
   gap: var(--space-2) var(--space-3);
   margin: 0;
   font-size: var(--text-secondary);
 }
 
 .route-details__facts dt {
-  color: var(--color-muted);
+  color: var(--color-faint);
 }
 
 .route-details__facts dd {
@@ -79,38 +104,5 @@
 }
 
 .journey-selector {
-  margin: var(--space-4);
-}
-
-/* Tablet: split when there is room, otherwise keep the mobile flow. 768px is not
-   a usability cliff. */
-@media (min-width: 768px) {
-  .route-page {
-    flex-direction: row-reverse;
-    height: calc(100dvh - var(--header-height));
-    max-width: var(--content-max);
-    margin: 0 auto;
-  }
-
-  .route-page__map {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .route-page__panel {
-    flex: none;
-    width: 320px;
-    margin-top: 0;
-    border-radius: 0;
-    border-top: 0;
-    /* A subtle divider, not a floating card for every datum. */
-    border-right: 1px solid var(--color-border);
-    overflow-y: auto;
-  }
-}
-
-@media (min-width: 1024px) {
-  .route-page__panel {
-    width: var(--panel-width);
-  }
+  margin: var(--space-3) var(--space-4) 0;
 }

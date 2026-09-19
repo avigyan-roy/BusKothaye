@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit false --emitDeclarationOnly",
+    "watch": "tsc -b tsconfig.json --watch --preserveWatchOutput",
     "fleet": "node dist/fleet-worker.js"
   },
   "dependencies": {

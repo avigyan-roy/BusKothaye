@@ -5,6 +5,7 @@ import {
   RAW_REPORT_RETENTION_MS,
   SCHEMA_VERSION,
   WRITE_CONFLICT_MAX_RETRIES,
+  type BoardJourneyResponse,
   toEpochSeconds,
   type Clock,
   type CreateJourneyResponse,
@@ -19,6 +20,7 @@ import {
 } from '@buskothay/shared';
 import {
   addContributor,
+  boardableStopIdAt,
   computeDelaySeconds,
   computeStopEtas,
   createJourneySnapshot,
@@ -29,6 +31,7 @@ import {
   impliedEnd,
   ingest,
   recordFailedJoin,
+  rotateContributorCapability,
   revokeContributor,
   type ContributorSnapshot,
   type JourneySnapshot,
@@ -278,6 +281,99 @@ export class JourneyService {
       await sleepWithJitter(attempt);
     }
 
+    throw storageUnavailable();
+  }
+
+  /**
+   * Board without a join code only while the selected stop has fresh confirmed
+   * bus evidence. The returned passenger capability feeds the ordinary location
+   * ingestion path; there is no privileged demo shortcut.
+   */
+  async boardJourney(input: {
+    journeyId: string;
+    stopId: string;
+    principal: AccountPrincipal;
+    idempotencyKey: string | null;
+  }): Promise<BoardJourneyResponse> {
+    if (
+      input.principal.account.kind !== 'community' ||
+      input.principal.account.role !== 'passenger'
+    ) {
+      throw forbidden();
+    }
+
+    const nowMs = this.clock.nowMs();
+    const newContributorId = newId('c');
+    const contributorToken = newToken();
+
+    for (let attempt = 0; attempt <= WRITE_CONFLICT_MAX_RETRIES; attempt += 1) {
+      const snapshot = await this.loadActive(input.journeyId);
+      const route = this.requireRoute(snapshot.routeId, snapshot.routeVersion);
+      if (boardableStopIdAt(snapshot, route, nowMs) !== input.stopId) {
+        throw new ApiProblem(
+          409,
+          'BOARDING_UNAVAILABLE',
+          'This bus is no longer confirmed at the selected stop. Wait for it to arrive and try again.',
+        );
+      }
+
+      const existing = snapshot.contributors.find(
+        (contributor) =>
+          contributor.revokedAtMs === null &&
+          contributor.accountId === input.principal.account.accountId &&
+          contributor.role === 'passenger',
+      );
+      const contributorId = existing?.contributorId ?? newContributorId;
+      const activeCount = snapshot.contributors.filter((c) => c.revokedAtMs === null).length;
+      if (!existing && activeCount >= MAX_CONTRIBUTORS) {
+        throw new ApiProblem(
+          409,
+          'JOURNEY_FULL',
+          'This journey already has the maximum number of contributors.',
+        );
+      }
+
+      const next = existing
+        ? rotateContributorCapability(snapshot, existing.contributorId, hashSecret(contributorToken))
+        : addContributor(snapshot, {
+            contributorId,
+            accountId: input.principal.account.accountId,
+            role: 'passenger',
+            tokenHash: hashSecret(contributorToken),
+            nowMs,
+          });
+      const idempotency =
+        input.idempotencyKey === null
+          ? null
+          : { scope: 'board', keyHash: hashSecret(input.idempotencyKey), contributorId };
+      const written = await this.guardStorage(() =>
+        this.repo.recordJoin(next, snapshot.version, idempotency),
+      );
+
+      if (written.written) {
+        this.cachePassengerSnapshot(next, nowMs);
+        return {
+          schemaVersion: SCHEMA_VERSION,
+          journeyId: snapshot.journeyId,
+          routeId: snapshot.routeId,
+          contributorId,
+          contributorToken,
+          role: 'passenger',
+          isDemo: snapshot.isDemo,
+          boardedStopId: input.stopId,
+          boardedAtMs: nowMs,
+          nextSeq: (existing?.lastSeq ?? -1) + 1,
+        };
+      }
+      if (written.existing !== null) {
+        throw new ApiProblem(
+          409,
+          'CAPABILITY_RESPONSE_UNAVAILABLE',
+          'That boarding request was already used and its one-time capability cannot be shown again. Press board again to restore access.',
+        );
+      }
+      await sleepWithJitter(attempt);
+    }
     throw storageUnavailable();
   }
 

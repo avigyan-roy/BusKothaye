@@ -1,26 +1,14 @@
+/*
+ * The map is the page: it fills the viewport and everything else sits on it.
+ *
+ * Each piece of furniture is positioned against `--sheet-h`, the height the
+ * journey sheet is currently taking from the bottom of the screen, so nothing
+ * ever ends up underneath it.
+ */
 .map-view {
-  position: relative;
-  /* A nonzero responsive height: about 44dvh on a phone, the full column on a
-     desktop where the panel sits beside it. */
-  height: 44dvh;
-  min-height: 240px;
-  background: var(--color-border);
-}
-
-@media (min-width: 768px) {
-  .map-view {
-    height: 100%;
-    min-height: 320px;
-  }
-}
-
-/* On a short landscape phone the map gives way rather than squeezing the
-   arrival information off the screen. */
-@media (max-height: 520px) and (orientation: landscape) and (max-width: 767px) {
-  .map-view {
-    height: 56dvh;
-    min-height: 180px;
-  }
+  position: absolute;
+  inset: 0;
+  background: var(--color-canvas);
 }
 
 .map-view__canvas {
@@ -29,95 +17,56 @@
 }
 
 .map-view--message {
+  position: static;
   display: flex;
   align-items: center;
   padding: var(--space-4);
-  height: auto;
-  min-height: 0;
-  background: var(--color-canvas);
 }
 
-.map-view__overlay {
+/* Locate and follow, above the sheet and clear of the attribution below them. */
+.map-view__actions {
   position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-  background: rgba(245, 244, 239, 0.94);
-}
-
-.map-view__controls {
-  position: absolute;
-  right: var(--space-3);
-  /* Clear of the attribution, which must never be covered or cropped. */
-  bottom: 32px;
+  right: max(var(--space-3), var(--inset-right));
+  bottom: calc(var(--sheet-h, 0px) + 30px);
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  align-items: flex-end;
+  transition: bottom 180ms ease;
 }
 
-.map-view__control {
-  min-height: var(--touch-min);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-control);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-size: var(--text-secondary);
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(32, 41, 35, 0.12);
-}
-
-.map-view__control:hover {
-  background: var(--color-accent-soft);
-}
-
-.map-view__control:disabled {
-  cursor: wait;
-  opacity: 0.72;
-}
-
-/* Sits clear of the zoom control in the top-right corner. */
+/*
+ * Map disclosures: a development basemap, a failed style, dead tiles. They sit
+ * under the top control row rather than beside it, and never span the screen.
+ */
 .map-view__disclosure {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  right: 56px;
+  top: calc(var(--space-3) + var(--inset-top) + var(--touch-min) + var(--space-2));
+  left: max(var(--space-3), var(--inset-left));
+  z-index: 2;
+  max-width: min(320px, calc(100% - var(--touch-min) - var(--space-6)));
   margin: 0;
   padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-border-strong);
   border-radius: var(--radius-control);
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
+  background: var(--color-surface-overlay);
+  color: var(--color-muted);
   font-size: var(--text-meta);
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  box-shadow: var(--shadow-float);
 }
 
 .map-view__disclosure--error {
-  background: var(--color-danger-soft);
+  border-left-color: var(--color-danger);
   color: var(--color-danger);
 }
 
 .map-view__disclosure--warning {
-  background: var(--color-warning-soft);
+  border-left-color: var(--color-warning);
   color: var(--color-warning);
-}
-
-.map-view__location-error {
-  position: absolute;
-  right: var(--space-3);
-  bottom: 190px;
-  max-width: min(320px, calc(100% - var(--space-6)));
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-danger);
-  border-radius: var(--radius-control);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-  font-size: var(--text-meta);
 }
 
 .map-view__retry {
@@ -126,14 +75,132 @@
   padding: 0 var(--space-2);
   border: 1px solid currentColor;
   border-radius: var(--radius-control);
-  background: var(--color-surface);
+  background: none;
   color: inherit;
   font-size: var(--text-meta);
   font-weight: 600;
   cursor: pointer;
 }
 
-/* MapLibre's own controls, brought into the type scale. */
-.maplibregl-ctrl-attrib {
+.map-view__location-error {
+  position: absolute;
+  right: max(var(--space-3), var(--inset-right));
+  bottom: calc(var(--sheet-h, 0px) + 30px + var(--touch-min) * 3 + var(--space-3));
+  z-index: 2;
+  max-width: min(320px, calc(100% - var(--space-6)));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-danger);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-overlay);
+  color: var(--color-danger);
   font-size: var(--text-meta);
+}
+
+/*
+ * MapLibre's own controls, brought into this palette. Attribution is required
+ * and must stay legible and uncovered, so it is offset by the sheet height too.
+ */
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-bottom-left {
+  bottom: var(--sheet-h, 0px);
+  transition: bottom 180ms ease;
+}
+
+.maplibregl-ctrl-bottom-right {
+  right: max(0px, calc(var(--inset-right) - var(--space-2)));
+}
+
+.maplibregl-ctrl-bottom-left {
+  left: max(0px, calc(var(--inset-left) - var(--space-2)));
+}
+
+.maplibregl-ctrl-attrib.maplibregl-ctrl {
+  background: rgba(17, 19, 18, 0.82);
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+  border-radius: 4px 0 0 0;
+}
+
+.maplibregl-ctrl-attrib.maplibregl-ctrl a {
+  color: var(--color-muted);
+}
+
+.maplibregl-ctrl-scale {
+  border-color: var(--color-border-strong);
+  border-top: 0;
+  background: rgba(17, 19, 18, 0.72);
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+}
+
+.maplibregl-ctrl-group {
+  background: var(--color-surface-overlay);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-float);
+}
+
+.maplibregl-ctrl-group button {
+  width: var(--touch-min);
+  height: var(--touch-min);
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--color-border);
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  /* MapLibre ships dark icons for a light UI. */
+  filter: invert(1) brightness(1.4);
+}
+
+.maplibregl-ctrl-top-right {
+  top: calc(var(--inset-top) + var(--space-1));
+  right: max(0px, calc(var(--inset-right) - var(--space-1)));
+}
+
+@media (min-width: 900px) {
+  /* Beside the journey drawer, which occupies this corner on a wide screen. */
+  .map-view__disclosure {
+    left: calc(max(var(--space-3), var(--inset-left)) + var(--panel-width) + var(--space-3));
+    max-width: min(360px, calc(100% - var(--panel-width) - var(--space-7)));
+  }
+}
+
+/*
+ * A short viewport. The disclosure becomes one line so it never runs under the
+ * sheet, and the map actions lie along the bottom instead of stacking off the
+ * top of the screen.
+ */
+@media (max-height: 460px) {
+  .map-view__disclosure {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .map-view__retry {
+    display: none;
+  }
+
+  .map-view__actions {
+    flex-direction: row;
+  }
+
+  .map-view__location-error {
+    bottom: calc(var(--sheet-h, 0px) + 30px + var(--touch-min) + var(--space-2));
+  }
+}
+
+/*
+ * Zoom buttons and the scale bar are desktop furniture. On a phone the map is
+ * driven by pinch and by the sheet, and the screen is better spent on the map.
+ */
+@media (max-width: 899px) {
+  .maplibregl-ctrl-top-right,
+  .maplibregl-ctrl-bottom-left {
+    display: none;
+  }
 }

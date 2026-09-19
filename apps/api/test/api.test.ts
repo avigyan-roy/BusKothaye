@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   MAX_BATCH_REPORTS,
+  type BoardJourneyResponse,
   type AccountRole,
   type AuthSessionResponse,
   type CreateJourneyResponse,
@@ -55,12 +56,21 @@ async function register(role: AccountRole): Promise<string> {
   return result.body.token;
 }
 
+async function loginAdmin(): Promise<string> {
+  const result = await http<AuthSessionResponse>(server.url, 'POST', '/v1/auth/login', {
+    body: { username: 'admin', password: 'admin' },
+  });
+  expect(result.status).toBe(200);
+  expect(result.body.account.isAdmin).toBe(true);
+  return result.body.token;
+}
+
 async function createJourney(isDemo = false): Promise<CreateJourneyResponse> {
   const ownerToken = await register('driver');
   let createToken = ownerToken;
   if (isDemo) {
     const enabled = await http(server.url, 'PUT', '/v1/demo', {
-      token: ownerToken,
+      token: await loginAdmin(),
       body: { enabled: true },
     });
     expect(enabled.status).toBe(200);
@@ -105,6 +115,40 @@ describe('health and readiness', () => {
     const result = await http<Record<string, unknown>>(server.url, 'GET', '/ready');
     expect(result.status).toBe(200);
     expect(Object.keys(result.body)).toEqual(['status']);
+  });
+});
+
+describe('administrator and demo access', () => {
+  it('bootstraps the local admin and keeps demo controls admin-only', async () => {
+    const passenger = await register('passenger');
+    const denied = await http(server.url, 'GET', '/v1/demo', { token: passenger });
+    expect(denied.status).toBe(403);
+
+    const admin = await loginAdmin();
+    const allowed = await http<{ status: string }>(server.url, 'GET', '/v1/demo', {
+      token: admin,
+    });
+    expect(allowed.status).toBe(200);
+    expect(allowed.body.status).toBe('OFF');
+  });
+
+  it('never lets registration grant administrator access', async () => {
+    accountCounter += 1;
+    const registered = await http<AuthSessionResponse>(server.url, 'POST', '/v1/auth/register', {
+      body: {
+        username: `self-admin-${accountCounter}`,
+        password: 'correct horse battery staple',
+        role: 'passenger',
+        isAdmin: true,
+      },
+    });
+    expect(registered.status).toBe(201);
+    expect(registered.body.account.isAdmin).toBe(false);
+    const denied = await http(server.url, 'PUT', '/v1/demo', {
+      token: registered.body.token,
+      body: { enabled: true },
+    });
+    expect(denied.status).toBe(403);
   });
 });
 
@@ -195,6 +239,69 @@ describe('the full contributor path', () => {
       { token: joined.body.contributorToken, body: reportAt(route, { seq: 1, sM: 400 }) },
     );
     expect(after.status).toBe(401);
+  });
+
+  it('lets a passenger board only while confirmed at the selected stop', async () => {
+    const journey = await createJourney();
+    const ruby = route.dto.stops.find((stop) => stop.id === 'ruby')!;
+    await report(journey, journey.contributorToken, 0, ruby.sM);
+
+    const state = await http<JourneyStateDto>(
+      server.url,
+      'GET',
+      `/v1/journeys/${journey.journeyId}/state`,
+    );
+    expect(state.body.boardableStopId).toBe('ruby');
+
+    const passenger = await register('passenger');
+    const wrongStop = await http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/board`, {
+      token: passenger,
+      body: { stopId: 'gariahat' },
+    });
+    expect(wrongStop.status).toBe(409);
+
+    const boarded = await http<BoardJourneyResponse>(
+      server.url,
+      'POST',
+      `/v1/journeys/${journey.journeyId}/board`,
+      {
+        token: passenger,
+        body: { stopId: 'ruby' },
+        headers: { 'idempotency-key': `board-${accountCounter}` },
+      },
+    );
+    expect(boarded.status).toBe(201);
+    expect(boarded.body.role).toBe('passenger');
+    expect(boarded.body.boardedStopId).toBe('ruby');
+
+    const upload = await http(
+      server.url,
+      'POST',
+      `/v1/journeys/${journey.journeyId}/locations`,
+      {
+        token: boarded.body.contributorToken,
+        body: reportAt(route, { seq: boarded.body.nextSeq, sM: ruby.sM }),
+      },
+    );
+    expect(upload.status).toBe(202);
+  });
+
+  it('refuses boarding to unauthenticated and non-passenger accounts', async () => {
+    const journey = await createJourney();
+    const patuli = route.dto.stops[0]!;
+    await report(journey, journey.contributorToken, 0, patuli.sM);
+
+    const anonymous = await http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/board`, {
+      body: { stopId: patuli.id },
+    });
+    expect(anonymous.status).toBe(401);
+
+    const driver = await register('driver');
+    const forbidden = await http(server.url, 'POST', `/v1/journeys/${journey.journeyId}/board`, {
+      token: driver,
+      body: { stopId: patuli.id },
+    });
+    expect(forbidden.status).toBe(403);
   });
 
   it('normalises a join code typed in lower case with spaces', async () => {

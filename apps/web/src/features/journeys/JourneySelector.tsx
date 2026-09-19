@@ -20,7 +20,7 @@ export function JourneySelector({
   if (journeys.length <= 1) return null;
 
   return (
-    <div className="journey-selector panel">
+    <div className="journey-selector">
       <label className="field">
         <span className="field__label">{en.journeys.selectJourney}</span>
         <select

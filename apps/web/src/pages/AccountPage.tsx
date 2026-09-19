@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import type { AccountRole } from '@buskothay/shared';
 import { Header } from '../components/Header.js';
 import { api, ApiError } from '../lib/api.js';
@@ -37,7 +37,8 @@ export function AccountPage() {
           : await api.login(username, password);
       const next = saveAccountSession(response);
       setSession(next);
-      if (entry === 'crew') navigate('/drive');
+      if (response.account.isAdmin === true) navigate('/demo');
+      else if (entry === 'crew') navigate('/drive');
     } catch (caught) {
       setError(messageFor(caught));
     } finally {
@@ -118,16 +119,28 @@ export function AccountPage() {
               {mode === 'register' ? <RolePicker value={role} onChange={setRole} /> : null}
               <button className="button" disabled={busy}>{mode === 'register' ? en.account.create : en.account.login}</button>
             </form>
+            <p className="meta">
+              Demo controls use a separate <Link to="/admin">administrator sign-in</Link>.
+            </p>
           </section>
         ) : (
           <>
             <section className="panel account-page__panel stack">
               <p><strong>{session.account.username}</strong></p>
-              <p className="muted">{en.account.role}: {en.account.roles[session.account.role]}</p>
-              <RolePicker value={session.account.role} onChange={(next) => void chooseRole(next)} disabled={busy} />
+              <p className="muted">
+                {session.account.isAdmin === true
+                  ? en.account.administrator
+                  : `${en.account.role}: ${en.account.roles[session.account.role]}`}
+              </p>
+              {session.account.isAdmin === true ? null : (
+                <RolePicker value={session.account.role} onChange={(next) => void chooseRole(next)} disabled={busy} />
+              )}
               <div className="drive__actions">
-                <button type="button" className="button" onClick={() => navigate('/drive')}>{en.account.openCrew}</button>
-                <button type="button" className="button button--secondary" onClick={() => navigate('/demo')}>{en.account.openDemo}</button>
+                {session.account.isAdmin === true ? (
+                  <button type="button" className="button" onClick={() => navigate('/demo')}>{en.account.openDemo}</button>
+                ) : (
+                  <button type="button" className="button" onClick={() => navigate('/drive')}>{en.account.openCrew}</button>
+                )}
                 <button type="button" className="button button--secondary" onClick={() => void logout()}>{en.account.logout}</button>
               </div>
             </section>

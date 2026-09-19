@@ -54,6 +54,24 @@ export const JoinJourneyResponseSchema = z.object({
 });
 export type JoinJourneyResponse = z.infer<typeof JoinJourneyResponseSchema>;
 
+export const BoardJourneyBodySchema = z.object({ stopId: IdSchema });
+export type BoardJourneyBody = z.infer<typeof BoardJourneyBodySchema>;
+
+export const BoardJourneyResponseSchema = z.object({
+  schemaVersion: SchemaVersionSchema,
+  journeyId: IdSchema,
+  routeId: IdSchema,
+  contributorId: IdSchema,
+  contributorToken: z.string(),
+  role: z.literal('passenger'),
+  isDemo: z.boolean(),
+  boardedStopId: IdSchema,
+  boardedAtMs: EpochMsSchema,
+  /** First sequence number this (possibly restored) capability should use. */
+  nextSeq: z.number().int().nonnegative(),
+});
+export type BoardJourneyResponse = z.infer<typeof BoardJourneyResponseSchema>;
+
 // ---------------------------------------------------------------------------
 // Location ingestion.
 // ---------------------------------------------------------------------------
@@ -209,6 +227,8 @@ export const JourneyStateDtoSchema = z.object({
   lastFixAgeSeconds: z.number().finite().nonnegative().nullable(),
   progressFraction: z.number().finite().min(0).max(1).nullable(),
   activeSources: ActiveSourcesSchema,
+  /** A stop where fresh, confirmed evidence says boarding is currently possible. */
+  boardableStopId: IdSchema.nullable(),
   stops: z.array(StopEtaSchema),
   delaySeconds: z.number().finite().nullable(),
   offRoute: z.boolean(),

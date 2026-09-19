@@ -27,6 +27,26 @@ export const en = {
     accountLink: 'Sign in',
   },
 
+  /* The map screen has no header, so everything else reaches a person here. */
+  nav: {
+    openMenu: 'Menu',
+    menuLabel: 'BusKothay navigation',
+    map: 'Passenger map',
+    routes: 'Route catalogue',
+    drive: 'Share GPS',
+    demo: 'Demo console',
+    signIn: 'Sign in',
+  },
+
+  sheet: {
+    label: 'Journey details',
+    expand: 'Show journey details',
+    collapse: 'Hide journey details',
+    noBus: 'No active bus',
+    stopsHeading: 'Stops on this route',
+    updatedAgo: (text: string) => `Updated ${text} ago`,
+  },
+
   account: {
     title: 'Sign in to BusKothay',
     passengerEntry: 'Passenger account',
@@ -41,6 +61,7 @@ export const en = {
     role: 'Selected role',
     chooseRole: 'How will you use BusKothay?',
     roles: { passenger: 'Passenger', driver: 'Driver', conductor: 'Conductor' },
+    administrator: 'Administrator',
     openCrew: 'Open journey controls',
     openDemo: 'Open demo console',
     logout: 'Sign out',
@@ -54,7 +75,6 @@ export const en = {
   route: {
     chooseStop: 'Choose your stop',
     selectedStop: 'Selected stop',
-    change: 'Change',
     routeDetails: 'About this route',
     checkpointsNote:
       'These are selected checkpoints along the corridor, not the complete list of official stops.',
@@ -75,6 +95,8 @@ export const en = {
 
   journeys: {
     none: 'No bus is sharing its location right now.',
+    listUnavailable:
+      'Live journey listings could not be refreshed. The stops and route information below are still available.',
     noneHelp:
       'When someone on an AC24 bus shares their location, it will appear here within a few seconds.',
     waitingFirstFix: 'Waiting for the first location.',
@@ -201,6 +223,9 @@ export const en = {
 
   errors: {
     routeUnavailable: 'The route information could not be loaded.',
+    geometryUnavailable: 'Map geometry not available',
+    geometryUnavailableHelp:
+      'This route is in the catalogue, but no verified line or stop coordinates have been recorded for it yet.',
     journeyUnavailable: 'This journey could not be loaded.',
     mapFailed: 'The map could not be loaded.',
     mapFailedHelp: 'The stop list and arrival times below still work.',

@@ -23,6 +23,7 @@ import {
   SEARCH_BACKWARD_M,
   SEARCH_FORWARD_FLOOR_M,
   SOURCE_FRESHNESS_S,
+  STOP_NEAR_M,
   STOP_PASS_MARGIN_M,
   computeAutoEndAtMs,
   computeEstimatedAtMs,
@@ -211,6 +212,23 @@ export function addContributor(
         joinedAtMs: input.nowMs,
       }),
     ],
+  };
+}
+
+/** Rotate a lost/restored passenger capability without creating another source. */
+export function rotateContributorCapability(
+  snapshot: JourneySnapshot,
+  contributorId: string,
+  tokenHash: string,
+): JourneySnapshot {
+  return {
+    ...snapshot,
+    version: snapshot.version + 1,
+    contributors: snapshot.contributors.map((contributor) =>
+      contributor.contributorId === contributorId && contributor.revokedAtMs === null
+        ? { ...contributor, tokenHash }
+        : contributor,
+    ),
   };
 }
 
@@ -952,6 +970,29 @@ export function derivedModeAt(
   return modeAtTime(snapshot.baseMode, buildAnchor(snapshot, route), nowMs);
 }
 
+/**
+ * A boarding gate based only on fresh confirmed evidence. Projection may move a
+ * marker towards a stop, but it can never make a bus boardable.
+ */
+export function boardableStopIdAt(
+  snapshot: JourneySnapshot,
+  route: PreparedRoute,
+  nowMs: number,
+): string | null {
+  const mode = derivedModeAt(snapshot, route, nowMs);
+  if (mode !== 'LIVE' && mode !== 'DWELLING') return null;
+  if (snapshot.offRoute || snapshot.lastConfirmedSM === null) return null;
+  const passed = new Set(snapshot.passedStopIds);
+  let nearest: { id: string; distanceM: number } | null = null;
+  for (const stop of route.dto.stops) {
+    if (passed.has(stop.id)) continue;
+    const distanceM = Math.abs(stop.sM - snapshot.lastConfirmedSM);
+    if (distanceM > STOP_NEAR_M) continue;
+    if (nearest === null || distanceM < nearest.distanceM) nearest = { id: stop.id, distanceM };
+  }
+  return nearest?.id ?? null;
+}
+
 function countActiveSources(snapshot: JourneySnapshot, nowMs: number): ActiveSources {
   const cutoff = nowMs - SOURCE_FRESHNESS_S * 1000;
   let driver = false;
@@ -1050,6 +1091,7 @@ export function deriveState(input: DeriveStateInput): JourneyStateDto {
         ? null
         : Math.min(1, Math.max(0, positionSM / route.dto.lengthM)),
     activeSources: countActiveSources(snapshot, nowMs),
+    boardableStopId: boardableStopIdAt(snapshot, route, nowMs),
     stops,
     delaySeconds: input.delaySeconds,
     offRoute: snapshot.offRoute,

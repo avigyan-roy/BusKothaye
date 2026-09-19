@@ -1,25 +1,46 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { positionAt, type JourneyMode, type StopEta } from '@buskothay/shared';
-import { Header, DemoBadge } from '../components/Header.js';
+import { Header } from '../components/Header.js';
+import { NavMenu } from '../components/NavMenu.js';
 import { MapView } from '../features/map/MapView.js';
 import { ArrivalPanel } from '../features/journeys/ArrivalPanel.js';
+import { JourneySheet } from '../features/journeys/JourneySheet.js';
+import { JourneyStatus } from '../features/journeys/JourneyStatus.js';
 import { StopList } from '../features/journeys/StopList.js';
 import { RouteDetails } from '../features/journeys/RouteDetails.js';
 import { JourneySelector } from '../features/journeys/JourneySelector.js';
+import { BoardingPanel } from '../features/journeys/BoardingPanel.js';
+import { useGeoSharing } from '../features/contribution/useGeoSharing.js';
 import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
 import { useRoute } from '../hooks/useRoute.js';
 import { preferredJourney, useActiveJourneys } from '../hooks/useActiveJourneys.js';
 import { useJourneyState } from '../hooks/useJourneyState.js';
 import { useProjectedJourney } from '../hooks/useProjectedJourney.js';
 import { useRoutes } from '../hooks/useRoutes.js';
-import { loadPreferredStop, savePreferredStop } from '../lib/session.js';
+import {
+  clearSession,
+  loadPreferredStop,
+  loadSession,
+  savePreferredStop,
+  saveSession,
+  type ContributorSession,
+} from '../lib/session.js';
+import {
+  loadAccountSession,
+  type AccountSession,
+} from '../lib/auth-session.js';
+import { api, ApiError } from '../lib/api.js';
 import { site } from '../config/site.js';
 import { en } from '../content/en.js';
 import './route-page.css';
 
 /**
- * The passenger screen: a useful map and an arrival time, straight away.
+ * The passenger screen: a full-screen map with one sheet of information on it.
+ *
+ * The map is the page. There is no header and no page scrolling — everything
+ * else floats over the map and is sized to leave the map visible, because the
+ * question being answered is "where is the bus" and that is a spatial question.
  *
  * The page holds three independent things — the route, the list of journeys, and
  * one journey's state — because they change on completely different timescales.
@@ -35,16 +56,43 @@ export function RoutePage() {
   const routeDirectory = useRoutes();
   const { journeys, isLoading: journeysLoading, error: journeysError } = useActiveJourneys(routeId);
 
+  const [account, setAccount] = useState<AccountSession | null>(() => loadAccountSession());
+  const [contributorSession, setContributorSession] = useState<ContributorSession | null>(() => loadSession());
+  const [boardingBusy, setBoardingBusy] = useState(false);
+  const [boardingError, setBoardingError] = useState<string | null>(null);
+  const sharing = useGeoSharing(contributorSession, (next) => {
+    setContributorSession(next);
+    saveSession(next);
+  });
+
+  useEffect(() => {
+    const refresh = () => setAccount(loadAccountSession());
+    window.addEventListener('buskothay-account-changed', refresh);
+    return () => window.removeEventListener('buskothay-account-changed', refresh);
+  }, []);
+
+  const onboardSession =
+    contributorSession?.joinedVia === 'boarding' && contributorSession.routeId === routeId
+      ? contributorSession
+      : null;
+
   const [chosenJourneyId, setChosenJourneyId] = useState<string | null>(null);
   const activeJourneyId = useMemo(() => {
+    if (onboardSession !== null) return onboardSession.journeyId;
     if (chosenJourneyId !== null && journeys.some((j) => j.journeyId === chosenJourneyId)) {
       return chosenJourneyId;
     }
     return preferredJourney(journeys)?.journeyId ?? null;
-  }, [chosenJourneyId, journeys]);
+  }, [chosenJourneyId, journeys, onboardSession]);
 
   const { snapshot, isReconnecting } = useJourneyState(activeJourneyId);
   const projected = useProjectedJourney(snapshot);
+
+  // The sheet starts open where there is room beside the map and closed on a
+  // phone, where an open sheet would be most of the screen.
+  const [isSheetExpanded, setSheetExpanded] = useState(hasRoomForPanel);
+  const [isCatalogueOpen, setCatalogueOpen] = useState(false);
+  const catalogueRef = useRef<HTMLDetailsElement | null>(null);
 
   // --- Stop selection: URL first, then the remembered preference. ------------
   const stopFromUrl = searchParams.get('stop');
@@ -72,8 +120,26 @@ export function RoutePage() {
 
   const state = snapshot?.state ?? null;
   const mode: JourneyMode = projected?.mode ?? state?.mode ?? 'PENDING';
-  const stops: readonly StopEta[] = state?.stops ?? emptyStops(route);
+  // Memoised because the map re-reads this list whenever its identity changes,
+  // and the placeholder rows would otherwise be a new array on every frame.
+  const stops: readonly StopEta[] = useMemo(
+    () => state?.stops ?? emptyStops(route),
+    [state, route],
+  );
   const selectedStop = stops.find((s) => s.stopId === selectedStopId) ?? null;
+  const boardedStopName =
+    onboardSession?.boardedStopId === undefined
+      ? null
+      : route?.dto.stops.find((stop) => stop.id === onboardSession.boardedStopId)?.name ?? null;
+  const futureStops = useMemo(() => {
+    if (route === null || onboardSession?.boardedStopId === undefined) return [];
+    const boardedIndex = route.dto.stops.findIndex(
+      (stop) => stop.id === onboardSession.boardedStopId,
+    );
+    if (boardedIndex < 0) return [];
+    const futureIds = new Set(route.dto.stops.slice(boardedIndex + 1).map((stop) => stop.id));
+    return stops.filter((stop) => futureIds.has(stop.stopId) && stop.status !== 'passed');
+  }, [onboardSession?.boardedStopId, route, stops]);
 
   const busPosition = useMemo(() => {
     if (route === null || projected?.sM == null) return null;
@@ -85,12 +151,57 @@ export function RoutePage() {
   // every second and not every coordinate.
   const announcement = useAnnouncement(mode, activeJourneyId);
 
+  useEffect(() => {
+    if (mode === 'ENDED' && onboardSession !== null) sharing.pause();
+  }, [mode, onboardSession, sharing.pause]);
+
+  const board = async () => {
+    if (account === null || activeJourneyId === null || selectedStopId === null) return;
+    setBoardingBusy(true);
+    setBoardingError(null);
+    try {
+      const boarded = await api.boardJourney(
+        activeJourneyId,
+        selectedStopId,
+        crypto.randomUUID(),
+        account.token,
+      );
+      const next: ContributorSession = {
+        journeyId: boarded.journeyId,
+        routeId: boarded.routeId,
+        contributorId: boarded.contributorId,
+        token: boarded.contributorToken,
+        role: 'passenger',
+        isDemo: boarded.isDemo,
+        createdAtMs: boarded.boardedAtMs,
+        joinedVia: 'boarding',
+        boardedStopId: boarded.boardedStopId,
+        nextSeq: boarded.nextSeq,
+      };
+      saveSession(next);
+      setContributorSession(next);
+    } catch (caught) {
+      setBoardingError(
+        caught instanceof ApiError ? caught.message : 'Could not reach the API.',
+      );
+    } finally {
+      setBoardingBusy(false);
+    }
+  };
+
+  const leaveBus = async () => {
+    await sharing.stop(true);
+    clearSession();
+    setContributorSession(null);
+    setBoardingError(null);
+  };
+
   if (routeLoading) {
     return (
       <>
         <Header />
         <main className="page">
-          <p>{en.common.loading}</p>
+          <p className="muted">{en.common.loading}</p>
         </main>
       </>
     );
@@ -100,109 +211,157 @@ export function RoutePage() {
     return (
       <>
         <Header />
-        <main className="page stack">
-          <h1>{routeError === 'ROUTE_UNAVAILABLE' ? 'This route is listed, but is not ready for tracking.' : en.errors.routeUnavailable}</h1>
-          <p className="muted">Choose a route with verified geometry. Directory-only routes contain no invented map coordinates.</p>
-          {routeDirectory.routes.length > 0 ? <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} /> : null}
-          <button type="button" className="button button--secondary" onClick={reload}>{en.common.retry}</button>
+        <main className="page stack" style={{ maxWidth: 560 }}>
+          <h1>
+            {routeError === 'ROUTE_UNAVAILABLE'
+              ? en.errors.geometryUnavailable
+              : en.errors.routeUnavailable}
+          </h1>
+          <p className="muted">
+            {routeError === 'ROUTE_UNAVAILABLE'
+              ? en.errors.geometryUnavailableHelp
+              : en.errors.offline}
+          </p>
+          <button type="button" className="button button--secondary" onClick={reload}>
+            {en.common.retry}
+          </button>
+          {routeDirectory.routes.length > 0 ? (
+            <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} />
+          ) : null}
         </main>
       </>
     );
   }
 
   const noJourney = activeJourneyId === null;
+  const openCatalogue = () => {
+    setSheetExpanded(true);
+    setCatalogueOpen(true);
+    window.setTimeout(() => {
+      catalogueRef.current?.scrollIntoView({ block: 'nearest' });
+    }, 200);
+  };
 
   return (
-    <>
-      <Header
-        routeCode={route.dto.code}
-        routeDirection={`${route.dto.origin} → ${route.dto.destination}`}
-        action={{ label: en.header.contributeLink, to: site.drivePath }}
+    <main className="route-page">
+      <MapView
+        route={route.dto}
+        stops={stops}
+        selectedStopId={selectedStopId}
+        onSelectStop={selectStop}
+        bus={busPosition}
+        busMode={mode}
+        confidenceM={state?.confidenceM ?? null}
+        isDemo={state?.isDemo ?? false}
       />
 
-      <main className="route-page">
-        <div className="route-page__map">
-          <MapView
-            route={route.dto}
-            selectedStopId={selectedStopId}
-            onSelectStop={selectStop}
-            bus={busPosition}
-            busMode={mode}
-            confidenceM={state?.confidenceM ?? null}
-            isDemo={state?.isDemo ?? false}
-          />
-        </div>
+      <div className="route-page__top">
+        <NavMenu onOpenRoutes={openCatalogue} />
+        <JourneyStatus
+          mode={mode}
+          ageSeconds={projected?.ageSeconds ?? state?.lastFixAgeSeconds ?? null}
+          hasJourney={!noJourney}
+          isReconnecting={isReconnecting}
+        />
+      </div>
 
-        <div className="route-page__panel">
-          <details className="route-page__directory">
-            <summary>Change route · {routeDirectory.routes.length || 20} WBTC services</summary>
-            <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} compact />
-          </details>
-          <p aria-live="polite" className="visually-hidden">
-            {announcement}
-          </p>
+      <p aria-live="polite" className="visually-hidden">
+        {announcement}
+      </p>
 
-          {journeysError ? (
-            <p className="notice notice--warning">
-              Live journey listings could not be refreshed. The stop and route information below is still available.
-            </p>
-          ) : null}
-
-          {noJourney ? (
-            <section className="route-page__empty">
-              <h2>{journeysLoading ? en.common.loading : en.journeys.none}</h2>
-              {journeysLoading ? null : <p className="muted">{en.journeys.noneHelp}</p>}
-              <Link to={site.drivePath} className="button">
-                {en.header.contributeLink}
-              </Link>
-            </section>
+      <JourneySheet
+        routeCode={route.dto.code}
+        routeDirection={`${route.dto.origin} → ${route.dto.destination}`}
+        isDemo={state?.isDemo ?? false}
+        isExpanded={isSheetExpanded}
+        onToggle={() => setSheetExpanded((open) => !open)}
+        summary={
+          noJourney ? (
+            <div className="journey-sheet__empty">
+              <div>
+                <h2>{journeysLoading ? en.common.loading : en.journeys.none}</h2>
+                {journeysLoading ? null : <p className="meta">{en.journeys.noneHelp}</p>}
+              </div>
+              {journeysLoading ? null : (
+                <Link to={site.drivePath} className="button button--secondary">
+                  {en.header.contributeLink}
+                </Link>
+              )}
+            </div>
           ) : (
-            <>
-              {state?.isDemo ? (
-                <p className="route-page__demo">
-                  <DemoBadge /> <span className="muted">{en.common.demoJourney}</span>
-                </p>
-              ) : null}
-
-              <ArrivalPanel
-                stop={selectedStop}
-                mode={mode}
-                ageSeconds={projected?.ageSeconds ?? state?.lastFixAgeSeconds ?? null}
-                confidenceM={state?.confidenceM ?? null}
-                offRoute={state?.offRoute ?? false}
-                isReconnecting={isReconnecting}
-                onChangeStop={() => {
-                  document.getElementById('stop-list-heading')?.scrollIntoView({
-                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-                      ? 'auto'
-                      : 'smooth',
-                    block: 'start',
-                  });
-                }}
-              />
-            </>
-          )}
-
-          <JourneySelector
-            journeys={journeys}
-            selectedId={activeJourneyId}
-            onSelect={setChosenJourneyId}
-          />
-
-          <StopList
-            route={route.dto}
-            stops={stops}
-            selectedStopId={selectedStopId}
-            onSelect={selectStop}
-          />
-
-          <div className="route-page__details">
-            <RouteDetails route={route.dto} />
+            <ArrivalPanel
+              stop={selectedStop}
+              mode={mode}
+              confidenceM={state?.confidenceM ?? null}
+              offRoute={state?.offRoute ?? false}
+            />
+          )
+        }
+      >
+        {journeysError ? (
+          <div className="journey-sheet__section">
+            <p className="notice notice--warning">{en.journeys.listUnavailable}</p>
           </div>
+        ) : null}
+
+        <JourneySelector
+          journeys={journeys}
+          selectedId={activeJourneyId}
+          onSelect={setChosenJourneyId}
+        />
+
+        <BoardingPanel
+          account={account}
+          session={onboardSession}
+          selectedStop={selectedStop}
+          boardedStopName={boardedStopName}
+          futureStops={futureStops}
+          mode={mode}
+          isDemo={state?.isDemo ?? false}
+          canBoard={
+            onboardSession === null &&
+            activeJourneyId !== null &&
+            route.dto.version === state?.routeVersion &&
+            state?.boardableStopId === selectedStopId &&
+            (mode === 'LIVE' || mode === 'DWELLING')
+          }
+          busy={boardingBusy}
+          error={boardingError}
+          sharing={sharing.state}
+          onBoard={() => void board()}
+          onStartSharing={sharing.start}
+          onPauseSharing={sharing.pause}
+          onLeave={() => void leaveBus()}
+        />
+
+        <StopList
+          route={route.dto}
+          stops={stops}
+          selectedStopId={selectedStopId}
+          onSelect={selectStop}
+        />
+
+        <details
+          ref={catalogueRef}
+          className="journey-sheet__section route-page__directory"
+          open={isCatalogueOpen}
+          onToggle={(event) => setCatalogueOpen(event.currentTarget.open)}
+        >
+          <summary>{en.nav.routes}</summary>
+          <RouteSwitcher routes={routeDirectory.routes} currentRouteId={routeId} compact />
+        </details>
+
+        <div className="journey-sheet__section">
+          <RouteDetails route={route.dto} />
         </div>
-      </main>
-    </>
+      </JourneySheet>
+    </main>
   );
+}
+
+/** Wide enough for a drawer beside the map rather than a sheet over it. */
+function hasRoomForPanel(): boolean {
+  return window.matchMedia('(min-width: 900px)').matches;
 }
 
 /** Stop rows before any journey exists: names and order, no invented numbers. */

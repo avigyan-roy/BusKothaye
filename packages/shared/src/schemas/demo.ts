@@ -4,7 +4,9 @@ import { EpochMsSchema, IdSchema, SchemaVersionSchema } from './common.js';
 export const DemoFleetConfigSchema = z.object({
   routeId: IdSchema,
   startStopId: IdSchema.nullable(),
-  speedKmh: z.number().finite().min(0).max(80),
+  endStopId: IdSchema.nullable(),
+  /** A realistic city-demo band; zero-speed scenarios use the explicit pause control. */
+  speedKmh: z.number().finite().min(5).max(50),
   busCount: z.number().int().min(1).max(10),
   sourcesPerBus: z.number().int().min(1).max(5),
   cadenceMs: z.number().int().min(3000).max(60_000),
@@ -46,4 +48,3 @@ export const DemoUpdateBodySchema = DemoFleetConfigSchema.partial().refine(
   (value) => Object.keys(value).length > 0,
   'At least one setting is required.',
 );
-

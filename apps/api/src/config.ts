@@ -52,6 +52,9 @@ const RawEnvSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().positive().max(24 * 30).default(24 * 7),
   /** Restricted service principal used only by the separately supervised demo worker. */
   SIMULATOR_TOKEN: z.string().min(32).optional(),
+  /** Server-only bootstrap credentials. Never expose these as VITE_* values. */
+  ADMIN_USERNAME: z.string().trim().min(3).max(32).optional(),
+  ADMIN_PASSWORD: z.string().min(1).max(200).optional(),
 });
 
 export type AppConfig = {
@@ -75,6 +78,8 @@ export type AppConfig = {
   };
   readonly sessionTtlMs: number;
   readonly simulatorToken: string | undefined;
+  readonly adminUsername: string;
+  readonly adminPassword: string;
 };
 
 export class ConfigError extends Error {
@@ -146,6 +151,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     if (corsOrigins.length === 0) {
       problems.push('CORS_ORIGINS must list the deployed web origins in production');
     }
+    if (!raw.ADMIN_USERNAME || !raw.ADMIN_PASSWORD) {
+      problems.push('ADMIN_USERNAME and ADMIN_PASSWORD are required in production');
+    } else {
+      if (raw.ADMIN_PASSWORD.length < 12) {
+        problems.push('ADMIN_PASSWORD must be at least 12 characters in production');
+      }
+      if (
+        raw.ADMIN_USERNAME.toLocaleLowerCase('en-US') === 'admin' &&
+        raw.ADMIN_PASSWORD === 'admin'
+      ) {
+        problems.push('The development admin/admin credentials are forbidden in production');
+      }
+    }
+  }
+  if ((raw.ADMIN_USERNAME === undefined) !== (raw.ADMIN_PASSWORD === undefined)) {
+    problems.push('ADMIN_USERNAME and ADMIN_PASSWORD must be set together');
   }
   if (problems.length > 0) {
     throw new ConfigError('Invalid API configuration', problems);
@@ -172,6 +193,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     },
     sessionTtlMs: raw.SESSION_TTL_HOURS * 60 * 60 * 1000,
     simulatorToken: raw.SIMULATOR_TOKEN,
+    adminUsername: raw.ADMIN_USERNAME ?? 'admin',
+    adminPassword: raw.ADMIN_PASSWORD ?? 'admin',
   };
 }
 

@@ -118,6 +118,7 @@ export function DrivePage() {
         role: joined.role,
         isDemo: joined.isDemo,
         createdAtMs: joined.joinedAtMs,
+        joinedVia: 'join-code',
         nextSeq: 0,
       });
     } catch (error) {

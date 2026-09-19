@@ -8,6 +8,8 @@ export interface AccountRecord {
   readonly passwordHash: string;
   readonly role: AccountRole;
   readonly kind: 'community' | 'simulator';
+  /** Missing legacy values are treated as false at every authorisation boundary. */
+  readonly isAdmin?: boolean;
   readonly authVersion: number;
   readonly createdAtMs: number;
   readonly updatedAtMs: number;

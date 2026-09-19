@@ -19,6 +19,7 @@ const WEB_PORT = 4173;
 const API_URL = `http://127.0.0.1:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
 const TEST_SIMULATOR_TOKEN = 'e2e-simulator-token-keep-private-12345';
+const WITH_FLEET_WORKER = process.env.E2E_FLEET_WORKER === 'true';
 
 export default defineConfig({
   testDir: './apps/web/e2e',
@@ -67,6 +68,19 @@ export default defineConfig({
         RATE_LIMIT_JOIN_BURST: '60',
       },
     },
+    ...(WITH_FLEET_WORKER ? [{
+      command: 'node apps/simulator/dist/fleet-worker.js',
+      url: `${API_URL}/health`,
+      timeout: 180_000,
+      reuseExistingServer: false,
+      stdout: 'ignore' as const,
+      stderr: 'pipe' as const,
+      env: {
+        API_BASE_URL: API_URL,
+        SIMULATOR_TOKEN: TEST_SIMULATOR_TOKEN,
+        FLEET_CONTROL_POLL_MS: '250',
+      },
+    }] : []),
     {
       command: `npm run build -w @buskothay/web && npm run preview -w @buskothay/web -- --port ${WEB_PORT} --strictPort`,
       url: WEB_URL,

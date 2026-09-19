@@ -3,9 +3,11 @@ import { en } from '../content/en.js';
 import './status-badge.css';
 
 /**
- * Tracking status: an icon, a word and a colour — never a colour on its own.
- * Green is also this interface's accent, so colour alone could not carry meaning
- * even if we wanted it to.
+ * Tracking status: a shape, a word and a colour — never a colour on its own.
+ *
+ * Each mode has its own glyph shape as well as its own hue, so the state is
+ * still readable in monochrome, at a glance, or by someone who cannot separate
+ * amber from green.
  */
 
 const LABEL: Record<JourneyMode, string> = {
@@ -17,30 +19,36 @@ const LABEL: Record<JourneyMode, string> = {
   ENDED: en.freshness.ended,
 };
 
-function Glyph({ mode }: { mode: JourneyMode }) {
-  // Solid for confirmed, hollow for estimated, faded for out of date.
-  switch (mode) {
-    case 'LIVE':
-      return <span className="status-badge__glyph status-badge__glyph--solid" aria-hidden="true" />;
-    case 'DWELLING':
-      return <span className="status-badge__glyph status-badge__glyph--square" aria-hidden="true" />;
-    case 'ESTIMATED':
-      return <span className="status-badge__glyph status-badge__glyph--hollow" aria-hidden="true" />;
-    case 'STALE':
-      return <span className="status-badge__glyph status-badge__glyph--faded" aria-hidden="true" />;
-    case 'ENDED':
-      return <span className="status-badge__glyph status-badge__glyph--ended" aria-hidden="true" />;
-    default:
-      return <span className="status-badge__glyph status-badge__glyph--pending" aria-hidden="true" />;
-  }
-}
+const GLYPH: Record<JourneyMode, string> = {
+  LIVE: 'solid',
+  DWELLING: 'square',
+  ESTIMATED: 'hollow',
+  STALE: 'stale',
+  ENDED: 'ended',
+  PENDING: 'pending',
+};
 
-export function StatusBadge({ mode, detail }: { mode: JourneyMode; detail?: string | null }) {
+export function StatusBadge({
+  mode,
+  detail,
+  compact = false,
+}: {
+  mode: JourneyMode;
+  detail?: string | null;
+  compact?: boolean;
+}) {
   return (
-    <span className={`status-badge status-badge--${mode.toLowerCase()}`}>
-      <Glyph mode={mode} />
+    <span
+      className={`status-badge status-badge--${mode.toLowerCase()}${
+        compact ? ' status-badge--compact' : ''
+      }`}
+    >
+      <span
+        className={`status-badge__glyph status-badge__glyph--${GLYPH[mode]}`}
+        aria-hidden="true"
+      />
       <span className="status-badge__label">{LABEL[mode]}</span>
-      {detail ? <span className="status-badge__detail"> · {detail}</span> : null}
+      {detail ? <span className="status-badge__detail">{detail}</span> : null}
     </span>
   );
 }

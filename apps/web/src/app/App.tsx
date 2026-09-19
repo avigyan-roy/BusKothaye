@@ -5,6 +5,7 @@ import { OpsPage } from '../pages/OpsPage.js';
 import { NotFoundPage } from '../pages/NotFoundPage.js';
 import { AccountPage } from '../pages/AccountPage.js';
 import { DemoConsolePage } from '../pages/DemoConsolePage.js';
+import { AdminLoginPage } from '../pages/AdminLoginPage.js';
 import { site } from '../config/site.js';
 
 /**
@@ -19,6 +20,7 @@ export function App() {
       <Route path="/r/:routeId" element={<RoutePage />} />
       <Route path="/drive" element={<DrivePage />} />
       <Route path="/account" element={<AccountPage />} />
+      <Route path="/admin" element={<AdminLoginPage />} />
       <Route path="/demo" element={<DemoConsolePage />} />
       <Route path="/ops/:journeyId" element={<OpsPage />} />
       <Route path="*" element={<NotFoundPage />} />

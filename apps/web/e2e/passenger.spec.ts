@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { selectJourney, startDemoJourney } from './fixtures.js';
+import { expandSheet, selectJourney, startDemoJourney } from './fixtures.js';
 
 test.describe('passenger map', () => {
   test('opening the site lands on the route, not a marketing page', async ({ page }) => {
@@ -11,6 +11,7 @@ test.describe('passenger map', () => {
 
   test('shows the route, its stops and the map without any journey', async ({ page }) => {
     await page.goto('/r/ac24-patuli-howrah');
+    await expandSheet(page);
 
     // Every checkpoint is listed, with no invented arrival times.
     for (const name of ['Patuli', 'Ruby', 'Gariahat', 'Hazra', 'Exide', 'Park Street', 'Esplanade', 'Howrah']) {
@@ -47,6 +48,7 @@ test.describe('passenger map', () => {
 
   test('discloses that the route geometry is approximate', async ({ page }) => {
     await page.goto('/r/ac24-patuli-howrah');
+    await expandSheet(page);
     await expect(page.getByText(/approximation of the corridor/i).first()).toBeVisible();
   });
 
@@ -99,6 +101,7 @@ test.describe('passenger map', () => {
     // With no journey there is no arrival to give, but the person's chosen stop
     // must not silently disappear.
     await page.goto('/r/ac24-patuli-howrah?stop=hazra');
+    await expandSheet(page);
     await expect(
       page.getByRole('button', { name: /Hazra.*Selected stop/s }).first(),
     ).toBeVisible();
@@ -151,6 +154,7 @@ test.describe('passenger map', () => {
 
   test('a stop can be chosen with the keyboard alone', async ({ page }) => {
     await page.goto('/r/ac24-patuli-howrah');
+    await expandSheet(page);
     const esplanade = page.getByRole('button', { name: /Esplanade/ }).first();
     await esplanade.focus();
     await expect(esplanade).toBeFocused();

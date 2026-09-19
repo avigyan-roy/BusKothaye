@@ -102,12 +102,13 @@ export async function startTestServer(
 
   const registry = await RouteRegistry.load(config.routeDataDir);
   const repo = new MemoryJourneyRepository();
-  const { app } = createApp({
+  const { app, accounts } = createApp({
     config,
     repo,
     registry,
     logger: createLogger('error', () => {}),
   });
+  await accounts.ensureAdminAccount(config.adminUsername, config.adminPassword);
 
   const server: Server = await new Promise((done) => {
     const s = app.listen(0, '127.0.0.1', () => done(s));

@@ -1,0 +1,90 @@
+/*
+ * The navigation menu: a panel anchored where the menu button is, not a
+ * full-height drawer. It is the size of its own contents, so it never leaves a
+ * large empty surface over the map.
+ */
+.nav-menu {
+  position: fixed;
+  top: calc(var(--space-3) + var(--inset-top));
+  left: max(var(--space-3), var(--inset-left));
+  right: auto;
+  bottom: auto;
+  width: min(276px, calc(100vw - var(--space-5)));
+  max-width: none;
+  height: auto;
+  max-height: calc(100dvh - var(--space-5) - var(--inset-top) - var(--inset-bottom));
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-float);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.nav-menu[open] {
+  animation: nav-menu-in 140ms ease-out;
+}
+
+@keyframes nav-menu-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
+
+.nav-menu::backdrop {
+  background: rgba(8, 9, 9, 0.55);
+}
+
+.nav-menu__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  padding-left: var(--space-3);
+}
+
+.nav-menu__wordmark {
+  font-size: var(--text-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.nav-menu__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-menu__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--touch-min);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-secondary);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.nav-menu__item:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+}
+
+.nav-menu__hint {
+  color: var(--color-faint);
+  font-size: var(--text-meta);
+}

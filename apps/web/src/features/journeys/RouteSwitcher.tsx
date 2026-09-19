@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import type { RouteSummary } from '@buskothay/shared';
 import './route-switcher.css';
@@ -42,9 +42,10 @@ export function RouteSwitcher({
       </label>
       <div className="route-switcher__list">
         {filtered.map((route) => {
+          const routeStyle = { '--route-color': route.color } as CSSProperties;
           const content = (
             <>
-              <strong>{route.code}</strong>
+              <strong className="route-switcher__code"><span aria-hidden="true" />{route.code}</strong>
               <span>{route.origin} → {route.destination}</span>
               {route.trackingAvailable ? (
                 <small>Tracking route available</small>
@@ -59,6 +60,7 @@ export function RouteSwitcher({
               type="button"
               disabled={!route.trackingAvailable}
               className={route.id === currentRouteId ? 'is-active' : ''}
+              style={routeStyle}
               onClick={() => onSelect(route.id)}
             >
               {content}
@@ -68,15 +70,15 @@ export function RouteSwitcher({
               key={route.id}
               to={`/r/${route.id}`}
               className={route.id === currentRouteId ? 'is-active' : ''}
+              style={routeStyle}
             >
               {content}
             </Link>
           ) : (
-            <div key={route.id} className="is-unavailable">{content}</div>
+            <div key={route.id} className="is-unavailable" style={routeStyle}>{content}</div>
           );
         })}
       </div>
     </section>
   );
 }
-

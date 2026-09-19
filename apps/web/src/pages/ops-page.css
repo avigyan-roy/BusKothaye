@@ -53,7 +53,7 @@
 }
 
 .ops__live {
-  color: var(--color-accent);
+  color: var(--color-live);
   font-size: var(--text-meta);
   font-weight: 700;
 }
@@ -73,7 +73,7 @@
 }
 
 .ops__accepted {
-  color: var(--color-accent);
+  color: var(--color-live);
   font-weight: 600;
 }
 

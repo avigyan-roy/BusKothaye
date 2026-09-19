@@ -24,7 +24,7 @@ export function localFallbackStyle(): StyleSpecification {
       {
         id: 'background',
         type: 'background',
-        paint: { 'background-color': '#EDEBE4' },
+        paint: { 'background-color': '#111312' },
       },
     ],
   };

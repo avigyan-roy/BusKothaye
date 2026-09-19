@@ -28,11 +28,22 @@ export class RouteRegistry {
     );
     const catalogueRaw = JSON.parse(await readFile(join(dir, 'catalog.json'), 'utf8')) as unknown;
     const catalogueList = RouteCatalogueSchema.parse(catalogueRaw).routes;
+    const colors = new Set<string>();
+    for (const entry of catalogueList) {
+      if (colors.has(entry.color)) throw new Error(`Route colour ${entry.color} is used more than once`);
+      colors.add(entry.color);
+    }
     const catalogue = new Map(catalogueList.map((entry) => [entry.id, entry]));
     const routesByVersion = new Map<string, PreparedRoute>();
     for (const file of files.sort()) {
       const raw = JSON.parse(await readFile(join(dir, file), 'utf8')) as unknown;
       const prepared = prepareRoute(raw);
+      const entry = catalogue.get(prepared.dto.id);
+      if (entry && entry.color !== prepared.dto.color) {
+        throw new Error(
+          `Route ${entry.id} uses ${entry.color} in the catalogue but ${prepared.dto.color} in its fixture`,
+        );
+      }
       routesByVersion.set(versionKey(prepared.dto.id, prepared.dto.version), prepared);
     }
     if (routesByVersion.size === 0) {
@@ -67,6 +78,7 @@ export class RouteRegistry {
         id: entry.id,
         version: prepared?.dto.version ?? 'unavailable',
         code: entry.code,
+        color: entry.color,
         name: entry.name,
         origin: entry.origin,
         destination: entry.destination,

@@ -9,7 +9,7 @@ import { formatDistance } from '../../lib/format.js';
  */
 export function RouteDetails({ route }: { route: RouteDto }) {
   return (
-    <details className="route-details panel">
+    <details className="route-details">
       <summary>{en.route.routeDetails}</summary>
       <div className="stack" style={{ marginTop: 'var(--space-3)' }}>
         <p className="muted">{en.route.checkpointsNote}</p>

@@ -1,0 +1,65 @@
+.boarding {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-live);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+}
+
+.boarding--ready {
+  border-left-color: var(--color-accent);
+}
+
+.boarding__heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.boarding__status {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-live);
+  color: var(--color-canvas);
+  font-weight: 800;
+}
+
+.boarding__etas {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.boarding__etas li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-secondary);
+}
+
+.boarding__etas strong {
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.boarding__sharing {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.boarding__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

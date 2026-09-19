@@ -5,6 +5,7 @@ import { bearerToken } from '../auth/capabilities.js';
 import { badRequest, forbidden } from '../http/errors.js';
 import type { AccountService } from '../service/account-service.js';
 import type { DemoService } from '../service/demo-service.js';
+import { requireAdmin } from '../service/demo-service.js';
 
 const LeaseBodySchema = z.object({
   ownerId: z.string().min(1).max(128),
@@ -15,7 +16,8 @@ export function createDemoRouter(accounts: AccountService, demo: DemoService): R
   const router = Router();
 
   router.get('/', async (req, res) => {
-    await accounts.authenticate(bearerToken(req.get('Authorization')));
+    const principal = await accounts.authenticate(bearerToken(req.get('Authorization')));
+    requireAdmin(principal);
     res.json(await demo.get());
   });
 
@@ -65,4 +67,3 @@ function parse<T>(
     })),
   );
 }
-

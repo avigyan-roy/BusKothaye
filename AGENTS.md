@@ -26,7 +26,7 @@ These files are the current implementation brief. Explicit user requests take pr
 - Purpose: help a passenger see a bus journey's position, next stops, estimated arrival, and how current the information is.
 - Initial route: **AC24, Patuli → Howrah**, with eight selected checkpoints and one featured journey. Verify road geometry and exact stop coordinates; keep journey IDs independent from route IDs.
 - Mobile first; desktop is a fully designed layout, not a stretched phone screen.
-- Visual direction: warm off-white, charcoal, muted forest green; flat surfaces, crisp typography, restrained borders, generous useful space. Follow the exact tokens and layouts in the design guide.
+- Visual direction: a dark, map-first surface — near-black map, charcoal sheets, a single amber accent; flat surfaces, crisp typography, hairline borders, restrained space. This replaces the original warm off-white and forest-green direction. Follow the exact tokens and layouts in the design guide.
 - Start at the useful map screen. No marketing landing page, giant slogan, decorative gradient, purple glow, fake statistics, testimonial cards, or AI/chat interface.
 - Stack: TypeScript throughout; React + Vite + MapLibre GL JS; Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; Amazon Location Maps V2; CloudWatch logging. See the decision record for the Node version update.
 - Ordinary HTTP ingestion and approximately one-second passenger polling. No WebSockets, ML, Bedrock, login platform, payment flow, or native app in this build.

@@ -1,9 +1,9 @@
 .arrival {
-  padding: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  display: grid;
+  gap: 2px;
 }
 
-.arrival__head {
+.arrival__row {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -13,58 +13,70 @@
 .arrival__stop-name {
   font-size: var(--text-heading);
   font-weight: 600;
-}
-
-@media (min-width: 1024px) {
-  .arrival__stop-name {
-    font-size: var(--text-heading-lg);
-  }
+  letter-spacing: -0.01em;
+  /* Long Kolkata stop names wrap rather than pushing the ETA off the screen. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .arrival__eta {
-  margin: var(--space-2) 0 var(--space-1);
-  font-size: var(--text-eta);
-  font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin: 0;
+  flex: none;
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
-@media (min-width: 1024px) {
-  .arrival__eta {
-    font-size: var(--text-eta-lg);
-  }
+.arrival__eta-number {
+  font-size: var(--text-eta);
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .arrival__eta-unit {
-  font-size: var(--text-body);
+  font-size: var(--text-secondary);
   font-weight: 400;
   color: var(--color-muted);
 }
 
-/* Replaces the number entirely — 16px, never a 12px footnote under a stale figure. */
+/* Replaces the number entirely — never a 12px footnote under a stale figure. */
 .arrival__unavailable {
-  margin: var(--space-2) 0 var(--space-1);
-  font-size: var(--text-body);
-  color: var(--color-ink);
-}
-
-.arrival__status {
-  margin: 0 0 var(--space-1);
-}
-
-.arrival__reconnecting {
+  margin: 0;
   font-size: var(--text-secondary);
-  color: var(--color-warning);
+  color: var(--color-muted);
 }
 
-.arrival__detail {
-  margin: 0 0 var(--space-3);
+.arrival__meta {
+  margin: 0;
+  color: var(--color-faint);
+  font-size: var(--text-meta);
+  font-variant-numeric: tabular-nums;
 }
 
-.arrival__detail:empty {
-  display: none;
+@media (min-width: 900px) {
+  .arrival__stop-name {
+    font-size: var(--text-heading-lg);
+  }
+
+  .arrival__eta-number {
+    font-size: var(--text-eta-lg);
+  }
 }
 
-.arrival .notice {
-  margin-top: var(--space-2);
+/* A phone in landscape, or a desktop at 200% zoom: give the map its space back. */
+@media (max-height: 460px) {
+  .arrival__stop-name {
+    font-size: var(--text-body);
+  }
+
+  .arrival__eta-number {
+    font-size: var(--text-heading);
+  }
+
+  /* Distance and accuracy give way to the stop, the time and the state. */
+  .arrival__meta {
+    display: none;
+  }
 }

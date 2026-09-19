@@ -1,11 +1,12 @@
 .stop-list {
-  padding: var(--space-4) 0 var(--space-5);
+  padding: var(--space-3) 0 var(--space-2);
 }
 
 .stop-list__heading {
-  padding: 0 var(--space-4) var(--space-2);
-  font-size: var(--text-body);
-  color: var(--color-muted);
+  padding: 0 var(--space-4) var(--space-1);
+  color: var(--color-faint);
+  font-size: var(--text-meta);
+  font-weight: 600;
 }
 
 .stop-list__items {
@@ -19,72 +20,111 @@
   align-items: center;
   gap: var(--space-3);
   width: 100%;
-  min-height: 52px;
-  padding: var(--space-2) var(--space-4);
+  min-height: var(--touch-min);
+  /* No vertical padding: the marker column stretches the whole row so the route
+     line runs unbroken down the list. The rows pad their own content instead. */
+  padding: 0 var(--space-4);
   border: 0;
-  border-bottom: 1px solid var(--color-border);
   background: transparent;
+  color: var(--color-ink);
   text-align: left;
   cursor: pointer;
 }
 
 .stop-row:hover {
-  background: var(--color-canvas);
+  background: var(--color-surface-raised);
 }
 
 .stop-row--selected {
   background: var(--color-accent-soft);
 }
 
+/*
+ * The route line continues down the list, which is what makes it read as a route
+ * rather than as a set of unrelated rows. The line dims once the bus is past.
+ */
 .stop-row__marker {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
+  width: 14px;
   flex: none;
   align-self: stretch;
-  /* The route line continues through the list, which is what makes it read as a
-     route rather than as a set of unrelated cards. */
-  background:
-    linear-gradient(var(--color-border), var(--color-border)) center / 2px 100% no-repeat;
+  background: linear-gradient(var(--color-border-strong), var(--color-border-strong)) center /
+    2px 100% no-repeat;
 }
 
+.stop-row[data-status='passed'] .stop-row__marker {
+  background: linear-gradient(var(--color-border), var(--color-border)) center / 2px 100% no-repeat;
+}
+
+/* The line starts at the first stop and stops at the last, not before or after. */
+.stop-list__items li:first-child .stop-row__marker {
+  background-position: center bottom;
+  background-size: 2px 50%;
+}
+
+.stop-list__items li:last-child .stop-row__marker {
+  background-position: center top;
+  background-size: 2px 50%;
+}
+
+/* Upcoming: a filled dot. Passed: hollow and smaller. At the stop: ringed. */
 .stop-row__dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--color-surface);
-  border: 2px solid var(--color-accent);
+  border: 2px solid var(--color-muted);
+  background: var(--color-muted);
+  box-shadow: 0 0 0 3px var(--color-surface);
 }
 
-.stop-row__dot--passed {
-  border-color: var(--color-muted);
-  background: var(--color-muted);
+.stop-row[data-status='passed'] .stop-row__dot {
+  width: 8px;
+  height: 8px;
+  border-color: var(--color-faint);
+  background: var(--color-surface);
+}
+
+.stop-row[data-status='near'] .stop-row__dot {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 5px var(--color-accent-soft);
+}
+
+.stop-row--selected .stop-row__dot {
+  box-shadow: 0 0 0 3px var(--color-surface-raised);
 }
 
 .stop-row__body {
   flex: 1 1 auto;
   min-width: 0;
+  padding: var(--space-2) 0;
 }
 
 .stop-row__name {
   display: block;
-  font-size: var(--text-body);
+  font-size: var(--text-secondary);
   font-weight: 600;
   /* Long stop names wrap rather than being cut off. */
   overflow-wrap: anywhere;
 }
 
+.stop-row[data-status='passed'] .stop-row__name {
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
 .stop-row__selected-label {
   font-weight: 400;
-  color: var(--color-muted);
-  font-size: var(--text-secondary);
+  color: var(--color-faint);
+  font-size: var(--text-meta);
 }
 
 .stop-row__secondary {
   display: block;
-  font-size: var(--text-secondary);
-  color: var(--color-muted);
+  font-size: var(--text-meta);
+  color: var(--color-faint);
 }
 
 .stop-row__eta {
@@ -94,20 +134,20 @@
 }
 
 .stop-row__eta-number {
-  font-size: var(--text-body);
+  font-size: var(--text-secondary);
   font-weight: 600;
 }
 
 .stop-row__eta-unit {
-  font-size: var(--text-secondary);
-  color: var(--color-muted);
+  font-size: var(--text-meta);
+  color: var(--color-faint);
 }
 
 .stop-row__eta-none {
-  color: var(--color-muted);
+  color: var(--color-faint);
 }
 
 .stop-list__note {
-  padding: var(--space-3) var(--space-4) 0;
+  padding: var(--space-2) var(--space-4) 0;
   margin: 0;
 }

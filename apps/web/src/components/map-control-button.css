@@ -1,0 +1,50 @@
+/*
+ * Floating map controls. Near-opaque so they stay legible over moving tiles, one
+ * hairline border, one small shadow, and no glow.
+ */
+.map-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-overlay);
+  color: var(--color-ink);
+  cursor: pointer;
+  box-shadow: var(--shadow-float);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.map-control:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+/*
+ * This control carries its own shadow, which would otherwise replace the dark
+ * half of the global focus indicator. Both are restated here so a keyboard user
+ * gets the full ring over a bright or a dark map tile.
+ */
+.map-control:focus-visible {
+  box-shadow: 0 0 0 4px rgba(11, 13, 12, 0.85), var(--shadow-float);
+}
+
+.map-control:disabled {
+  color: var(--color-faint);
+  cursor: not-allowed;
+}
+
+/* Following the bus, menu open: the control shows its own state. */
+.map-control--active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.map-control__icon {
+  display: flex;
+}

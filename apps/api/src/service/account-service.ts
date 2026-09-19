@@ -37,6 +37,7 @@ export class AccountService {
       passwordHash: await hashPassword(input.password),
       role: input.role,
       kind: 'community',
+      isAdmin: false,
       authVersion: 1,
       createdAtMs: nowMs,
       updatedAtMs: nowMs,
@@ -73,6 +74,7 @@ export class AccountService {
           passwordHash: '',
           role: 'driver',
           kind: 'simulator',
+          isAdmin: false,
           authVersion: 1,
           createdAtMs: nowMs,
           updatedAtMs: nowMs,
@@ -134,7 +136,52 @@ export class AccountService {
       username: account.username,
       role: account.role,
       kind: account.kind,
+      isAdmin: account.isAdmin === true,
     };
+  }
+
+  /**
+   * Create the deployment's first administrator without ever accepting an admin
+   * flag from an HTTP request. Re-running this is safe: a persisted administrator
+   * keeps their current password, while a colliding ordinary username stops boot
+   * rather than being silently promoted.
+   */
+  async ensureAdminAccount(usernameInput: string, initialPassword: string): Promise<void> {
+    const username = usernameInput.trim();
+    const usernameNormalised = normaliseUsername(username);
+    const existing = await this.repo.getAccountByUsername(usernameNormalised);
+    if (existing) {
+      if (existing.isAdmin !== true) {
+        throw new Error(
+          `Configured administrator username "${username}" belongs to a non-admin account. Choose another ADMIN_USERNAME.`,
+        );
+      }
+      return;
+    }
+
+    const nowMs = this.clock.nowMs();
+    const created = await this.repo.createAccount({
+      accountId: newId('a'),
+      username,
+      usernameNormalised,
+      passwordHash: await hashPassword(initialPassword),
+      // Transport role stays separate from administrator access. It is never
+      // consulted for demo-console authorisation.
+      role: 'passenger',
+      kind: 'community',
+      isAdmin: true,
+      authVersion: 1,
+      createdAtMs: nowMs,
+      updatedAtMs: nowMs,
+    });
+    if (created) return;
+
+    // Another instance may have won the create transaction during rollout.
+    const raced = await this.repo.getAccountByUsername(usernameNormalised);
+    if (raced?.isAdmin === true) return;
+    throw new Error(
+      `Could not bootstrap administrator "${username}" because that username is already in use.`,
+    );
   }
 
   private async issue(account: AccountRecord): Promise<AuthSessionResponse> {
@@ -165,4 +212,3 @@ export function normaliseUsername(username: string): string {
 // corresponds to an unrelated random password and can never authenticate.
 const DUMMY_PASSWORD_HASH =
   'scrypt$16384$8$1$MDEyMzQ1Njc4OWFiY2RlZg$P6qDbJtwL3RTwJ9w1yC5hF6dJSS4xQO0Jw8F3g8x4Fk9wMCpcAziVoeKu7zNYHzMIvqngt65O2oK6N5e6YpI8A';
-

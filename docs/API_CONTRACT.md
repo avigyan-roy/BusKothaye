@@ -7,6 +7,7 @@ Implement this contract in `packages/shared/src/` as Zod runtime schemas with in
 - Prefix application endpoints with `/v1`. JSON throughout; epoch milliseconds for timestamps, metres for distance, metres/second internally for speed, `[longitude, latitude]` in GeoJSON.
 - Every journey belongs to an immutable route version. Default route ID: `ac24-patuli-howrah`; direction: `outbound`. Never reuse a live journey after changing its geometry.
 - IDs are opaque strings. Capability tokens go in `Authorization: Bearer …`, never a URL. Join codes go in POST bodies.
+- Account sessions also use `Authorization: Bearer …`. An account session proves the signed-in account and selected role; a journey contributor capability authorizes location ingestion for one journey. They are not interchangeable.
 - Return `Cache-Control: no-store` for live state, auth responses, and diagnostics. Static route responses may use an ETag based on route version.
 - Public reads expose fused journey information only. No contributor IDs/coordinates, capability hashes, join codes, or request headers in public payloads.
 - Use `null` for unavailable data. Do not turn missing GPS into coordinates `[0,0]`, or missing ETA into an arrival of zero minutes.
@@ -18,28 +19,67 @@ Implement this contract in `packages/shared/src/` as Zod runtime schemas with in
 | --- | --- | --- |
 | `GET /health` | Public | Process liveness; independent of external AWS calls |
 | `GET /ready` | Public | Minimal ready/not-ready response; no secrets or internal diagnostics |
+| `POST /v1/auth/register` | Public | Create a community account with passenger, driver, or conductor role; cannot grant admin |
+| `POST /v1/auth/login` | Public | Verify username/password and issue an account session |
+| `GET /v1/auth/me` | Account session | Return the current account, including server-owned `isAdmin` |
+| `PUT /v1/auth/role` | Community account session | Change transport role; never changes administrator access |
+| `PUT /v1/auth/password` | Community account session | Verify the current password, rotate its hash, and issue a new session |
+| `POST /v1/auth/logout` | Account session | Delete the current account session |
 | `GET /v1/routes` | Public | Available route summaries; only AC24 required initially |
 | `GET /v1/routes/:routeId` | Public | Full route, selected stops, provenance, and any verified schedule |
 | `GET /v1/routes/:routeId/journeys` | Public | Non-expired, non-ended journeys; includes `isDemo` and mode |
-| `POST /v1/journeys` | Public, rate limited | Create journey and issue driver + ops capabilities and join code |
-| `POST /v1/journeys/:id/contributors` | Join code | Join as passenger or conductor; never grants driver or ops rights |
+| `POST /v1/journeys` | Driver account or simulator, rate limited | Create journey and issue driver + ops capabilities and join code |
+| `POST /v1/journeys/:id/contributors` | Matching account role + join code | Join as passenger or conductor; never grants driver or ops rights |
+| `POST /v1/journeys/:id/board` | Passenger account, current boardable stop | Board without a join code and issue/restore a passenger capability |
 | `POST /v1/journeys/:id/locations` | Contributor/driver capability | Submit a single report or bounded batch |
 | `DELETE /v1/journeys/:id/contributors/me` | Contributor/driver capability | Revoke own sharing capability and stop contributing |
-| `POST /v1/journeys/:id/end` | Driver capability | Durably end journey; repeated valid end requests are idempotent |
+| `POST /v1/journeys/:id/end` | Owner account or active conductor account | Durably end journey; repeated valid end requests are idempotent |
 | `GET /v1/journeys/:id/state` | Public | Complete passenger DTO, projected at server read time |
 | `GET /v1/journeys/:id/debug` | Driver or read-only ops capability | Bounded diagnostics; protected even for demo journeys |
+| `GET /v1/demo` | Administrator account | Read fleet status, validated dispatch config, and bounded audit trail |
+| `PUT /v1/demo` | Administrator account | Dispatch or end the fleet; enabling may include a full/partial config |
+| `PATCH /v1/demo` | Administrator account | Change one or more dispatch settings |
+| `POST /v1/demo/reset` | Administrator account | Fence/end the current fleet and reset its active generation |
+| `GET /v1/demo/worker/control` | Simulator service identity | Read current control state |
+| `POST /v1/demo/worker/lease` | Simulator service identity | Acquire/refresh the single-worker generation lease |
 
 The driver uses separate controls for **Pause location sharing** (stop watch without revoking driver control) and **End journey**. Do not accidentally revoke the only driver capability when the driver merely pauses GPS. Passenger/conductor **Stop sharing** clears the watcher, queue, and own capability via DELETE.
 
-## Creation and joining
+## Accounts and administrator bootstrap
 
-Create body: `{ routeId, isDemo?: boolean }`. Default `isDemo=false`; a simulator always sets it to `true`. Bind the route's direction/version on creation. Response `201`:
+Community registration accepts only `passenger`, `driver`, or `conductor`.
+`AccountDto.isAdmin` is server-owned: ignore any attempted `isAdmin` registration
+field, and never derive administrator access from the selected transport role.
+Password records use a password KDF; account sessions and capability tokens are
+stored as hashes.
+
+At process startup, create the configured administrator if its normalized
+username does not exist. In development, omitted settings mean `admin` / `admin`.
+Production requires both `ADMIN_USERNAME` and `ADMIN_PASSWORD`, requires at
+least 12 password characters, and rejects the development pair. These are
+server-only settings and must never use a `VITE_*` prefix. If the username
+already belongs to a non-admin account, startup fails rather than promoting it.
+An existing persisted administrator keeps its current password; changing the
+bootstrap environment does not silently rotate it.
+
+The password visibility checkbox is entirely a browser presentation control: it
+switches the current input between password and text display and never reads a
+stored password from the server.
+
+## Creation, joining, and boarding
+
+Create body: `{ routeId }`. A signed-in community account must currently have
+the driver role. `isDemo` is never client-selected: the server derives it from
+the private simulator service identity, and simulator creation is accepted only
+while the shared fleet control is ON. Bind the route's direction/version on
+creation. Response `201`:
 
 ```ts
 interface CreateJourneyResponse {
   schemaVersion: 1;
   journeyId: string;
   routeId: string;
+  routeVersion: string;
   contributorId: string;
   contributorToken: string; // driver capability
   opsToken: string;         // separate, read-only debug capability
@@ -50,11 +90,52 @@ interface CreateJourneyResponse {
 }
 ```
 
-Join body: `{ joinCode: string, role: 'passenger' | 'conductor' }`. Return `201` with `contributorId`, `contributorToken`, `journeyId`, and the granted `role`. All joiners have the same maximum trust ceiling initially: a self-selected conductor label is not proof of authority.
+Join body: `{ joinCode: string, role: 'passenger' | 'conductor' }`. Require a
+community account whose currently selected role matches the requested role.
+Return `201` with `contributorId`, `contributorToken`, `journeyId`, and the
+granted `role`. All joiners have the same maximum trust ceiling initially: a
+self-selected conductor label is not proof of authority.
 
 Use a readable code such as `BUS-7K4M9Q` and a link containing only the journey ID, such as `/drive?journey=<id>`. A person following it enters the join code. Provide copy buttons that actually use the Clipboard API with a fallback.
 
-Create/join POST requests accept an `Idempotency-Key` header. Bound its lifetime and persist the mapping in DynamoDB mode. A replay must not create a second journey or contributor. Store only token hashes; if a creation succeeded but its one-time token response was lost, a replay returns a clear `409 CAPABILITY_RESPONSE_UNAVAILABLE` referencing the existing journey and does not silently issue different tokens. The UI offers a deliberate new attempt; abandoned pending journeys expire. Test concurrent use of the same key.
+Create, join, and board POST requests accept an `Idempotency-Key` header. Bound
+its lifetime and persist the mapping in DynamoDB mode. A replay must not create a
+second journey or contributor. Store only token hashes; if a creation succeeded
+but its one-time token response was lost, a replay returns a clear
+`409 CAPABILITY_RESPONSE_UNAVAILABLE` referencing the existing journey and does
+not silently issue different tokens. The UI offers a deliberate new attempt;
+abandoned pending journeys expire. Test concurrent use of the same key.
+
+Board body: `{ stopId: string }`. Boarding has no join code, but it requires a
+signed-in passenger account and succeeds only when `boardableStopId` in the
+current server-derived state equals the requested stop. That value comes from
+fresh, confirmed evidence near the stop; a bounded prediction alone cannot make
+a stop boardable. If the bus has moved, return `409 BOARDING_UNAVAILABLE`.
+
+On success, return `201` with `journeyId`, `routeId`, `contributorId`, a one-time
+`contributorToken`, role `passenger`, `isDemo`, `boardedStopId`, `boardedAtMs`,
+and `nextSeq`. Reboarding by the same active passenger rotates/restores that
+passenger's capability rather than creating a duplicate source. Marking boarded
+does not start browser geolocation; the user must separately consent to location
+sharing, and leaving revokes the contributor capability.
+
+## Administrator-controlled fleet
+
+The dispatch config contains `routeId`, nullable `startStopId` and `endStopId`,
+`speedKmh`, `busCount`, `sourcesPerBus`, `cadenceMs`, `noiseM`, `dwellSeconds`,
+`loop`, `paused`, and `outage`. Enforce the shared schema bounds, including a
+5–50 km/h speed range. The selected route must have tracking geometry, both
+checkpoint IDs must belong to it, and a selected destination must occur after
+the selected start.
+
+Only an authenticated account with server-owned `isAdmin=true` may read or
+mutate `/v1/demo`. Passenger, driver, and conductor roles do not grant access.
+The worker uses a distinct private `SIMULATOR_TOKEN`, polls the control state,
+and acquires a short generation-scoped lease. Turning the fleet off increments
+the generation before ending active simulated journeys so in-flight worker
+requests are fenced. Retain at most 20 audit entries with action, account ID,
+username, and server time; never include the administrator password or session
+token.
 
 ## Location ingestion
 
@@ -74,7 +155,8 @@ type LocationBody = LocationReport | { updates: LocationReport[] };
 type RejectReason =
   | 'DUPLICATE' | 'OUT_OF_ORDER' | 'TOO_OLD'
   | 'POOR_ACCURACY' | 'OFF_CORRIDOR' | 'IMPOSSIBLE_MOVEMENT'
-  | 'BACKWARD' | 'CONSENSUS_OUTLIER' | 'AMBIGUOUS_REENTRY';
+  | 'BACKWARD' | 'CONSENSUS_OUTLIER' | 'AMBIGUOUS_REENTRY'
+  | 'RATE_LIMITED';
 
 interface ReportDecision {
   seq: number;
@@ -92,7 +174,13 @@ Persist sequence progress with the contributor snapshot. Keep sequence in sessio
 
 ## Route DTO
 
-Define `RouteDto` with: `id`, `version`, `code`, `name`, `origin`, `destination`, `direction`, `timezone`, `geometry` (GeoJSON LineString), `lengthM`, `stops`, `segments`, and `provenance`.
+Define `RouteDto` with: `id`, `version`, `code`, `color`, `name`, `origin`,
+`destination`, `direction`, `timezone`, `geometry` (GeoJSON LineString),
+`lengthM`, `stops`, `segments`, and `provenance`. `color` is an uppercase
+six-digit hex value used consistently for that route in the directory and map;
+it is categorical decoration and must never carry status by itself. Route
+summaries and catalogue entries include the same field, including entries whose
+tracking geometry is unavailable.
 
 Each stop includes `id`, `name`, `lat`, `lon`, `sM`, and `isSelectedCheckpoint`. Selected checkpoints are a subset of stops, not a claim to list every official stop. Segment defaults include typical speed and dwell allowance. The server computes/validates cumulative distances; clients do not maintain another route definition.
 
@@ -141,6 +229,7 @@ interface JourneyStateDto {
   lastFixAgeSeconds: number | null;
   progressFraction: number | null;
   activeSources: { driver: boolean; conductor: number; passengers: number };
+  boardableStopId: string | null; // confirmed, fresh stop where boarding is allowed
   stops: StopEta[];
   delaySeconds: number | null;
   offRoute: boolean;

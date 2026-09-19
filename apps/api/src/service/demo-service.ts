@@ -1,4 +1,5 @@
 import {
+  DemoFleetConfigSchema,
   SCHEMA_VERSION,
   type Clock,
   type DemoControlDto,
@@ -26,7 +27,7 @@ export class DemoService {
 
   async get(): Promise<DemoControlDto> {
     const nowMs = this.clock.nowMs();
-    const control = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+    const control = await this.readControl(nowMs);
     const active = (await this.repo.listDemoJourneys()).filter(
       (journey) => journey.baseMode !== 'ENDED' && journey.demoGeneration === control.generation,
     );
@@ -38,7 +39,7 @@ export class DemoService {
     enabled: boolean,
     patch: Partial<DemoFleetConfig> = {},
   ): Promise<DemoControlDto> {
-    requireHuman(principal);
+    requireAdmin(principal);
     return enabled ? this.turnOn(principal, patch) : this.turnOff(principal);
   }
 
@@ -46,12 +47,12 @@ export class DemoService {
     principal: AccountPrincipal,
     patch: Partial<DemoFleetConfig>,
   ): Promise<DemoControlDto> {
-    requireHuman(principal);
+    requireAdmin(principal);
     for (let attempt = 0; attempt < CONTROL_RETRIES; attempt += 1) {
       const nowMs = this.clock.nowMs();
-      const current = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+      const current = await this.readControl(nowMs);
       const config = { ...current.config, ...patch };
-      this.requireRoute(config.routeId);
+      this.requireConfig(config);
       const next: DemoControlRecord = {
         ...current,
         revision: current.revision + 1,
@@ -65,7 +66,7 @@ export class DemoService {
   }
 
   async reset(principal: AccountPrincipal): Promise<DemoControlDto> {
-    requireHuman(principal);
+    requireAdmin(principal);
     const wasOn = (await this.get()).status !== 'OFF';
     await this.turnOff(principal, 'RESET');
     return wasOn ? this.turnOn(principal, {}) : this.get();
@@ -74,7 +75,7 @@ export class DemoService {
   async acquireLease(principal: AccountPrincipal, ownerId: string, generation: number) {
     if (principal.account.kind !== 'simulator') throw forbidden();
     const nowMs = this.clock.nowMs();
-    const control = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+    const control = await this.readControl(nowMs);
     if (control.status !== 'ON' || control.generation !== generation) {
       throw new ApiProblem(409, 'DEMO_DISABLED', 'This demo generation is not active.');
     }
@@ -93,10 +94,10 @@ export class DemoService {
   ): Promise<DemoControlDto> {
     for (let attempt = 0; attempt < CONTROL_RETRIES; attempt += 1) {
       const nowMs = this.clock.nowMs();
-      const current = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+      const current = await this.readControl(nowMs);
       if (current.status === 'ON' || current.status === 'STARTING') return this.get();
       const config = { ...current.config, ...patch, paused: false, outage: false };
-      this.requireRoute(config.routeId);
+      this.requireConfig(config);
       const next: DemoControlRecord = {
         ...current,
         revision: current.revision + 1,
@@ -125,7 +126,7 @@ export class DemoService {
     let fenced: DemoControlRecord | null = null;
     for (let attempt = 0; attempt < CONTROL_RETRIES; attempt += 1) {
       const nowMs = this.clock.nowMs();
-      const current = await this.repo.getDemoControl(defaultDemoControl(nowMs));
+      const current = await this.readControl(nowMs);
       if (current.status === 'OFF') return this.get();
       const next: DemoControlRecord = {
         ...current,
@@ -152,7 +153,7 @@ export class DemoService {
     );
 
     for (let attempt = 0; attempt < CONTROL_RETRIES; attempt += 1) {
-      const current = await this.repo.getDemoControl(defaultDemoControl(this.clock.nowMs()));
+      const current = await this.readControl(this.clock.nowMs());
       if (current.status === 'OFF') return this.get();
       if (current.generation !== fenced.generation) return this.get();
       const next: DemoControlRecord = {
@@ -170,11 +171,55 @@ export class DemoService {
     throw storageUnavailable();
   }
 
-  private requireRoute(routeId: string): void {
-    if (!this.registry.has(routeId)) throw routeNotFound();
-    if (!this.registry.get(routeId)) {
+  private requireConfig(config: DemoFleetConfig): void {
+    if (!this.registry.has(config.routeId)) throw routeNotFound();
+    const route = this.registry.get(config.routeId);
+    if (!route) {
       throw new ApiProblem(409, 'ROUTE_UNAVAILABLE', 'That route has no verified tracking geometry yet.');
     }
+    const startIndex =
+      config.startStopId === null
+        ? -1
+        : route.dto.stops.findIndex((stop) => stop.id === config.startStopId);
+    const endIndex =
+      config.endStopId === null
+        ? route.dto.stops.length
+        : route.dto.stops.findIndex((stop) => stop.id === config.endStopId);
+    const startMissing = config.startStopId !== null && startIndex < 0;
+    const endMissing = config.endStopId !== null && endIndex < 0;
+    if (startMissing || endMissing || endIndex <= startIndex) {
+      throw new ApiProblem(
+        409,
+        'CONFLICT',
+        'Choose a destination checkpoint after the starting checkpoint.',
+      );
+    }
+  }
+
+  /**
+   * DynamoDB may still contain a control document written by an older release.
+   * Fill newly introduced settings and bring legacy out-of-band speeds back into
+   * the current safe demo range before exposing or mutating that document.
+   */
+  private async readControl(nowMs: number): Promise<DemoControlRecord> {
+    const fallback = defaultDemoControl(nowMs);
+    const stored = await this.repo.getDemoControl(fallback);
+    const candidate = {
+      ...fallback.config,
+      ...stored.config,
+      endStopId: stored.config.endStopId ?? null,
+      speedKmh: Math.min(50, Math.max(5, stored.config.speedKmh)),
+    };
+    const parsed = DemoFleetConfigSchema.safeParse(candidate);
+    if (!parsed.success) {
+      this.logger.warn('legacy demo configuration was invalid; using safe defaults', {
+        revision: stored.revision,
+      });
+    }
+    return {
+      ...stored,
+      config: parsed.success ? parsed.data : fallback.config,
+    };
   }
 }
 
@@ -186,6 +231,7 @@ export function defaultDemoControl(nowMs: number): DemoControlRecord {
     config: {
       routeId: 'ac24-patuli-howrah',
       startStopId: null,
+      endStopId: null,
       speedKmh: 24,
       busCount: 3,
       sourcesPerBus: 3,
@@ -233,7 +279,8 @@ function toDto(control: DemoControlRecord, activeJourneyCount: number): DemoCont
   };
 }
 
-function requireHuman(principal: AccountPrincipal): void {
-  if (principal.account.kind !== 'community') throw forbidden();
+export function requireAdmin(principal: AccountPrincipal): void {
+  if (principal.account.kind !== 'community' || principal.account.isAdmin !== true) {
+    throw forbidden();
+  }
 }
-

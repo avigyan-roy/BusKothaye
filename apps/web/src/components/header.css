@@ -1,7 +1,12 @@
+/*
+ * The header belongs to the ordinary pages — contributor, account, diagnostics,
+ * not found. The passenger map has no header at all: it is the map, and the
+ * navigation lives in the menu over it.
+ */
 .site-header {
-  background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  padding: 0 var(--space-4) var(--space-2);
+  padding: var(--inset-top) max(var(--space-4), var(--inset-right)) var(--space-2)
+    max(var(--space-4), var(--inset-left));
 }
 
 .site-header__bar {
@@ -13,10 +18,17 @@
 }
 
 .site-header__wordmark {
-  font-size: 18px;
+  font-size: var(--text-body);
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-ink);
   text-decoration: none;
+}
+
+.site-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .site-header__action {
@@ -27,18 +39,13 @@
   border-radius: var(--radius-control);
   font-size: var(--text-secondary);
   font-weight: 600;
-  color: var(--color-accent);
+  color: var(--color-muted);
   text-decoration: none;
 }
 
-.site-header__actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .site-header__action:hover {
-  background: var(--color-accent-soft);
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
 }
 
 .site-header__route {
@@ -53,23 +60,26 @@
   color: var(--color-muted);
 }
 
-/* The route code is the strongest branding element after the wordmark. */
+/* The route code is the strongest identifier in the interface after the name. */
 .route-badge {
   display: inline-block;
-  padding: 2px var(--space-2);
-  border-radius: 3px;
-  background: var(--color-ink);
-  color: var(--color-surface);
-  font-size: 14px;
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--text-secondary);
   font-weight: 700;
   letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .demo-badge {
   display: inline-block;
-  padding: 1px var(--space-2);
-  border-radius: 3px;
-  background: var(--color-warning-soft);
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--color-warning);
+  border-radius: 4px;
   color: var(--color-warning);
   font-size: var(--text-meta);
   font-weight: 700;

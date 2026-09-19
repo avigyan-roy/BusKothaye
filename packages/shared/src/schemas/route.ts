@@ -8,6 +8,7 @@ import {
 
 export const DirectionSchema = z.enum(['outbound', 'inbound']);
 export type Direction = z.infer<typeof DirectionSchema>;
+const RouteColorSchema = z.string().regex(/^#[0-9A-F]{6}$/, 'Use an uppercase six-digit hex colour.');
 
 export const LineStringSchema = z.object({
   type: z.literal('LineString'),
@@ -79,6 +80,8 @@ export const RouteDtoSchema = z.object({
   /** Immutable per geometry revision. Active journeys keep the version they began with. */
   version: z.string().min(1),
   code: z.string().min(1).max(16),
+  /** Stable categorical colour for this route; never used to communicate status. */
+  color: RouteColorSchema,
   name: z.string().min(1).max(120),
   origin: z.string().min(1).max(80),
   destination: z.string().min(1).max(80),
@@ -125,6 +128,7 @@ export const RouteSummarySchema = z.object({
   id: IdSchema,
   version: z.string(),
   code: z.string(),
+  color: RouteColorSchema,
   name: z.string(),
   origin: z.string(),
   destination: z.string(),
@@ -151,6 +155,7 @@ export type RouteListResponse = z.infer<typeof RouteListResponseSchema>;
 export const RouteCatalogueEntrySchema = z.object({
   id: IdSchema,
   code: z.string().min(1).max(16),
+  color: RouteColorSchema,
   name: z.string().min(1).max(120),
   origin: z.string().min(1).max(80),
   destination: z.string().min(1).max(80),

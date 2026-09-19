@@ -18,6 +18,8 @@ const VIEWPORTS = [
   { name: 'tablet-768x1024', width: 768, height: 1024 },
   { name: 'desktop-1440x900', width: 1440, height: 900 },
   { name: 'narrow-320x720', width: 320, height: 720 },
+  // 640x450 at 200% browser zoom, expressed in the CSS pixels the page sees.
+  { name: 'zoom200-320x225', width: 320, height: 225 },
 ];
 
 const PAGES = [
@@ -34,7 +36,19 @@ const browser = await chromium.launch(
 );
 await mkdir(OUT, { recursive: true });
 
-const overflow = [];
+const problems = [];
+
+/**
+ * The map screen puts every control over the map, so the two failures worth
+ * catching automatically are a control that has drifted off the viewport and a
+ * control that has ended up underneath the journey sheet. Both have happened.
+ */
+const FLOATING = {
+  'map actions': '.map-view__actions',
+  'top controls': '.route-page__top',
+  'map disclosure': '.map-view__disclosure',
+  attribution: '.maplibregl-ctrl-bottom-right',
+};
 for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
@@ -56,7 +70,44 @@ for (const viewport of VIEWPORTS) {
       () => document.documentElement.scrollWidth,
     );
     if (scrollWidth > viewport.width + 1) {
-      overflow.push(`${target.name} at ${viewport.name}: scrollWidth ${scrollWidth}`);
+      problems.push(`${target.name} at ${viewport.name}: scrollWidth ${scrollWidth}`);
+    }
+
+    const boxes = await page.evaluate((selectors) => {
+      const read = (selector) => {
+        const element = document.querySelector(selector);
+        if (element === null) return null;
+        const { left, top, right, bottom, width, height } = element.getBoundingClientRect();
+        return { left, top, right, bottom, width, height };
+      };
+      const result = { sheet: read('.journey-sheet') };
+      for (const [name, selector] of Object.entries(selectors)) result[name] = read(selector);
+      return result;
+    }, FLOATING);
+
+    const sheet = boxes.sheet;
+    for (const name of Object.keys(FLOATING)) {
+      const box = boxes[name];
+      if (box === null || box.width === 0 || box.height === 0) continue;
+      if (
+        box.top < -1 ||
+        box.left < -1 ||
+        box.right > viewport.width + 1 ||
+        box.bottom > viewport.height + 1
+      ) {
+        problems.push(
+          `${target.name} at ${viewport.name}: ${name} is outside the viewport`,
+        );
+      }
+      if (
+        sheet !== null &&
+        box.left < sheet.right - 1 &&
+        box.right > sheet.left + 1 &&
+        box.top < sheet.bottom - 1 &&
+        box.bottom > sheet.top + 1
+      ) {
+        problems.push(`${target.name} at ${viewport.name}: ${name} overlaps the journey sheet`);
+      }
     }
   }
   await context.close();
@@ -65,9 +116,9 @@ for (const viewport of VIEWPORTS) {
 await browser.close();
 
 console.log(`Screenshots written to ${OUT}`);
-if (overflow.length > 0) {
-  console.error('Horizontal overflow detected:');
-  for (const line of overflow) console.error(`  - ${line}`);
+if (problems.length > 0) {
+  console.error('Layout problems detected:');
+  for (const line of problems) console.error(`  - ${line}`);
   process.exit(1);
 }
-console.log('No horizontal page overflow at any captured width.');
+console.log('No page overflow, off-screen control or sheet collision at any captured width.');

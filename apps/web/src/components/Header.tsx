@@ -18,9 +18,9 @@ export function Header({
   routeDirection?: string;
   action?: { label: string; to: string };
 }) {
-  const [accountName, setAccountName] = useState(() => loadAccountSession()?.account.username);
+  const [account, setAccount] = useState(() => loadAccountSession()?.account);
   useEffect(() => {
-    const refresh = () => setAccountName(loadAccountSession()?.account.username);
+    const refresh = () => setAccount(loadAccountSession()?.account);
     window.addEventListener('buskothay-account-changed', refresh);
     return () => window.removeEventListener('buskothay-account-changed', refresh);
   }, []);
@@ -32,9 +32,9 @@ export function Header({
         </Link>
         <nav className="site-header__actions" aria-label="Account and page navigation">
           <Link to="/account" className="site-header__action">
-            {accountName ?? en.header.accountLink}
+            {account?.username ?? en.header.accountLink}
           </Link>
-          {accountName ? <Link to="/demo" className="site-header__action">Demo</Link> : null}
+          {account?.isAdmin === true ? <Link to="/demo" className="site-header__action">Demo</Link> : null}
           {action ? (
             <Link to={action.to} className="site-header__action">
               {action.label}

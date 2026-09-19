@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import type { DemoControlDto, DemoFleetConfig } from '@buskothay/shared';
 import { Header } from '../components/Header.js';
 import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
@@ -19,7 +19,7 @@ export function DemoConsolePage() {
   const { route } = useRoute(draft?.routeId ?? 'ac24-patuli-howrah');
 
   const refresh = useCallback(async () => {
-    if (!account) return;
+    if (account?.account.isAdmin !== true) return;
     try {
       const next = await api.getDemoControl(account.token);
       setControl(next);
@@ -32,7 +32,7 @@ export function DemoConsolePage() {
 
   useEffect(() => {
     void refresh();
-    if (!account) return;
+    if (account?.account.isAdmin !== true) return;
     const timer = window.setInterval(() => void refresh(), 3000);
     return () => window.clearInterval(timer);
   }, [account, refresh]);
@@ -50,6 +50,10 @@ export function DemoConsolePage() {
       setBusy(false);
     }
   };
+
+  if (account?.account.isAdmin !== true) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const save = (event: FormEvent) => {
     event.preventDefault();
@@ -70,14 +74,9 @@ export function DemoConsolePage() {
           </p>
         </div>
 
-        {!account ? (
-          <p className="notice notice--warning">
-            Sign in before changing the demo fleet. <Link to="/account">Open account</Link>
-          </p>
-        ) : null}
         {error ? <p className="notice notice--danger">{error}</p> : null}
 
-        {control && draft && account ? (
+        {control && draft ? (
           <>
             <section className="panel demo-console__summary stack">
               <div>
@@ -97,7 +96,7 @@ export function DemoConsolePage() {
                     disabled={busy}
                     onClick={() => void act(() => api.switchDemo(account.token, true, draft))}
                   >
-                    Turn demo on
+                    Dispatch demo fleet
                   </button>
                 ) : (
                   <button
@@ -106,7 +105,7 @@ export function DemoConsolePage() {
                     disabled={busy}
                     onClick={() => void act(() => api.switchDemo(account.token, false))}
                   >
-                    Turn demo off
+                    End demo fleet
                   </button>
                 )}
                 <button
@@ -121,13 +120,17 @@ export function DemoConsolePage() {
             </section>
 
             <form className="panel stack" onSubmit={save}>
-              <h2>Fleet settings</h2>
+              <h2>Dispatch settings</h2>
+              <p className="muted">
+                Choose a route corridor, where the fleet enters it, and where this run ends.
+                Speeds are capped at 50 km/h.
+              </p>
               {routesError ? <p className="notice notice--warning">The route directory could not be loaded.</p> : null}
               <RouteSwitcher
                 routes={routes}
                 currentRouteId={draft.routeId}
                 compact
-                onSelect={(routeId) => setDraft({ ...draft, routeId, startStopId: null })}
+                onSelect={(routeId) => setDraft({ ...draft, routeId, startStopId: null, endStopId: null })}
               />
 
               <label className="field">
@@ -135,7 +138,10 @@ export function DemoConsolePage() {
                 <select
                   className="field__input"
                   value={draft.startStopId ?? ''}
-                  onChange={(event) => setDraft({ ...draft, startStopId: event.target.value || null })}
+                  onChange={(event) => {
+                    const startStopId = event.target.value || null;
+                    setDraft({ ...draft, startStopId, endStopId: null });
+                  }}
                 >
                   <option value="">Route origin</option>
                   {route?.dto.stops.map((stop) => (
@@ -144,10 +150,31 @@ export function DemoConsolePage() {
                 </select>
               </label>
 
+              <label className="field">
+                <span className="field__label">Destination checkpoint</span>
+                <select
+                  className="field__input"
+                  value={draft.endStopId ?? ''}
+                  onChange={(event) => setDraft({ ...draft, endStopId: event.target.value || null })}
+                >
+                  <option value="">Route destination</option>
+                  {route?.dto.stops
+                    .filter((_, index) => {
+                      const startIndex = draft.startStopId === null
+                        ? -1
+                        : route.dto.stops.findIndex((stop) => stop.id === draft.startStopId);
+                      return index > startIndex;
+                    })
+                    .map((stop) => (
+                      <option key={stop.id} value={stop.id}>{stop.name}</option>
+                    ))}
+                </select>
+              </label>
+
               <div className="demo-console__grid">
                 <NumberField label="Buses" value={draft.busCount} min={1} max={10} onChange={(busCount) => setDraft({ ...draft, busCount })} />
                 <NumberField label="Sources per bus" value={draft.sourcesPerBus} min={1} max={5} onChange={(sourcesPerBus) => setDraft({ ...draft, sourcesPerBus })} />
-                <NumberField label="Speed (km/h)" value={draft.speedKmh} min={0} max={80} step={1} onChange={(speedKmh) => setDraft({ ...draft, speedKmh })} />
+                <NumberField label="Cruise speed (km/h)" value={draft.speedKmh} min={5} max={50} step={1} onChange={(speedKmh) => setDraft({ ...draft, speedKmh })} />
                 <NumberField label="Update interval (ms)" value={draft.cadenceMs} min={3000} max={60000} step={1000} onChange={(cadenceMs) => setDraft({ ...draft, cadenceMs })} />
                 <NumberField label="GPS noise (m)" value={draft.noiseM} min={0} max={100} step={1} onChange={(noiseM) => setDraft({ ...draft, noiseM })} />
                 <NumberField label="Stop dwell (seconds)" value={draft.dwellSeconds} min={0} max={300} step={1} onChange={(dwellSeconds) => setDraft({ ...draft, dwellSeconds })} />
@@ -175,7 +202,7 @@ export function DemoConsolePage() {
               )}
             </section>
           </>
-        ) : account ? <p className="muted">Loading demo controls…</p> : null}
+        ) : <p className="muted">Loading demo controls…</p>}
       </main>
     </>
   );

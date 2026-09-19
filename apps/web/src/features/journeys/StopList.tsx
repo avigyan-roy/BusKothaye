@@ -8,7 +8,8 @@ import './stop-list.css';
  *
  * It is the textual equivalent of the map: everything a person can learn by
  * looking at the map is available here, which is what keeps the page usable when
- * the map cannot draw.
+ * the map cannot draw. Each row states its own condition in words — passed, at
+ * the stop, ahead — so the dot beside it is a summary rather than the only clue.
  */
 export function StopList({
   route,
@@ -23,9 +24,9 @@ export function StopList({
 }) {
   return (
     <section className="stop-list" aria-labelledby="stop-list-heading">
-      <h2 id="stop-list-heading" className="stop-list__heading">
-        {en.route.chooseStop}
-      </h2>
+      <h3 id="stop-list-heading" className="stop-list__heading">
+        {en.sheet.stopsHeading}
+      </h3>
       <ul className="stop-list__items">
         {stops.map((stop) => {
           const eta = formatEtaRange(stop.etaSeconds, stop.etaRangeSeconds);
@@ -36,13 +37,12 @@ export function StopList({
               <button
                 type="button"
                 className={`stop-row${isSelected ? ' stop-row--selected' : ''}`}
+                data-status={stop.status}
                 aria-pressed={isSelected}
                 onClick={() => onSelect(stop.stopId)}
               >
                 <span className="stop-row__marker" aria-hidden="true">
-                  <span
-                    className={`stop-row__dot${stop.status === 'passed' ? ' stop-row__dot--passed' : ''}`}
-                  />
+                  <span className="stop-row__dot" />
                 </span>
                 <span className="stop-row__body">
                   <span className="stop-row__name">

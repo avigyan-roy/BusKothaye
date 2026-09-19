@@ -38,7 +38,11 @@ export async function pointAt(request: APIRequestContext, sM: number): Promise<{
 }
 
 export async function startDemoJourney(request: APIRequestContext): Promise<DemoJourney> {
-  const controller = await register(request, 'driver');
+  const login = await request.post(`${API_URL}/v1/auth/login`, {
+    data: { username: 'admin', password: 'admin' },
+  });
+  if (!login.ok()) throw new Error(`Could not sign in as demo administrator: ${login.status()}`);
+  const controller = await login.json() as { token: string };
   const enabled = await request.put(`${API_URL}/v1/demo`, {
     headers: { authorization: `Bearer ${controller.token}` },
     data: { enabled: true },
@@ -122,7 +126,9 @@ export async function signInAs(
 }
 
 async function register(request: APIRequestContext, role: 'driver' | 'passenger' | 'conductor') {
-  const username = `e2e-${role}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  // Keep the useful role prefix while staying below the public 32-character
+  // username limit for the longest role names.
+  const username = `e2e-${role}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
   const response = await request.post(`${API_URL}/v1/auth/register`, {
     data: { username, password: 'correct horse battery staple', role },
   });
@@ -135,6 +141,23 @@ async function register(request: APIRequestContext, role: 'driver' | 'passenger'
   return body;
 }
 
+/**
+ * Open the journey sheet.
+ *
+ * The passenger screen is a full-screen map with a collapsed sheet over it, and
+ * the collapsed detail region is `inert` — so the stop list, the journey
+ * selector and the route catalogue are deliberately not reachable until it is
+ * opened, exactly as they are for a person. Anything asserting on that content
+ * opens the sheet first. On a wide screen the drawer already starts open, and
+ * this is then a no-op.
+ */
+export async function expandSheet(page: Page): Promise<void> {
+  const toggle = page.locator('.journey-sheet__toggle');
+  await toggle.waitFor({ timeout: 15_000 }).catch(() => undefined);
+  if ((await toggle.count()) === 0) return;
+  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+}
+
 export async function selectJourney(page: Page, journeyId: string): Promise<void> {
   // The journey list is polled, so wait for the page to have picked something up
   // before deciding whether a selector exists at all.
@@ -144,6 +167,7 @@ export async function selectJourney(page: Page, journeyId: string): Promise<void
     .first()
     .waitFor({ timeout: 15_000 })
     .catch(() => undefined);
+  await expandSheet(page);
 
   const selector = page.locator('.journey-selector select');
   if ((await selector.count()) === 0) return;

@@ -1,57 +1,96 @@
 # BusKothay
 
-BusKothay is a community bus-tracking web app for Kolkata. Passengers can open
-the map without an account; signed-in drivers, conductors, and passengers can
-create or join a journey and share GPS. A separately supervised demo worker can
-keep a clearly labelled simulated fleet moving even when nobody has a browser
-open.
+BusKothay is a community bus-tracking web app for Kolkata. A passenger can open
+the map without an account. Drivers, conductors, and passengers can create or
+join a journey and share GPS after giving consent. A separately supervised demo
+worker can drive clearly labelled simulated buses through the same HTTP API.
 
-The catalogue lists 20 WBTC services. **Only AC24, Patuli → Howrah currently has
-tracking geometry**, and that geometry is an explicitly disclosed approximation.
-The other 19 routes contain no invented coordinates.
+The catalogue currently contains 28 WBTC services, each with a stable display
+colour. **Only AC24, Patuli → Howrah has tracking geometry**, and the app
+discloses that this road-routed geometry is approximate. The other routes
+deliberately contain no invented coordinates or boarding points.
 
-> Deployment status: not deployed. Local compilation is verified under Node 24;
-> see [PROGRESS.md](PROGRESS.md) and
-> [docs/IMPLEMENTATION_CONTEXT.md](docs/IMPLEMENTATION_CONTEXT.md) for the exact
-> test status and remaining external checks.
+> **Deployment status:** this repository has not been deployed from this
+> workspace. Historical local checks are recorded in
+> [PROGRESS.md](PROGRESS.md); a real Amazon Location map, AWS deployment, and
+> physical-phone test still require your own AWS account and fresh verification.
 
-## What is included
+## Pick the path you need
 
-- React, Vite, MapLibre passenger map with Amazon Location Maps V2 support.
-- Username/password accounts using Node's built-in `scrypt`; no email or OTP.
-- Driver/conductor/passenger roles and server-side journey ownership checks.
-- Multi-phone location fusion, bounded prediction, stale/off-route/ended states,
-  stop ETAs, and protected diagnostics.
-- Global demo console, generation fencing, audit history, and persistent worker.
-- Memory storage for quick local work and DynamoDB for durable deployments.
-- A real-time scenario simulator that uses the same HTTP API as contributors.
+| Goal | Start here |
+| --- | --- |
+| Run the whole app locally with a real development map and no AWS account | [Local quick start](#local-quick-start-no-aws-account) |
+| Put simulated buses on the local map | [Run the demo fleet](#run-the-demo-fleet) |
+| Use the real Amazon Location basemap locally | [Use Amazon Location locally](#use-amazon-location-locally) |
+| Test containers or persistent local data | [Docker and DynamoDB Local](#docker-and-dynamodb-local) |
+| Deploy the API, worker, database, map, and website to AWS | [Deploy to AWS](#deploy-to-aws) |
 
-## 1. Requirements
+All commands below run from the application repository root: the directory that
+contains this README and `package.json`. If you received the larger workspace,
+enter the app first:
 
-Install these before starting:
+```bash
+cd buskothay
+```
 
-- Node.js **24 LTS** (`.nvmrc` contains `24`).
+If you cloned the application repository directly, do not run that command.
+
+## What runs where
+
+```text
+Browser ───────────────────────────────┐
+  React + Vite + MapLibre             │ HTTPS/JSON
+  Amazon Location or development map │
+                                      ▼
+                               Node + Express API
+                                      │
+                ┌────────────────────┴────────────────┐
+                ▼                                    ▼
+      memory or DynamoDB                    persistent demo worker
+```
+
+Local defaults:
+
+| Service | Address | Notes |
+| --- | --- | --- |
+| Web app | <http://localhost:5173> | Passenger map and all browser pages |
+| API | <http://localhost:3001> | Real Express API |
+| Liveness | <http://localhost:3001/health> | Process is running |
+| Readiness | <http://localhost:3001/ready> | Storage and startup are ready |
+| DynamoDB Local | <http://localhost:8000> | Only when its Compose profile is running |
+
+## Requirements
+
+Install:
+
+- Node.js **24 LTS**. The repository's `.nvmrc` contains `24`.
 - npm **10.9 or newer**.
 - Git.
-- Optional: Docker Desktop/Engine for container and DynamoDB Local checks.
-- For AWS only: AWS CLI v2, Docker, and the Lightsail Control plugin.
+- Internet access for the first `npm ci` and for either basemap. The development
+  map is credential-free, but its tiles are still downloaded from the internet.
+- Optional for local persistence: current Docker Desktop or Docker Engine with
+  Compose.
+- Additional AWS tools are listed in [AWS prerequisites](#aws-prerequisites).
 
-Check the first two:
+Check Node and npm:
 
 ```bash
 node --version
 npm --version
 ```
 
-If the Node version does not begin with `v24`, use your Node version manager to
-install/select Node 24 before running `npm ci`.
+The Node result must start with `v24`. With `nvm`, run `nvm install` and then
+`nvm use` from the repository root.
 
-## 2. Run locally
+## Local quick start: no AWS account
 
-All commands in this README are run from the repository root—the folder that
-contains this file and the root `package.json`.
+This path runs the real website, API, fusion logic, route data, and MapLibre map.
+It uses the public MapLibre demonstration basemap, so no AWS key is needed. The
+interface labels it **Development basemap**; it is not the production AWS map.
 
-### First-time setup
+### 1. Install and create local configuration
+
+Linux/macOS:
 
 ```bash
 npm ci
@@ -67,134 +106,251 @@ Copy-Item apps\api\.env.example apps\api\.env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Create a private value of at least 32 characters and add it to
-`apps/api/.env`:
+Generate a private simulator token. This command works anywhere Node works:
 
-```dotenv
-SIMULATOR_TOKEN=replace-with-a-long-random-private-value
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
 ```
 
-On Linux/macOS, `openssl rand -hex 32` is a convenient generator. Do not put the
-real value in Git. The API and simulator worker must use exactly the same value.
+Copy the printed value and add this line to `apps/api/.env`:
 
-### Start the API and website
+```dotenv
+SIMULATOR_TOKEN=paste-the-generated-value-here
+```
+
+Keep that value private. Do not commit `.env`, paste the token into a URL, or
+reuse an AWS access key as the simulator token.
+
+In development, the API also creates a local administrator with username
+`admin` and password `admin` when `ADMIN_USERNAME` and `ADMIN_PASSWORD` are
+omitted. Those deliberately simple credentials are for local work only. The
+production process requires explicit credentials and rejects `admin` / `admin`.
+
+The copied web configuration is already correct for the credential-free map:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:3001
+VITE_MAP_PROVIDER=demo
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=
+```
+
+### 2. Start the API and web app
 
 ```bash
 npm run dev
 ```
 
-Wait for `✓ API is responding`, then open:
+Wait for this line:
 
-- Website: <http://localhost:5173>
-- API health: <http://localhost:3001/health>
-- API readiness: <http://localhost:3001/ready>
-
-The default API uses memory storage. Restarting it removes accounts, journeys,
-and demo settings. This is intentional for the quickest local setup.
-
-The local web environment defaults to the disclosed development basemap. To use
-Amazon Location locally, edit `apps/web/.env.local`:
-
-```dotenv
-VITE_API_BASE_URL=http://localhost:3001
-VITE_MAP_PROVIDER=amazon
-VITE_AWS_REGION=ap-south-1
-VITE_LOCATION_API_KEY=your-restricted-browser-key
+```text
+✓ API is responding at http://localhost:3001
 ```
 
-Restart `npm run dev` after changing an environment file.
+Then open <http://localhost:5173>. You should see the AC24 route, selected
+checkpoints, and the honest **No active bus** state over an interactive map.
 
-### Use the app manually
+The default API uses memory storage. Restarting it removes local accounts,
+journeys, sessions, and demo settings. Use DynamoDB Local when you need restart
+persistence.
+
+### 3. Know the useful pages
+
+| Page | What to test |
+| --- | --- |
+| <http://localhost:5173/> | Passenger map; redirects to AC24 |
+| <http://localhost:5173/r/ac24-patuli-howrah> | Direct route link and stop selection |
+| <http://localhost:5173/account> | Register, sign in, change role/password |
+| <http://localhost:5173/drive> | Start/join a journey and share GPS |
+| <http://localhost:5173/admin> | Sign in to the restricted demo administrator account |
+| <http://localhost:5173/demo> | Admin-only route and fleet dispatch console |
+| `/ops/<journey-id>` | Protected diagnostics for a journey |
+
+### 4. Test a real browser GPS journey
 
 1. Open <http://localhost:5173/account?entry=crew>.
-2. Create a username/password account and select **Driver**.
-3. Open **Journey controls**, select AC24, and start a journey.
-4. Press **Start sharing my location**. The browser asks for permission only now.
-5. Open the passenger map in another tab. The journey should appear within a few
-   seconds.
-6. A passenger or conductor can join with the journey ID and join code. Their
-   selected account role must match the role used to join.
+2. Select **Register**, use a password of at least 10 characters, and choose
+   **Driver**.
+3. Open **Journey controls**, keep AC24 selected, and start the journey.
+4. Select **Start sharing my location** and allow browser location access.
+5. Open the passenger map in a second tab. The journey should appear after the
+   first accepted fix.
+6. To add another source, use a second browser/session, the journey ID, and the
+   join code. The selected account role must match the role used to join.
+7. Pause location sharing separately from ending the journey. Only **End
+   journey** ends it.
 
-Guests can view the entire passenger map. Accounts are needed only to control a
-journey, save account-level preferences, or change the shared demo fleet.
+`localhost` is treated as a secure browser context. A phone opening your
+computer's plain `http://192.168...` address usually cannot use geolocation;
+physical-phone testing needs an HTTPS deployment or another trusted HTTPS setup.
 
-## 3. Run the simulation
+### 5. Test passenger boarding
 
-There are two simulation modes. Both create **Demo** journeys through the public
-API; neither writes fake state directly to the database.
+Boarding is available only while fresh, confirmed bus evidence places the
+selected journey at the selected stop. It is not enabled by an ETA prediction
+alone.
 
-### Persistent demo fleet (recommended for demonstrations)
+1. In a separate browser profile or private window, register or sign in with the
+   **Passenger** role.
+2. Open the route map, select the journey and the stop where the bus is currently
+   confirmed, and wait for **I boarded this bus** to appear.
+3. Select it. The onboard panel shows later checkpoints and their current ETAs.
+4. Boarding itself does not request GPS. Select **Share my live location** only
+   if you want that device to contribute; the browser asks for permission then.
+5. Use **Pause location sharing** without leaving, or **I got off** to revoke the
+   passenger capability and stop contributing.
 
-Keep `npm run dev` running. In a second terminal, set the same token used in
-`apps/api/.env` and start the worker:
+If the bus moves away before the request reaches the server, boarding is refused
+and the passenger must wait for a fresh confirmed arrival. A simulated journey
+can exercise this flow, but that does not count as a physical-device or field
+test.
+
+## Run the demo fleet
+
+The worker creates visibly labelled **Demo** journeys through the public API. It
+does not write fake state directly into memory or DynamoDB.
+
+Keep `npm run dev` running. In a second terminal, set the exact simulator token
+from `apps/api/.env` and start the worker.
+
+Linux/macOS:
 
 ```bash
-SIMULATOR_TOKEN=replace-with-the-same-private-value npm run demo:fleet
+SIMULATOR_TOKEN=paste-the-same-value npm run demo:fleet
 ```
 
-PowerShell:
+Windows PowerShell:
 
 ```powershell
-$env:SIMULATOR_TOKEN = 'replace-with-the-same-private-value'
+$env:SIMULATOR_TOKEN = 'paste-the-same-value'
 npm run demo:fleet
 ```
 
-Then:
+The worker can start while the demo is off; it waits for the switch.
 
-1. Sign in at <http://localhost:5173/account>.
-2. Open <http://localhost:5173/demo>.
-3. Choose AC24, bus count, sources per bus, speed, update interval, GPS noise,
-   dwell time, loop/pause/outage settings, and starting checkpoint.
-4. Press **Turn demo on**.
-5. Return to the map. Demo buses appear after the worker's next control poll.
+1. Open <http://localhost:5173/admin> and use the local `admin` / `admin`
+   credentials. The **Show password** checkbox changes only the input's
+   visibility; it does not expose a stored password.
+2. After sign-in, the browser opens <http://localhost:5173/demo>. Passenger,
+   driver, and conductor accounts do not see its menu item and cannot call its
+   API; opening `/demo` without an admin session returns to `/admin`.
+3. Choose a trackable route, starting checkpoint, later destination checkpoint,
+   bus count, source count, update interval, noise, dwell, loop, pause, and
+   outage settings. Cruise speed is constrained to 5–50 km/h.
+4. Select **Dispatch demo fleet**.
+5. Return to <http://localhost:5173/>. Demo buses should appear after the next
+   worker poll, normally within a few seconds.
+6. Turn **Outage** on to watch the position become estimated and then stale.
+7. Select **End demo fleet** when finished. This fences worker requests and ends
+   active demo journeys.
 
-The switch is global for this deployment. Turning it off generation-fences
-in-flight worker requests and ends the active demo journeys. A fresh database
-starts with demo OFF. If the worker restarts, its lease prevents two healthy
-workers from driving the fleet at the same time.
+Only one healthy worker controls a deployment at a time. Demo starts **OFF** in
+a fresh memory store or database.
 
-### One measured scenario
+### Run a measured scenario
 
-First start the persistent worker or at least turn Demo ON in `/demo`; the API
-will reject simulator-created journeys while the global switch is OFF. Then run:
+The demo switch must be ON before a scenario can create its demo journey. The
+persistent worker may be running, but it is not required for the scenario.
 
-```bash
-SIMULATOR_TOKEN=replace-with-the-same-private-value \
-  npm run simulate -- --scenario happy-multi --api http://localhost:3001
-```
-
-List scenarios:
+List available scenarios:
 
 ```bash
 npm run simulate -- --list
 ```
 
-Run all scenarios (they run at real time and take several minutes):
+Run one real-time scenario:
+
+Linux/macOS:
 
 ```bash
-SIMULATOR_TOKEN=replace-with-the-same-private-value \
-  npm run simulate -- --scenario all --api http://localhost:3001
+SIMULATOR_TOKEN=paste-the-same-value \
+  npm run simulate -- --scenario happy-multi --api http://localhost:3001
 ```
 
-Results are written to `apps/simulator/out/` as JSON, CSV, and SVG. The command
-exits non-zero when a declared expectation fails.
+Windows PowerShell:
 
-## 4. Local Docker and DynamoDB
+```powershell
+$env:SIMULATOR_TOKEN = 'paste-the-same-value'
+npm run simulate -- --scenario happy-multi --api http://localhost:3001
+```
 
-The Compose profiles are mutually scoped so the memory and DynamoDB APIs do not
-both claim port 3001.
+Run the full scenario library only when you have time; every HTTP scenario runs
+at honest wall-clock speed and the set takes several minutes:
+
+```bash
+npm run simulate -- --scenario all --api http://localhost:3001
+```
+
+Results are written to `apps/simulator/out/` as JSON, CSV, and SVG. A failed
+expectation makes the command exit non-zero.
+
+## Use Amazon Location locally
+
+Use this section when you want the same dark Amazon Location Maps V2 basemap
+that production expects. The API can stay in local memory mode.
+
+### 1. Create a separate development map key
+
+1. Sign in to your AWS account and select **Asia Pacific (Mumbai),
+   `ap-south-1`**.
+2. Open **Amazon Location Service → API keys → Create API key**.
+3. Name it `buskothay-local-map`.
+4. Grant only the Maps V2 read actions needed for styles, tiles, glyphs, and
+   sprites: `GetStyleDescriptor`, `GetTile`, `GetGlyphs`, and `GetSprites`.
+5. Add the browser referrer `http://localhost:5173/*`. Add
+   `http://127.0.0.1:5173/*` only if you actually use that address.
+6. Set a short expiry and a conservative quota. This key is only for local
+   development.
+7. Copy the value beginning with `v1.public.`.
+
+This is a public browser key, not an AWS access key. It is safe to be embedded
+only because its actions, referrers, quota, and expiry are restricted.
+
+### 2. Configure the web app
+
+Edit `apps/web/.env.local`:
+
+```dotenv
+VITE_API_BASE_URL=http://localhost:3001
+VITE_MAP_PROVIDER=amazon
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=v1.public.your-restricted-key
+```
+
+Stop and restart `npm run dev`; Vite reads environment files only at startup.
+
+### 3. Verify the map
+
+- The **Development basemap** disclosure is gone.
+- Streets and labels render in the dark Amazon style.
+- The browser network panel shows successful requests to
+  `maps.geo.ap-south-1.amazonaws.com` with no repeated 401/403 responses.
+- The route, stops, map attribution, stop selection, and bus marker still work.
+
+If the map is blank, first check the key's region, allowed actions, referrer
+including the port, and expiry. Never fix a 403 by putting an unrestricted AWS
+access key in `VITE_LOCATION_API_KEY`.
+
+## Docker and DynamoDB Local
+
+Stop `npm run dev` before starting a container API on port 3001, or start only
+the web workspace as shown below.
 
 ### Memory API container
+
+Terminal 1:
 
 ```bash
 docker compose --profile memory up --build
 ```
 
-Run the web app separately:
+Terminal 2:
 
 ```bash
 npm run dev --workspace @buskothay/web
 ```
+
+Open <http://localhost:5173> and check <http://localhost:3001/ready>.
 
 ### Memory API plus persistent demo worker
 
@@ -202,10 +358,14 @@ npm run dev --workspace @buskothay/web
 docker compose --profile demo up --build
 ```
 
-The Compose file contains a development-only simulator token. Do not copy that
-value to AWS.
+Run the web workspace in a second terminal, sign in at `/admin` with the local
+`admin` / `admin` account, and dispatch the fleet from `/demo`. Compose uses a
+development-only simulator token for this profile; do not copy either local
+credential to AWS.
 
-### DynamoDB Local
+### DynamoDB Local with persistent data
+
+Start DynamoDB, create the table once, then start the DynamoDB-backed API:
 
 ```bash
 docker compose --profile dynamodb up -d dynamodb
@@ -214,18 +374,42 @@ docker compose --profile dynamodb up -d --build api-dynamodb
 curl -fsS http://localhost:3001/ready
 ```
 
-The named Docker volume preserves DynamoDB Local data across container restarts.
-Use `docker compose down` to stop containers. Use `docker compose down -v` only
-when you intentionally want to delete the local DynamoDB volume.
-
-## 5. Checks before a release
+If `curl` is unavailable, open <http://localhost:3001/ready> in a browser. Run
+the web workspace separately:
 
 ```bash
-npm run check
-npm run build
-npx playwright install --with-deps chromium   # once per machine
-npm run test:e2e
+npm run dev --workspace @buskothay/web
 ```
+
+The named volume keeps data across normal container restarts:
+
+```bash
+docker compose down
+```
+
+Only use the following when you intentionally want to erase the local DynamoDB
+volume and every local account/journey in it:
+
+```bash
+docker compose down -v
+```
+
+## Checks before deployment
+
+Run the repository checks from a clean install:
+
+```bash
+npm ci
+npm run check
+npx playwright install --with-deps chromium
+npm run test:e2e
+docker build -t buskothay-api:deploy .
+docker build -f Dockerfile.worker -t buskothay-worker:deploy .
+```
+
+`npm run check` runs lint, TypeScript checks, route validation, unit/API tests,
+and a production build. It does **not** prove the Docker images, DynamoDB adapter,
+Amazon map, AWS deployment, or physical-phone behaviour; verify those separately.
 
 Useful individual commands:
 
@@ -233,54 +417,80 @@ Useful individual commands:
 | --- | --- |
 | `npm run lint` | ESLint across the repository |
 | `npm run typecheck` | TypeScript checks for every workspace |
-| `npm test` | Geometry, shared, and API tests using memory storage |
-| `npm run routes:validate` | Route fixture geometry/provenance validation |
-| `npm run build` | Build all packages, API, worker, and web |
-| `npm run build:deploy` | Guarded web deployment build; rejects localhost or missing map settings |
-| `npm run test:e2e` | Playwright mobile/desktop flows |
-| `npm run screenshots` | Responsive screenshots from an already running web server |
+| `npm test` | Geometry, shared, and memory-backed API tests |
+| `npm run routes:validate` | Route geometry/provenance validation |
+| `npm run build` | Build packages, API, simulator, and local-preview web bundle |
+| `npm run build:deploy` | Guarded production build; rejects localhost/non-Amazon/missing key settings |
+| `npm run test:e2e` | Playwright mobile and desktop flows against a local API |
+| `npm run screenshots` | Responsive captures from an already running web app |
 
-`npm run check` does not replace Docker/DynamoDB Local, real Amazon map, or
-physical-phone testing. Record those separately.
+## Deploy to AWS
 
-## 6. AWS architecture
-
-The low-cost 30-day setup is:
+The repository's deployment architecture is:
 
 ```text
-Amplify Hosting (React web)
+Amplify Hosting (React website)
         │ HTTPS
         ▼
-Lightsail Container Service, scale 1
+Lightsail Container Service, Micro, scale 1
   ├─ API container (public port 8080)
-  └─ fleet-worker container (private, talks to localhost:8080)
+  └─ demo fleet worker (private; calls localhost:8080)
         │
         ├─ DynamoDB on-demand table
-        └─ Amazon Location Maps V2 (browser requests with restricted key)
+        └─ Amazon Location Maps V2 (requested by the browser)
 ```
 
-One Lightsail service runs two container entries, so there is one compute bill
-and exactly one worker at scale 1. Lightsail keeps deployment versions for
-rollback. Confirm current Mumbai prices and Amazon Location allowances before
-creating anything; [docs/COST_MODEL.md](docs/COST_MODEL.md) contains editable
-assumptions, not a billing guarantee.
+One Lightsail service runs both container entries. Keep scale at 1 so there is
+exactly one worker. DynamoDB, not container memory, is authoritative in
+production.
 
-### AWS prerequisites and safety
+### AWS prerequisites
 
-1. Sign in to the intended AWS account and select **Asia Pacific (Mumbai),
-   `ap-south-1`**.
-2. Create AWS Budgets alerts at $25 and $40 for the $50/30-day target. Alerts do
-   not stop spending.
-3. Install AWS CLI v2, Docker, and `lightsailctl`.
-4. Run `aws sts get-caller-identity` and confirm the account before proceeding.
-5. Never paste access keys, the simulator token, or contributor capabilities into
-   Git, screenshots, tickets, or chat.
+You need:
 
-Official AWS setup references are linked in [infra/RUNBOOK.md](infra/RUNBOOK.md).
+- An AWS account you are authorized to use and an owner for its spending.
+- Permissions for CloudFormation, DynamoDB, IAM, Lightsail, Amazon Location,
+  Amplify, and billing alerts.
+- AWS CLI **v2**, Docker, and the current `lightsailctl` plugin.
+- A Git repository and branch that Amplify can read.
+- Node 24 and the local checks above passing.
 
-### Step A — create DynamoDB
+Use your organization's normal AWS sign-in method or IAM Identity Center for
+your workstation. Never place administrator credentials in this repository.
 
-Deploy the table template:
+Verify the account before creating anything:
+
+```bash
+aws --version
+docker version
+aws sts get-caller-identity
+aws configure get region
+```
+
+Use `ap-south-1` for the commands below. Confirm the account number printed by
+`get-caller-identity`; deploying to the wrong account is an expensive mistake.
+
+In **Billing and Cost Management → Budgets**, create a cost budget before
+provisioning. The project assumption is USD 50 for 30 days, with alerts at USD
+25 and USD 40. This is an editable estimate, not a price promise or spending
+cap. Check current prices for Lightsail, DynamoDB, Amplify, and Amazon Location.
+
+### Values used by this guide
+
+| Item | Value |
+| --- | --- |
+| Region | `ap-south-1` |
+| CloudFormation stack | `buskothay-data` |
+| DynamoDB table | `buskothay` |
+| Lightsail service | `buskothay` |
+| Lightsail power/scale | `micro` / `1` |
+| Public API port and health path | `8080` / `/health` |
+| Amplify monorepo app root | `apps/web` |
+
+Change a name only if you also change every matching template, policy, and
+private deployment value.
+
+### Step 1 — Create the DynamoDB table
 
 ```bash
 aws cloudformation deploy \
@@ -289,62 +499,142 @@ aws cloudformation deploy \
   --template-file infra/01-lightsail-data.yaml
 ```
 
-The table uses string `PK`/`SK` keys, on-demand billing, encryption, point-in-time
-recovery, and TTL on `ttl`.
+Verify the stack and TTL:
 
-Create a dedicated IAM user for the Lightsail runtime, attach the table-only
-policy in `infra/lightsail-user-policy.json` after replacing `ACCOUNT_ID`, and
-create one access key. Store the two values in a password manager. This static
-key is required because Lightsail container services do not expose the App
-Runner-style instance role used by the older template. Delete/rotate it after
-the demonstration period.
+```bash
+aws cloudformation describe-stacks \
+  --region ap-south-1 \
+  --stack-name buskothay-data \
+  --query 'Stacks[0].{status:StackStatus,outputs:Outputs}'
 
-### Step B — create the Amazon Location browser key
+aws dynamodb describe-time-to-live \
+  --region ap-south-1 \
+  --table-name buskothay
+```
 
-In **Amazon Location Service → API keys**, create a key in `ap-south-1` for Maps
-V2. Allow only the map actions used by the style (`GetStyleDescriptor`,
-`GetTile`, `GetGlyphs`, and `GetSprites`), restrict referrers to the final
-Amplify domain, set an expiry after the demo, and apply a conservative quota.
+Expected: `CREATE_COMPLETE`, table `buskothay`, and TTL attribute `ttl` enabled.
+The table uses on-demand billing, encryption, point-in-time recovery, and
+`DeletionPolicy: Retain`.
 
-The key is public by design and is embedded in the web bundle; referrer/action/
-expiry restrictions are what make it safe. Do not use an AWS access key here.
+### Step 2 — Create the table-only Lightsail runtime identity
 
-### Step C — build and push the two images
+Lightsail Container Services do not supply the App Runner-style instance role
+described in older planning documents. The API therefore needs a dedicated IAM
+access key limited to this DynamoDB table.
 
-Create one Lightsail container service:
+Get the account ID:
+
+```bash
+aws sts get-caller-identity --query Account --output text
+```
+
+Copy `infra/lightsail-user-policy.json` to a private location outside the Git
+repository. In that private copy, replace `ACCOUNT_ID` with the value above.
+Confirm the ARN ends with `table/buskothay`, then run:
+
+```bash
+aws iam create-user --user-name buskothay-lightsail-runtime
+
+aws iam put-user-policy \
+  --user-name buskothay-lightsail-runtime \
+  --policy-name BusKothayTableOnly \
+  --policy-document file:///absolute/private/path/lightsail-user-policy.json
+
+aws iam create-access-key --user-name buskothay-lightsail-runtime
+```
+
+The last command shows the secret once. Store the access-key ID and secret in a
+password manager. Do not put them in an `.env` file, Git, screenshots, tickets,
+or chat. They will go only into a private Lightsail deployment JSON and should
+be deleted or rotated after the deployment period.
+
+### Step 3 — Create the Lightsail service
 
 ```bash
 aws lightsail create-container-service \
   --region ap-south-1 \
   --service-name buskothay \
   --power micro \
-  --scale 1
+  --scale 1 \
+  --tags key=Project,value=BusKothay
 ```
 
-Build Linux images from the repository root:
+Wait until the state is `READY`:
+
+```bash
+aws lightsail get-container-services \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --query 'containerServices[0].state'
+```
+
+Lightsail charges while the service is enabled **or disabled**. Delete the
+service during teardown to stop its compute charge.
+
+### Step 4 — Build and push the API and worker
+
+Build Linux images from this repository root:
 
 ```bash
 docker build -t buskothay-api:deploy .
 docker build -f Dockerfile.worker -t buskothay-worker:deploy .
 ```
 
-Push them directly to the Lightsail service:
+Push both images:
 
 ```bash
-aws lightsail push-container-image --region ap-south-1 --service-name buskothay --label api --image buskothay-api:deploy
-aws lightsail push-container-image --region ap-south-1 --service-name buskothay --label worker --image buskothay-worker:deploy
+aws lightsail push-container-image \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --label api \
+  --image buskothay-api:deploy
+
+aws lightsail push-container-image \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --label worker \
+  --image buskothay-worker:deploy
 ```
 
-Copy the returned image names (for example `:buskothay.api.1` and
-`:buskothay.worker.1`).
+Each command prints a versioned name such as `:buskothay.api.1` or
+`:buskothay.worker.1`. Save both exact names; they are the rollback-safe image
+references used in the next step. A `lightsailctl` error means the required
+plugin is missing or not on `PATH`.
 
-### Step D — deploy API and worker
+### Step 5 — Deploy the API and worker
 
-Copy `infra/lightsail-deployment.example.json` outside the repository, replace
-every `REPLACE_ME` value, and keep the file private because it contains runtime
-credentials. Use one long random `SIMULATOR_TOKEN` in both containers. Initially
-use a placeholder non-localhost CORS origin; update it after Amplify supplies the
-real domain.
+Generate a separate production simulator token and administrator password:
+
+```bash
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+node -e "console.log(require('node:crypto').randomBytes(24).toString('base64url'))"
+```
+
+Store both outputs in a password manager and keep them distinct. Choose the
+administrator username as well; `buskothay-admin` is an example, not a required
+or pre-created identity. Production requires both `ADMIN_USERNAME` and
+`ADMIN_PASSWORD`, requires the password to contain at least 12 characters, and
+refuses the local `admin` / `admin` pair.
+
+Copy `infra/lightsail-deployment.example.json` to a private location outside
+the repository. Replace every `REPLACE_ME` value:
+
+- `api.image` and `fleet-worker.image`: the two versioned image names.
+- `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`: the table-only runtime key.
+- Both `SIMULATOR_TOKEN` values: the same new random token.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD`: the production administrator values;
+  these belong only in the API container.
+- `CORS_ORIGINS`: keep the supplied non-localhost placeholder until Amplify
+  gives you the final web origin.
+- Table and region only if you deliberately changed the defaults.
+
+Do not commit this private JSON; it contains credentials.
+
+The API creates the configured administrator only when that username does not
+already exist. With persistent DynamoDB data, later edits to
+`ADMIN_PASSWORD` do not overwrite an existing password; sign in and use the
+account password-change flow to rotate it. Startup fails rather than silently
+promoting a non-admin account that already owns the configured username.
 
 ```bash
 aws lightsail create-container-service-deployment \
@@ -352,7 +642,17 @@ aws lightsail create-container-service-deployment \
   --cli-input-json file:///absolute/private/path/lightsail-deployment.json
 ```
 
-Wait until the deployment is `ACTIVE`, copy the HTTPS URL, then verify:
+Watch the deployment:
+
+```bash
+aws lightsail get-container-services \
+  --region ap-south-1 \
+  --service-name buskothay \
+  --query 'containerServices[0].{state:state,url:url,deployment:currentDeployment.state}'
+```
+
+When the deployment is `ACTIVE`, save the returned HTTPS URL without a trailing
+slash, then verify it:
 
 ```bash
 curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/health
@@ -360,94 +660,221 @@ curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/ready
 curl -fsS https://YOUR-LIGHTSAIL-DOMAIN/v1/routes
 ```
 
-`/health` proves the process is alive; `/ready` also proves DynamoDB is reachable.
+All three must return 200. `/health` only proves the process is alive. A 503
+from `/ready` usually means the DynamoDB table, region, access key, or IAM policy
+does not match. Inspect the separate `api` and `fleet-worker` logs in the
+Lightsail console.
 
-### Step E — publish the web app with Amplify
+### Step 6 — Create the production Amazon Location key
 
-1. Put this repository in the Git provider/branch your team owns.
-2. Amplify Hosting → **Create new app** → select repository and branch.
-3. Select **My app is a monorepo** and enter `apps/web`.
-4. Confirm `AMPLIFY_MONOREPO_APP_ROOT=apps/web`.
-5. Keep the checked-in `amplify.yml` build settings.
-6. Add build environment variables:
+In `ap-south-1`, open **Amazon Location Service → API keys** and create
+`buskothay-web`:
 
-```text
-VITE_API_BASE_URL=https://YOUR-LIGHTSAIL-DOMAIN
-VITE_MAP_PROVIDER=amazon
-VITE_AWS_REGION=ap-south-1
-VITE_LOCATION_API_KEY=YOUR_RESTRICTED_LOCATION_KEY
+1. Allow only Maps V2 `GetStyleDescriptor`, `GetTile`, `GetGlyphs`, and
+   `GetSprites`.
+2. Set an expiry after the planned deployment period and a conservative quota.
+3. If the final Amplify origin is not known yet, create the key without a broad
+   permanent referrer rule, complete the first Amplify deployment, and then
+   immediately restrict it to the exact Amplify domain in Step 8. Do not leave
+   it unrestricted.
+4. Save the public value beginning with `v1.public.` in your password manager.
+
+Use a different key from the localhost development key. Never use the
+DynamoDB runtime access key in the browser.
+
+### Step 7 — Deploy the website with Amplify Hosting
+
+The source must be in a Git repository/branch your team owns and Amplify can
+read.
+
+1. Open **Amplify Hosting → Create new app** and select the repository and
+   branch.
+2. Select **My app is a monorepo** and enter `apps/web`.
+3. Confirm Amplify sets `AMPLIFY_MONOREPO_APP_ROOT=apps/web`.
+4. Keep the checked-in root `amplify.yml`. It builds from `/` so the shared npm
+   workspaces are available and publishes `apps/web/dist`.
+5. Add these build environment variables:
+
+   ```text
+   VITE_API_BASE_URL=https://YOUR-LIGHTSAIL-DOMAIN
+   VITE_MAP_PROVIDER=amazon
+   VITE_AWS_REGION=ap-south-1
+   VITE_LOCATION_API_KEY=v1.public.YOUR-RESTRICTED-KEY
+   ```
+
+6. Deploy. The build intentionally fails if the API points to localhost, the
+   provider is not `amazon`, or the map key is missing.
+7. In **Hosting → Rewrites and redirects**, add this 200 rewrite so direct
+   links work without rewriting real assets:
+
+   ```text
+   Source:
+   </^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>
+
+   Target: /index.html
+   Type:   200 (Rewrite)
+   ```
+
+8. Open the Amplify HTTPS URL and save its exact origin, without the trailing
+   slash.
+
+### Step 8 — Restrict the map key and allow the web origin
+
+1. Edit the Amazon Location key and allow only the final Amplify referrer, for
+   example `https://main.EXAMPLE.amplifyapp.com/*`. Remove any temporary broad
+   rule.
+2. In the private Lightsail deployment JSON, replace the placeholder
+   `CORS_ORIGINS` with the exact Amplify origin, for example
+   `https://main.EXAMPLE.amplifyapp.com` with no path or trailing slash.
+3. Create another Lightsail deployment using the same image versions:
+
+   ```bash
+   aws lightsail create-container-service-deployment \
+     --region ap-south-1 \
+     --cli-input-json file:///absolute/private/path/lightsail-deployment.json
+   ```
+
+4. Verify CORS after the new deployment becomes `ACTIVE`:
+
+   ```bash
+   curl -i \
+     -H 'Origin: https://YOUR-AMPLIFY-DOMAIN' \
+     https://YOUR-LIGHTSAIL-DOMAIN/v1/routes
+   ```
+
+The response's `Access-Control-Allow-Origin` must equal the Amplify origin
+exactly, not `*`.
+
+### Step 9 — Production smoke test
+
+Do not call the release deployed until all applicable checks pass:
+
+- Open the site in a private/incognito window without signing in.
+- Refresh `/r/ac24-patuli-howrah`, `/account`, `/drive`, `/admin`, and `/demo`
+  directly. A non-admin opening `/demo` must be sent to `/admin` and must receive
+  `403` from the demo API.
+- In browser developer tools, confirm Amazon style, tile, sprite, and glyph
+  requests succeed without a 401/403 flood and attribution remains visible.
+- Register, sign out/in, change role, and change password.
+- Start AC24 as a driver, grant GPS only after selecting the share button, and
+  confirm another browser sees one live marker.
+- At a freshly confirmed stop, board from a separate passenger account, check
+  that later-stop ETAs appear, then separately start/pause GPS and select **I got
+  off**. Repeat refusal checks with a driver account and after the bus leaves.
+- Sign in at `/admin` with the production administrator. Dispatch the already
+  deployed worker with a valid start/destination pair, verify the configured
+  route colour and normal-speed movement, confirm every simulated bus says
+  **Demo**, test the outage state, and end the fleet.
+- Redeploy the API and confirm accounts and journey state survive in DynamoDB.
+- Test once on a physical phone over mobile data with the screen awake. Browser
+  geolocation emulation is not a physical-device test.
+
+Record the tested URLs and date in your release notes. Do not expose an ops
+capability, simulator token, AWS runtime key, or full map key in screenshots.
+
+## Updating and rolling back
+
+For an API/worker update:
+
+1. Run the local checks and build both images.
+2. Push them; record the new versioned image names.
+3. Change only the image references in the private deployment JSON.
+4. Create a new Lightsail deployment and run the smoke test.
+
+Lightsail retains recent deployment versions. Redeploy the last known-good
+version from **Lightsail → Deployments** if needed. Amplify keeps separate
+frontend deployment history; redeploy its last green build independently.
+Image rollback does not undo DynamoDB schema/data changes.
+
+## AWS teardown
+
+Turn Demo OFF and export anything you must retain. Then:
+
+1. Delete the Amplify app in the Amplify console.
+2. Delete the Amazon Location API key.
+3. Delete the Lightsail service to stop its compute charge:
+
+   ```bash
+   aws lightsail delete-container-service \
+     --region ap-south-1 \
+     --service-name buskothay
+   ```
+
+4. Remove the table-only IAM key and user. First list the access-key ID:
+
+   ```bash
+   aws iam list-access-keys --user-name buskothay-lightsail-runtime
+   aws iam delete-access-key --user-name buskothay-lightsail-runtime --access-key-id REPLACE_WITH_THE_LISTED_ID
+   aws iam delete-user-policy --user-name buskothay-lightsail-runtime --policy-name BusKothayTableOnly
+   aws iam delete-user --user-name buskothay-lightsail-runtime
+   ```
+
+5. Delete the CloudFormation stack:
+
+   ```bash
+   aws cloudformation delete-stack \
+     --region ap-south-1 \
+     --stack-name buskothay-data
+   ```
+
+The table is retained by design. Delete it only after confirming its data is no
+longer needed:
+
+```bash
+aws dynamodb delete-table --region ap-south-1 --table-name buskothay
 ```
 
-7. Deploy and copy the final `https://...amplifyapp.com` origin.
-8. Add an SPA rewrite from `/<*>` to `/index.html` with status `200`, while
-   retaining Amplify's normal static-asset behavior.
-9. Add that exact origin to the Location key referrer list.
-10. Update `CORS_ORIGINS` in the private Lightsail deployment JSON and redeploy.
+Check Billing/Cost Explorer the next day. Remove the budget only after all
+resources and unexpected charges have been reviewed.
 
-### Step F — production smoke test
+## Troubleshooting
 
-Check all of these before sharing the URL:
+| Symptom | Check |
+| --- | --- |
+| Web says route information cannot be loaded | API terminal error, port 3001, `VITE_API_BASE_URL`, then `/health` |
+| API exits during startup | Invalid value in `apps/api/.env`, missing route directory, or port already in use |
+| Production API rejects its configuration | Set both `ADMIN_USERNAME` and a unique `ADMIN_PASSWORD` of at least 12 characters; never use `admin` / `admin` |
+| Admin login fails after changing a deployment variable | A persisted admin keeps its current password; use the signed-in password-change flow instead of expecting bootstrap to overwrite it |
+| Demo worker says token missing/unauthorized | `SIMULATOR_TOKEN` exists in API config and matches the worker terminal exactly |
+| Demo worker runs but no buses appear | Sign in at `/admin`, open `/demo`, select a trackable route and valid start/end checkpoints, then dispatch the fleet |
+| Local map is blank | Internet/WebGL, provider, key region, map actions, referrer/port, expiry |
+| Amplify build fails on configuration | All four `VITE_*` variables and `AMPLIFY_MONOREPO_APP_ROOT=apps/web` |
+| Browser gets a CORS error | Exact Amplify origin in `CORS_ORIGINS`; redeploy API after changing it |
+| Lightsail `/health` works but `/ready` is 503 | DynamoDB table/region, runtime key, or table-only IAM policy |
+| Deep link is 404 in Amplify | Add the SPA 200 rewrite from Step 7 |
+| `push-container-image` cannot run | Install AWS CLI v2 and `lightsailctl`, then ensure both are on `PATH` |
 
-- Directly refresh `/r/ac24-patuli-howrah`, `/account`, `/drive`, and `/demo`.
-- Browser network panel shows Amazon style/tile requests succeeding with no 401/
-  403 flood; attribution is visible.
-- Create an account, sign out/in, change role, and change password.
-- Start a real journey, send one browser GPS fix, view it in another browser,
-  pause, rejoin, and end it.
-- Turn the demo on, confirm worker buses appear and carry **Demo**, change speed/
-  outage settings, then turn it off and confirm they disappear.
-- Restart/redeploy the API and confirm accounts and journey state survived in
-  DynamoDB.
-- Test once on a physical phone over mobile data. Browser geolocation emulation
-  is not a physical-device test.
+## Configuration reference
 
-## 7. Updating, rollback, and cleanup
+The safe templates are `apps/api/.env.example` and `apps/web/.env.example`.
+Important production settings are:
 
-For an update, build and push new image versions, edit the two image references
-in the private deployment JSON, and create a new Lightsail deployment. Roll back
-from the Lightsail **Deployments** tab by selecting the last known-good version.
-Amplify keeps frontend deployment history separately.
+| Setting | Local | AWS |
+| --- | --- | --- |
+| `NODE_ENV` | `development` | `production` |
+| `PORT` | `3001` | `8080` |
+| `DATA_DRIVER` | `memory` | `dynamodb` |
+| `DYNAMODB_TABLE` | `buskothay-dev` | `buskothay` |
+| `CORS_ORIGINS` | `http://localhost:5173` | exact Amplify origin |
+| `ROUTE_DATA_DIR` | `data/routes` | `/app/data/routes` |
+| `TRUST_PROXY_HOPS` | `0` | `1` for the checked-in Lightsail deployment |
+| `ADMIN_USERNAME` | omitted; defaults to `admin` | required server-only administrator name |
+| `ADMIN_PASSWORD` | omitted; defaults to `admin` | required server-only unique password, at least 12 characters |
+| `VITE_API_BASE_URL` | `http://localhost:3001` | Lightsail HTTPS origin |
+| `VITE_MAP_PROVIDER` | `demo` or `amazon` | `amazon` |
+| `VITE_AWS_REGION` | `ap-south-1` | map-key region |
+| `VITE_LOCATION_API_KEY` | blank or restricted local key | restricted production browser key |
 
-To stop all charges after the demo:
+Every `VITE_*` value is public in the compiled JavaScript. AWS access keys,
+administrator credentials, session capabilities, join codes, and simulator
+tokens never belong in them.
 
-1. Turn Demo OFF and export anything you need.
-2. Delete the Amplify app.
-3. Delete the Lightsail container service—**disabled services are still billed**.
-4. Delete the Location API key.
-5. Delete the runtime IAM access key and user.
-6. Delete the CloudFormation stack. The table is retained intentionally; delete
-   it manually only after confirming the data is no longer needed.
-7. Check Billing/Cost Explorer the following day.
+## More documentation
 
-The full operational checklist, troubleshooting, and teardown commands are in
-[infra/RUNBOOK.md](infra/RUNBOOK.md).
-
-## 8. Repository map
-
-```text
-apps/api/          Express API, fusion engine, auth, DynamoDB/memory stores
-apps/web/          React/Vite passenger, account, contributor, demo, diagnostics UI
-apps/simulator/    Scenario runner and persistent demo fleet worker
-packages/shared/   Zod API contracts, configuration constants, projection logic
-packages/geometry/ Route projection and interpolation
-data/routes/       AC24 geometry plus 20-route WBTC catalogue
-infra/             AWS templates, policies, deployment examples, runbook
-docs/              product, API, design, testing, and editing guides
-```
-
-## 9. Important limitations
-
-- AC24 geometry and checkpoint coordinates are approximate and must be field-
-  verified before being described as official.
-- The app is community tracking, not an operator feed. Self-selected roles do
-  not prove WBTC employment.
-- Web pages cannot reliably record location while a phone is locked or the
-  browser is backgrounded; the UI says so.
-- Accounts have no email/phone recovery. A deployment owner must handle a lost
-  password directly.
-- No deployment, real map-key request, Docker image, or physical-phone test is
-  claimed until it is recorded in [PROGRESS.md](PROGRESS.md).
-
-For editable colours, copy, routes, and thresholds, see
-[docs/MANUAL_EDITING.md](docs/MANUAL_EDITING.md). For contribution workflow, see
-[CONTRIBUTING.md](CONTRIBUTING.md).
+- [AWS runbook](infra/RUNBOOK.md) — concise operator checklist.
+- [Deployment design and environment contract](docs/DEPLOYMENT_INSTRUCTIONS.md).
+- [Testing and acceptance](docs/TESTING_AND_ACCEPTANCE.md).
+- [Current implementation limits](docs/IMPLEMENTATION_CONTEXT.md).
+- [Manual editing guide](docs/MANUAL_EDITING.md).
+- [Contributing workflow](CONTRIBUTING.md).
+- Official AWS references: [Lightsail container tooling](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-install-software.html), [push container images](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-pushing-container-images.html), [Amazon Location API keys](https://docs.aws.amazon.com/location/latest/developerguide/using-apikeys.html), [Amplify monorepos](https://docs.aws.amazon.com/amplify/latest/userguide/monorepo-configuration.html), and [Amplify SPA rewrites](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html).

@@ -168,11 +168,17 @@ you need a dependable rollback.
 
 ## 7. Create the two-container deployment
 
-Generate a simulator token with at least 32 random characters:
+Generate a simulator token and a separate administrator password:
 
 ```bash
 openssl rand -hex 32
+openssl rand -base64 24
 ```
+
+Save both values in a password manager. Choose a production administrator
+username as well; do not use the development `admin` / `admin` pair. The API
+requires both `ADMIN_USERNAME` and `ADMIN_PASSWORD` in production, and the
+password must contain at least 12 characters.
 
 Copy `infra/lightsail-deployment.example.json` to a location outside the repo.
 Replace:
@@ -180,6 +186,7 @@ Replace:
 - API and worker image versions.
 - `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 - Both `SIMULATOR_TOKEN` values with the same generated value.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD` in the API container only.
 - Table/region values if you changed them.
 - `CORS_ORIGINS`; before Amplify exists, use the supplied invalid HTTPS
   placeholder, never `*` and never localhost in production.
@@ -212,6 +219,12 @@ curl -i https://YOUR-SERVICE-DOMAIN/v1/routes
 Expected: 200 from all three. `/ready` returning 503 means DynamoDB credentials,
 region, table name, or policy is wrong. Open the Lightsail service's **Containers
 → Logs** page for separate `api` and `fleet-worker` stdout/stderr.
+
+The configured administrator is created only if that normalized username is
+missing. A colliding ordinary account makes startup fail rather than being
+promoted. On later deployments, changing the environment password does not
+overwrite an administrator already persisted in DynamoDB; rotate it through the
+signed-in account password form.
 
 ## 8. Deploy the web app on Amplify
 
@@ -256,14 +269,25 @@ Expected `Access-Control-Allow-Origin` equals the Amplify origin exactly.
 Use a private/incognito browser as well as a signed-in browser:
 
 - Guest opens the map and route directory without signing in.
+- Route colours match the catalogue and catalogue-only routes remain visibly
+  unavailable rather than receiving invented geometry.
 - Amazon style, tiles, sprites, and glyphs load; attribution stays visible.
 - Account register/login/logout/role/password flows work.
+- Passenger, driver, and conductor accounts do not see the demo-console link,
+  cannot call `/v1/demo`, and opening `/demo` sends them to `/admin`.
+- The production administrator can sign in at `/admin`; `admin` / `admin` is
+  refused in production.
 - A driver creates AC24, grants GPS on button press, and the passenger browser
   sees a live marker and honest freshness state.
 - A passenger joins and leaves without revoking driver control.
+- At a fresh confirmed stop, a passenger can board, see later-stop ETAs, then
+  independently start/pause location sharing and select **I got off**. A wrong
+  stop, departed bus, anonymous caller, and non-passenger account are refused.
 - A conductor joins and can end the journey; another account cannot take it over.
-- Demo console starts the shared fleet; settings change; outage produces stale
-  state; OFF ends every demo journey. Every simulated journey is labelled Demo.
+- The administrator dispatches a trackable route with a valid start and later
+  destination; speed remains within 5–50 km/h. Settings change, outage produces
+  stale state, and OFF ends every journey. Every simulated journey is labelled
+  Demo.
 - Redeploy the API and confirm account/journey records persist.
 - Test one actual phone over mobile data with the screen awake. Record that
   physical test separately from Playwright's emulated location.
