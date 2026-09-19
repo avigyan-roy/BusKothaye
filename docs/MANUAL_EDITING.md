@@ -12,6 +12,7 @@ AI to change — open the file in an ordinary editor and edit it.
 | Product name, tagline, default route | `apps/web/src/config/site.ts` | Header wordmark, browser title (set in `main.tsx` from `site.name`), `apps/web/public/manifest.webmanifest`, README |
 | Any visible text, empty states, consent copy | `apps/web/src/content/en.ts` | Long strings still fit at 320 px; no new claim the code cannot keep |
 | Colours, radii, spacing, type scale | `apps/web/src/styles/tokens.css` | Contrast, focus rings, the map layer colours in `MapView.tsx`, screenshots at all five widths |
+| Anti-template design rules and UI audit | `docs/design/ANTI_VIBE_UI.md`, `docs/DESIGN_SYSTEM.md` | New pattern has a product reason; no nested cards, glow, glass, decorative gradients, pill spam or meaningless status marks |
 | Base page styles, fonts | `apps/web/src/styles/global.css` | Browser zoom to 200%, layout overflow |
 | Passenger layout | `apps/web/src/pages/RoutePage.tsx`, `route-page.css` | Map, controls and sheet at 320 / 390 / 1440 px |
 | Journey sheet and desktop drawer | `apps/web/src/features/journeys/JourneySheet.tsx`, `journey-sheet.css` | Collapsed height, expand/collapse, internal scrolling, Escape |

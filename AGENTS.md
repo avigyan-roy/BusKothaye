@@ -13,6 +13,7 @@ You are a senior full-stack web developer responsible for delivering a working, 
    - [Backend](docs/BACKEND_INSTRUCTIONS.md)
    - [Frontend](docs/FRONTEND_INSTRUCTIONS.md)
    - [Design system](docs/DESIGN_SYSTEM.md)
+   - [Anti-template UI record](docs/design/ANTI_VIBE_UI.md)
    - [Deployment](docs/DEPLOYMENT_INSTRUCTIONS.md)
    - [Testing and acceptance](docs/TESTING_AND_ACCEPTANCE.md)
    - [Team workflow](CONTRIBUTING.md)
@@ -46,6 +47,20 @@ These files are the current implementation brief. Explicit user requests take pr
 - Preserve manual edits. Read existing code before changing it; make focused changes and do not rewrite working parts to match a personal preference.
 - Every visible action must work. Remove unfinished controls instead of attaching empty handlers.
 - Do not claim a deployment, test pass, physical-device check, API integration, or performance measurement that you did not actually verify.
+
+## Visual anti-template rules
+
+For any frontend, copy or visual change, read `docs/DESIGN_SYSTEM.md` and `docs/design/ANTI_VIBE_UI.md` before editing. BusKothay is a dark, map-first Kolkata transit utility, not a SaaS landing page or generic dashboard. Preserve the rectilinear transit-instrument language: opaque charcoal surfaces, one amber route/action accent, labelled operational colours, ruled sections, purposeful typography and the map as the dominant visual.
+
+Do not introduce decorative gradient/glow, glass blur, nested cards, rounded card grids, pill spam, arbitrary coloured side bars, emoji icons, generic marketing copy, fake product evidence or motion without state meaning. A circle, colour, border, animation or bounded panel is allowed only when it communicates geography, selection, focus, operational state or independent interaction.
+
+Before finishing a UI change:
+
+- explain the product reason for each new visual pattern;
+- reuse tokens and existing semantic components;
+- verify narrow phone and desktop layouts, keyboard focus and 200% zoom;
+- run lint, TypeScript, the web build and relevant browser tests;
+- update the design documents when the design rule itself changes.
 
 ## Questions and autonomy
 

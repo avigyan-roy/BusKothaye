@@ -1,6 +1,8 @@
-# Design direction — a quiet Kolkata transit utility
+# Design direction — a quiet Kolkata transit instrument
 
-Build a clear, practical transport interface with a local identity. The map is the product: a passenger opens the site onto a dark, full-screen street map and reads where the bus is, how fresh that is, which stop is next and when it should arrive. Everything else sits over the map and is sized to leave the map visible. The interface should feel intentionally designed rather than assembled from a generic startup template.
+Build a clear, practical transport interface with a local identity. The map is the product: a passenger opens the site onto a dark, full-screen street map and reads where the bus is, how fresh that is, which stop is next and when it should arrive. Everything else sits over the map and is sized to leave the map visible. The visual language is closer to a transit instrument—rectilinear, labelled, information-dense where necessary—than to a rounded SaaS dashboard.
+
+The researched rationale, rejected patterns, before/after audit, and rules for future AI work live in [design/ANTI_VIBE_UI.md](design/ANTI_VIBE_UI.md). Read that file before introducing a new component pattern.
 
 Superseded direction: the first release used a warm off-white canvas with a forest-green accent and a document-flow panel below the map. The user replaced it with the dark, map-first direction recorded below. Historic descriptions of the light palette in `IMPLEMENTATION_PLAN.md` no longer describe the application.
 
@@ -13,17 +15,17 @@ Put these in `apps/web/src/styles/tokens.css`; components reference variables ra
   color-scheme: dark;
 
   /* Three surface levels: the map, a sheet, a raised row inside it. */
-  --color-canvas: #111312;
-  --color-surface: #191B1A;
-  --color-surface-raised: #202321;
-  --color-surface-overlay: rgba(24, 26, 25, 0.94);
+  --color-canvas: #0D0F0E;
+  --color-surface: #151817;
+  --color-surface-raised: #1B1F1D;
+  --color-surface-overlay: #151817;
 
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.2);
 
-  --color-ink: #F1F2ED;
-  --color-muted: #A9ADA7;
-  --color-faint: #8B918A;
+  --color-ink: #EEF0EA;
+  --color-muted: #A8ADA6;
+  --color-faint: #858B84;
 
   /* One accent: the route, the primary action, the selected stop. */
   --color-accent: #E5BD45;
@@ -48,13 +50,15 @@ Put these in `apps/web/src/styles/tokens.css`; components reference variables ra
   --map-vehicle: #F1F2ED;
   --map-user: #8EB6FF;
 
-  --radius-control: 8px;
-  --radius-panel: 10px;
-  --radius-sheet: 16px;
+  --radius-control: 2px;
+  --radius-panel: 0px;
+  --radius-sheet: 0px;
 }
 ```
 
-Use no more than one accent, one live colour, one demo/warning colour, one error colour and three surface levels. Contrast against `--color-surface`: ink 15.6:1, muted 7.6:1, faint 5.3:1, accent 9.7:1, live 7.2:1, warning 7.1:1, stale 5.3:1, danger 4.6:1 — all at or above WCAG AA. The accent is also a status colour, so every tracking state carries a glyph shape and a word as well as a hue; nothing is distinguished by colour alone. Warning and danger colours appear only when their meaning applies. Do not tint the whole interface during an outage.
+Use no more than one accent, one live colour, one demo/warning colour, one error colour and three surface levels. Contrast against `--color-surface`: ink 15.57:1, muted 7.82:1, faint 5.13:1, accent 9.96:1, live 7.37:1, warning 7.37:1, stale 5.54:1, danger 4.82:1 — all at or above WCAG AA. The accent is also a status colour, so every tracking state carries a glyph shape and a word as well as a hue; nothing is distinguished by colour alone. Warning and danger colours appear only when their meaning applies. Do not tint the whole interface during an outage.
+
+Rounded rectangles are not the default. Ordinary groups use spacing, type and horizontal rules. Controls use a 2px construction tolerance so browser rendering does not look jagged; route/status circles remain circular because their shape encodes geography or state. Do not add glass blur, glow, decorative gradient, floating orb, or shadow-based depth.
 
 ## Typography
 
@@ -62,7 +66,8 @@ Use no more than one accent, one live colour, one demo/warning colour, one error
 - Body: 16px, line height 1.5. Secondary text: 14px. Metadata: minimum 12px; never put a primary action or ETA qualification at that size.
 - Stop name in the sheet: 20px mobile, 24px desktop, weight 600.
 - ETA: 28px mobile / 32px desktop, weight 600, tabular numerals. The unit `min` is smaller and regular weight.
-- Route code `AC24`: 14px, weight 700, compact accent badge, 4px radius. This is the strongest identifier after the wordmark.
+- Route code `AC24`: 14px, weight 700, compact accent label, 1px construction radius. This is the strongest identifier after the wordmark.
+- Use the monospace stack only for the wordmark, route identifiers, codes and diagnostic values. It provides a transit-signage/data contrast without turning body copy into a developer console.
 - Three weights at most (400/600/700). Sentence case. Avoid wide letter spacing and uppercase labels.
 - Bengali support may be added later through the copy dictionary; do not add a nonfunctional language switch.
 
@@ -106,7 +111,7 @@ Reflow cleanly for landscape phones, long stop names and browser zoom. Never cro
 
 ## Components
 
-**Map controls (`MapControlButton`):** 44×44px, monochrome SVG icon, no text label on the map, 8px radius, near-opaque surface, one hairline border, one small shadow. An active control (following the bus) sets `aria-pressed` and shows the accent. Any real map gesture cancels follow mode; the same button resumes it.
+**Map controls (`MapControlButton`):** 44×44px, monochrome SVG icon, no text label on the map, 2px radius, opaque surface and one hairline border. No blur or glow. An active control (following the bus) sets `aria-pressed` and shows the accent. Any real map gesture cancels follow mode; the same button resumes it.
 
 **Status plate (`JourneyStatus`):** the one place the tracking state is written — glyph, word and freshness ("Live · Updated 8 sec ago"). It is sized by its text and never spans the screen. A failing connection outranks the mode. With no journey it reads "No active bus".
 
@@ -119,6 +124,10 @@ Reflow cleanly for landscape phones, long stop names and browser zoom. Never cro
 **Buttons:** minimum 44×44px touch area; primary accent with `--color-on-accent` text, secondary raised surface with a hairline border. One main action per panel. Destructive end action has a confirmation dialog; ordinary stop-sharing is immediate.
 
 **Forms:** labels above inputs, 16px input text, inline errors, clear pending state. Join code accepts typing/paste and normalizes harmless spacing/case.
+
+**Ordinary-page sections:** do not wrap every section in a filled card. `.panel` is a top rule plus spacing. Add a fully bounded container only when the boundary itself communicates interaction, state or independent selection.
+
+**Notices:** use one complete semantic border and specific copy. Never use a decorative coloured stripe on the left. Route colours appear as small square swatches beside route codes because they are a real legend, not decoration.
 
 **Ops, contributor, account, demo console:** ordinary page layouts with the site header, sharing this palette, typography, compact controls and hairline borders. A diagnostic screen, not a separate neon dashboard.
 
