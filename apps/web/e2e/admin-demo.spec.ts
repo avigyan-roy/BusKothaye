@@ -36,6 +36,30 @@ test.describe('demo administrator access', () => {
     await expect(page.getByRole('heading', { name: 'Demo fleet' })).toBeVisible();
   });
 
+  test('a stale local admin session returns to login instead of trapping the console', async ({
+    page,
+  }) => {
+    await page.goto('/admin');
+    await page.getByLabel('Admin password').fill('admin');
+    await page.getByRole('button', { name: 'Open demo console' }).click();
+    await expect(page.getByRole('heading', { name: 'Dispatch settings' })).toBeVisible();
+
+    await page.evaluate(() => {
+      const raw = window.sessionStorage.getItem('buskothay.account');
+      if (raw === null) throw new Error('Expected an administrator session');
+      const session = JSON.parse(raw) as { token: string };
+      window.sessionStorage.setItem(
+        'buskothay.account',
+        JSON.stringify({ ...session, token: 'stale-after-local-api-restart' }),
+      );
+    });
+    await page.goto('/demo');
+
+    await expect(page).toHaveURL(/\/admin\?reason=session$/);
+    await expect(page.getByRole('heading', { name: 'Demo administrator' })).toBeVisible();
+    await expect(page.getByText(/previous administrator session expired/i)).toBeVisible();
+  });
+
   test('admin can dispatch one AC24 bus from Ruby to Exide at a realistic speed', async ({
     page,
     request,

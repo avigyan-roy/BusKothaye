@@ -7,7 +7,8 @@ worker can drive clearly labelled simulated buses through the same HTTP API.
 
 The catalogue currently contains 28 WBTC services, each with a stable display
 colour. **Only AC24, Patuli → Howrah has tracking geometry**, and the app
-discloses that this road-routed geometry is approximate. The other routes
+discloses that this reference-constrained geometry is approximate. Its corridor
+incorporates the three supplied AC24 map references; the other routes
 deliberately contain no invented coordinates or boarding points.
 
 > **Deployment status:** this repository has not been deployed from this
@@ -106,7 +107,11 @@ Copy-Item apps\api\.env.example apps\api\.env
 Copy-Item apps\web\.env.example apps\web\.env.local
 ```
 
-Generate a private simulator token. This command works anywhere Node works:
+`npm run dev` creates an ephemeral private simulator token and shares it between
+the local API and worker automatically. You do not need to configure one for the
+normal one-command local flow.
+
+If you also want to run a simulator command manually, generate a stable token:
 
 ```bash
 node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
@@ -118,8 +123,9 @@ Copy the printed value and add this line to `apps/api/.env`:
 SIMULATOR_TOKEN=paste-the-generated-value-here
 ```
 
-Keep that value private. Do not commit `.env`, paste the token into a URL, or
-reuse an AWS access key as the simulator token.
+This optional value overrides the ephemeral token for both processes started by
+`npm run dev`. Keep it private. Do not commit `.env`, paste the token into a URL,
+or reuse an AWS access key as the simulator token.
 
 In development, the API also creates a local administrator with username
 `admin` and password `admin` when `ADMIN_USERNAME` and `ADMIN_PASSWORD` are
@@ -135,7 +141,7 @@ VITE_AWS_REGION=ap-south-1
 VITE_LOCATION_API_KEY=
 ```
 
-### 2. Start the API and web app
+### 2. Start the API, web app, and demo worker
 
 ```bash
 npm run dev
@@ -148,7 +154,9 @@ Wait for this line:
 ```
 
 Then open <http://localhost:5173>. You should see the AC24 route, selected
-checkpoints, and the honest **No active bus** state over an interactive map.
+checkpoints, and the honest **No active bus** state over an interactive map. The
+worker is already waiting for an administrator to dispatch a fleet; no second
+terminal is needed.
 
 The default API uses memory storage. Restarting it removes local accounts,
 journeys, sessions, and demo settings. Use DynamoDB Local when you need restart
@@ -208,25 +216,10 @@ test.
 ## Run the demo fleet
 
 The worker creates visibly labelled **Demo** journeys through the public API. It
-does not write fake state directly into memory or DynamoDB.
-
-Keep `npm run dev` running. In a second terminal, set the exact simulator token
-from `apps/api/.env` and start the worker.
-
-Linux/macOS:
-
-```bash
-SIMULATOR_TOKEN=paste-the-same-value npm run demo:fleet
-```
-
-Windows PowerShell:
-
-```powershell
-$env:SIMULATOR_TOKEN = 'paste-the-same-value'
-npm run demo:fleet
-```
-
-The worker can start while the demo is off; it waits for the switch.
+does not write fake state directly into memory or DynamoDB. The root
+`npm run dev` command already starts this worker and gives it the same private
+token as the API. The worker starts while the demo is off and waits for the
+administrator's dispatch command.
 
 1. Open <http://localhost:5173/admin> and use the local `admin` / `admin`
    credentials. The **Show password** checkbox changes only the input's
@@ -246,6 +239,18 @@ The worker can start while the demo is off; it waits for the switch.
 
 Only one healthy worker controls a deployment at a time. Demo starts **OFF** in
 a fresh memory store or database.
+
+If you intentionally started the API and website as separate workspace
+processes instead of using root `npm run dev`, start the worker in another
+terminal with the exact `SIMULATOR_TOKEN` configured for that API:
+
+```bash
+SIMULATOR_TOKEN=paste-the-same-value npm run demo:fleet
+```
+
+In PowerShell, set `$env:SIMULATOR_TOKEN` first and then run
+`npm run demo:fleet`. Do not start this second worker alongside root
+`npm run dev`.
 
 ### Run a measured scenario
 
@@ -835,7 +840,8 @@ resources and unexpected charges have been reviewed.
 | API exits during startup | Invalid value in `apps/api/.env`, missing route directory, or port already in use |
 | Production API rejects its configuration | Set both `ADMIN_USERNAME` and a unique `ADMIN_PASSWORD` of at least 12 characters; never use `admin` / `admin` |
 | Admin login fails after changing a deployment variable | A persisted admin keeps its current password; use the signed-in password-change flow instead of expecting bootstrap to overwrite it |
-| Demo worker says token missing/unauthorized | `SIMULATOR_TOKEN` exists in API config and matches the worker terminal exactly |
+| Demo shows a capability/session error after a local restart | Refresh `/demo`. The console now removes the stale memory-mode session and returns to `/admin`; sign in again with the current administrator credentials. |
+| Demo worker says token missing/unauthorized | Root `npm run dev` shares a token automatically. For separately started API/worker processes, set the same `SIMULATOR_TOKEN` in both environments. |
 | Demo worker runs but no buses appear | Sign in at `/admin`, open `/demo`, select a trackable route and valid start/end checkpoints, then dispatch the fleet |
 | Local map is blank | Internet/WebGL, provider, key region, map actions, referrer/port, expiry |
 | Amplify build fails on configuration | All four `VITE_*` variables and `AMPLIFY_MONOREPO_APP_ROOT=apps/web` |
