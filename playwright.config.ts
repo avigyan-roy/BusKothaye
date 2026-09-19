@@ -14,8 +14,8 @@ import { defineConfig, devices } from '@playwright/test';
  * On a machine that already has a browser, set `CHROMIUM_PATH` instead.
  */
 
-const API_PORT = 3101;
-const WEB_PORT = 4173;
+const API_PORT = Number(process.env.E2E_API_PORT ?? 3101);
+const WEB_PORT = Number(process.env.E2E_WEB_PORT ?? 4173);
 const API_URL = `http://127.0.0.1:${API_PORT}`;
 const WEB_URL = `http://localhost:${WEB_PORT}`;
 const TEST_SIMULATOR_TOKEN = 'e2e-simulator-token-keep-private-12345';
@@ -69,8 +69,8 @@ export default defineConfig({
       },
     },
     ...(WITH_FLEET_WORKER ? [{
-      command: 'node apps/simulator/dist/fleet-worker.js',
-      url: `${API_URL}/health`,
+      command: 'node scripts/e2e-fleet-worker.mjs',
+      url: `http://127.0.0.1:${API_PORT + 1}/health`,
       timeout: 180_000,
       reuseExistingServer: false,
       stdout: 'ignore' as const,
@@ -79,6 +79,7 @@ export default defineConfig({
         API_BASE_URL: API_URL,
         SIMULATOR_TOKEN: TEST_SIMULATOR_TOKEN,
         FLEET_CONTROL_POLL_MS: '250',
+        FLEET_HEALTH_PORT: String(API_PORT + 1),
       },
     }] : []),
     {

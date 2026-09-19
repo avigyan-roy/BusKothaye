@@ -17,14 +17,15 @@ npm run dev
 
 The API defaults to `http://localhost:3001` and the web app to
 `http://localhost:5173`. The web app must show the AC24 route and a useful
-no-journey state. To run the supervised fleet,
-set the same development `SIMULATOR_TOKEN` in the API and worker, start
-`npm run demo:fleet`, sign in at `/admin` with the development-only
-`admin` / `admin` account, and dispatch from `/demo`. The worker sends labelled
-simulated journeys through the normal API; it does not write state directly. No
-AWS credentials are necessary for this local memory-mode flow. Initial
-dependency download and the development basemap still require internet; do not
-call it fully offline.
+no-journey state. Root `npm run dev` also starts the supervised fleet worker and
+shares an ephemeral private token with the API automatically. Sign in at
+`/admin` with the development-only `admin` / `admin` account and dispatch from
+`/demo`; no second terminal is needed. The worker sends labelled simulated
+journeys through the normal API and does not write state directly. A configured
+`SIMULATOR_TOKEN` overrides the ephemeral token and is required when API and
+worker are started separately. No AWS credentials are necessary for this local
+memory-mode flow. Initial dependency download and the development basemap still
+require internet; do not call it fully offline.
 
 For a measured scenario instead of the persistent worker, first leave the fleet
 control ON, then run at honest wall-clock speed:
@@ -57,7 +58,7 @@ Document every variable and validate it at startup/build. Do not silently fall b
 | `TRAFFIC_REFRESH_ENABLED` | `false` | Reserved setting; current code has no traffic-refresh implementation |
 | `TRUST_PROXY_HOPS` | `0` | Match verified deployment proxy topology; current Lightsail example sets `1` |
 | `SESSION_TTL_HOURS` | `168` | Deliberately selected account-session lifetime |
-| `SIMULATOR_TOKEN` | Generated private value, at least 32 characters | Required in both API and worker; values must match |
+| `SIMULATOR_TOKEN` | Optional for root `npm run dev`; it generates a shared ephemeral value | Required in both cloud API and worker; values must match |
 | `ADMIN_USERNAME` | Omitted, so development defaults to `admin` | Required server-only production administrator name |
 | `ADMIN_PASSWORD` | Omitted, so development defaults to `admin` | Required unique production password, at least 12 characters; `admin` / `admin` is rejected |
 | `RATE_LIMIT_CREATE_PER_MINUTE` / `RATE_LIMIT_CREATE_BURST` | `6` / `3` | Keep production defaults unless deliberately reviewed |

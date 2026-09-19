@@ -142,7 +142,7 @@ The catalogue currently records 28 WBTC service identities and gives each one a 
 
 At present, **AC24 Patuli → Howrah** is the only trackable route. WBTC's published material supports the route identity and the ordered corridor through Ruby, Gariahat, Hazra, Exide, Park Street, and Esplanade. It does not provide a downloadable official route shape or exact boarding coordinates.
 
-The current AC24 line is an **OpenStreetMap-routed approximation** through eight approximate checkpoints. It follows roads and is a better visual fit than hand-drawn straight segments, but it is not proof of the exact bus carriageway, stop bay, one-way movement, or reverse route. The route file keeps both approximation flags enabled and includes its source, licence, date, and limitations. A reviewed GPS/GPX field trace or reliable operator-supplied route is still required before calling the geometry verified.
+The current AC24 line is a **reference-constrained approximation** through eight approximate checkpoints. Three supplied AC24 map images were used to identify and remove three incorrect routing detours and confirm the broad southern corridor: the Patuli access kink, the Kasba/Gariahat zig-zag, and the central one-way loops. Their pixels were not treated as exact coordinates; OpenStreetMap road routing supplies the outer sections and a reviewed central guide follows the marked corridor. This is still not proof of the exact carriageway, stop bay, one-way movement, or reverse route. The route file keeps both approximation flags enabled and records its sources, licence, date, and limitations. A reviewed GPS/GPX field trace or additional close-up evidence is still required before calling the geometry verified.
 
 The other 27 WBTC services remain catalogue-only. The application does not invent lines or boarding positions for them. They should be enabled one at a time after trustworthy route evidence is reviewed.
 
@@ -188,7 +188,7 @@ The complete application can be run locally in several useful configurations:
 1. **Fast development:** Vite web app + Express API + memory storage + the disclosed MapLibre development basemap.
 2. **Real map locally:** the same application with a restricted Amazon Location Maps V2 browser key.
 3. **Persistence testing:** the API and DynamoDB Local through Docker Compose.
-4. **Supervised movement testing:** the separate fleet worker against the normal local API.
+4. **Supervised movement testing:** the fleet worker, started automatically by root `npm run dev`, against the normal local API.
 
 The authoritative commands and environment examples are in [README.md](../README.md). Node.js 24 LTS and npm 10.9 or newer are required.
 

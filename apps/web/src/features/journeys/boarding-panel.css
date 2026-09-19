@@ -3,13 +3,12 @@
   gap: var(--space-3);
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-left: 3px solid var(--color-live);
-  border-radius: var(--radius-control);
-  background: var(--color-surface-raised);
+  border-radius: 0;
+  background: transparent;
 }
 
 .boarding--ready {
-  border-left-color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .boarding__heading {
@@ -23,7 +22,7 @@
   width: 28px;
   height: 28px;
   place-items: center;
-  border-radius: 50%;
+  border-radius: 1px;
   background: var(--color-live);
   color: var(--color-canvas);
   font-weight: 800;

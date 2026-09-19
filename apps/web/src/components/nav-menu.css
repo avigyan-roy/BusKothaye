@@ -16,23 +16,12 @@
   margin: 0;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
+  border-radius: 0;
   background: var(--color-surface);
   color: var(--color-ink);
   box-shadow: var(--shadow-float);
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-
-.nav-menu[open] {
-  animation: nav-menu-in 140ms ease-out;
-}
-
-@keyframes nav-menu-in {
-  from {
-    transform: translateY(-6px);
-    opacity: 0;
-  }
 }
 
 .nav-menu::backdrop {
@@ -49,6 +38,7 @@
 }
 
 .nav-menu__wordmark {
+  font-family: var(--font-mono);
   font-size: var(--text-body);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -69,7 +59,7 @@
   min-height: var(--touch-min);
   padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: var(--radius-control);
+  border-radius: 0;
   background: none;
   color: var(--color-ink);
   font: inherit;

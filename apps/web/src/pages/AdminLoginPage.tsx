@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Header.js';
 import { api, ApiError } from '../lib/api.js';
 import {
@@ -12,6 +12,7 @@ import './account-page.css';
 /** Login-only entrance to the server-protected demo console. */
 export function AdminLoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const existing = loadAccountSession();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
@@ -48,7 +49,6 @@ export function AdminLoginPage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page account-page stack">
         <div>
-          <p className="eyebrow">Restricted access</p>
           <h1>Demo administrator</h1>
           <p className="muted">
             Sign in with the server-configured administrator account to dispatch or change the
@@ -59,6 +59,12 @@ export function AdminLoginPage() {
         {import.meta.env.DEV ? (
           <p className="notice notice--quiet">
             Local default: username <strong>admin</strong>, password <strong>admin</strong>.
+          </p>
+        ) : null}
+        {searchParams.get('reason') === 'session' ? (
+          <p className="notice notice--warning">
+            Your previous administrator session expired or the local API restarted. Sign in
+            again to reconnect the demo console.
           </p>
         ) : null}
         {existing ? (

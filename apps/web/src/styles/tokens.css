@@ -12,32 +12,32 @@
  * Every status colour is paired with a word and a glyph in the components, so no
  * state is ever distinguished by colour alone.
  *
- * Contrast (WCAG 2.1, measured against --color-surface #191B1A):
- *   ink #F1F2ED 15.6:1 · muted #A9ADA7 7.6:1 · faint #8B918A 5.3:1
- *   accent #E5BD45 9.7:1 · live #69B77B 7.2:1 · demo #D79B45 7.1:1
- *   stale #D87355 5.3:1 · danger #D65F5F 4.6:1 · focus #8EB6FF 8.9:1
+ * Contrast (WCAG 2.1, measured against --color-surface #151817):
+ *   ink #EEF0EA 15.57:1 · muted #A8ADA6 7.82:1 · faint #858B84 5.13:1
+ *   accent #E5BD45 9.96:1 · live #69B77B 7.37:1 · demo #D79B45 7.37:1
+ *   stale #D87355 5.54:1 · danger #D65F5F 4.82:1 · focus #8EB6FF 8.75:1
  */
 :root {
   color-scheme: dark;
 
   /* Surfaces. Three levels: the map, a sheet, a raised row inside it. */
-  --color-canvas: #111312;
-  --color-surface: #191B1A;
-  --color-surface-raised: #202321;
-  /* Floating controls sit over moving map tiles, so they are near-opaque. */
-  --color-surface-overlay: rgba(24, 26, 25, 0.94);
+  --color-canvas: #0D0F0E;
+  --color-surface: #151817;
+  --color-surface-raised: #1B1F1D;
+  /* Floating controls are opaque, like physical transit signage. */
+  --color-surface-overlay: #151817;
 
   --color-border: rgba(255, 255, 255, 0.12);
   --color-border-strong: rgba(255, 255, 255, 0.2);
 
-  --color-ink: #F1F2ED;
-  --color-muted: #A9ADA7;
-  --color-faint: #8B918A;
+  --color-ink: #EEF0EA;
+  --color-muted: #A8ADA6;
+  --color-faint: #858B84;
 
   /* One accent. It is the route, the bus and the primary action. */
   --color-accent: #E5BD45;
   --color-accent-hover: #F0CA5C;
-  --color-accent-soft: rgba(229, 189, 69, 0.14);
+  --color-accent-soft: rgba(229, 189, 69, 0.12);
   /* Text and icons drawn on top of the accent. */
   --color-on-accent: #14170F;
 
@@ -57,13 +57,13 @@
   --map-route-casing: #0B0D0C;
   --map-stop: #C9CEC6;
   --map-stop-passed: #6B716A;
-  --map-vehicle: #F1F2ED;
+  --map-vehicle: #EEF0EA;
   --map-user: #8EB6FF;
 
-  --radius-control: 8px;
-  --radius-panel: 10px;
-  /* The sheet and the desktop drawer. Nothing is rounder than this. */
-  --radius-sheet: 16px;
+  /* Rectilinear by default. Curves are reserved for geographic/status marks. */
+  --radius-control: 2px;
+  --radius-panel: 0px;
+  --radius-sheet: 0px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -76,6 +76,7 @@
   /* Type scale. Nothing smaller than 12px; metadata never carries an action. */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Noto Sans Bengali', 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --text-meta: 12px;
   --text-secondary: 14px;
   --text-body: 16px;
@@ -97,8 +98,8 @@
   --inset-left: env(safe-area-inset-left, 0px);
   --inset-right: env(safe-area-inset-right, 0px);
 
-  /* The one shadow in the system: a floating control against a dark map. */
-  --shadow-float: 0 1px 3px rgba(0, 0, 0, 0.5);
+  /* Depth comes from opaque surfaces and borders, not glow or glass. */
+  --shadow-float: none;
 }
 
 @media (min-width: 1024px) {

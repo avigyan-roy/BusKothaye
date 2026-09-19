@@ -6,11 +6,16 @@ import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
 import { useRoute } from '../hooks/useRoute.js';
 import { useRoutes } from '../hooks/useRoutes.js';
 import { api, ApiError } from '../lib/api.js';
-import { loadAccountSession } from '../lib/auth-session.js';
+import {
+  clearAccountSession,
+  loadAccountSession,
+  type AccountSession,
+} from '../lib/auth-session.js';
 import './demo-console-page.css';
 
 export function DemoConsolePage() {
-  const account = loadAccountSession();
+  const [account, setAccount] = useState<AccountSession | null>(() => loadAccountSession());
+  const [needsFreshLogin, setNeedsFreshLogin] = useState(false);
   const { routes, error: routesError } = useRoutes();
   const [control, setControl] = useState<DemoControlDto | null>(null);
   const [draft, setDraft] = useState<DemoFleetConfig | null>(null);
@@ -26,6 +31,15 @@ export function DemoConsolePage() {
       setDraft((current) => current ?? next.config);
       setError(null);
     } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) {
+        // Memory-mode restarts invalidate server sessions while sessionStorage
+        // survives in the open tab. Drop the stale local admin marker so the
+        // login page does not immediately redirect back into an auth loop.
+        clearAccountSession();
+        setAccount(null);
+        setNeedsFreshLogin(true);
+        return;
+      }
       setError(messageFor(caught));
     }
   }, [account]);
@@ -52,7 +66,7 @@ export function DemoConsolePage() {
   };
 
   if (account?.account.isAdmin !== true) {
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={needsFreshLogin ? '/admin?reason=session' : '/admin'} replace />;
   }
 
   const save = (event: FormEvent) => {
@@ -66,7 +80,6 @@ export function DemoConsolePage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page demo-console stack">
         <div>
-          <p className="eyebrow">Simulation controls</p>
           <h1>Demo fleet</h1>
           <p className="muted">
             This switch controls the shared simulated fleet for everyone using this deployment.

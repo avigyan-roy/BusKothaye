@@ -489,10 +489,10 @@ function darkenBasemapLayers(map: MapLibreMap): void {
     try {
       switch (layer.type) {
         case 'background':
-          map.setPaintProperty(layer.id, 'background-color', '#0E100F');
+          map.setPaintProperty(layer.id, 'background-color', '#0D0F0E');
           break;
         case 'fill':
-          map.setPaintProperty(layer.id, 'fill-color', '#191B1A');
+          map.setPaintProperty(layer.id, 'fill-color', '#151817');
           map.setPaintProperty(layer.id, 'fill-outline-color', '#242826');
           break;
         case 'line':
@@ -566,7 +566,7 @@ function addRouteLayers(map: MapLibreMap, route: RouteDto): void {
     id: 'bus-uncertainty',
     type: 'fill',
     source: UNCERTAINTY_SOURCE,
-    paint: { 'fill-color': '#F1F2ED', 'fill-opacity': 0.12 },
+    paint: { 'fill-color': '#EEF0EA', 'fill-opacity': 0.12 },
   });
 
   // Ordinary stops stay quiet. A passed stop is hollow and smaller, a stop the
@@ -591,7 +591,7 @@ function addRouteLayers(map: MapLibreMap, route: RouteDto): void {
         'match',
         ['get', 'status'],
         'passed',
-        '#111312',
+        '#0D0F0E',
         'near',
         route.color,
         '#C9CEC6',
@@ -660,7 +660,7 @@ function addRouteLayers(map: MapLibreMap, route: RouteDto): void {
         'text-allow-overlap': true,
       },
       paint: {
-        'text-color': '#F1F2ED',
+        'text-color': '#EEF0EA',
         'text-halo-color': '#0B0D0C',
         'text-halo-width': 1.6,
       },
@@ -716,9 +716,9 @@ function addRouteLayers(map: MapLibreMap, route: RouteDto): void {
         '#0B0D0C',
         'STALE',
         '#0B0D0C',
-        '#F1F2ED',
+        '#EEF0EA',
       ],
-      'circle-stroke-color': '#F1F2ED',
+      'circle-stroke-color': '#EEF0EA',
       'circle-stroke-width': 3,
       'circle-opacity': ['match', ['get', 'mode'], 'STALE', 0.65, 1],
       'circle-stroke-opacity': ['match', ['get', 'mode'], 'STALE', 0.65, 1],

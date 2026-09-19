@@ -12,6 +12,7 @@ AI to change — open the file in an ordinary editor and edit it.
 | Product name, tagline, default route | `apps/web/src/config/site.ts` | Header wordmark, browser title (set in `main.tsx` from `site.name`), `apps/web/public/manifest.webmanifest`, README |
 | Any visible text, empty states, consent copy | `apps/web/src/content/en.ts` | Long strings still fit at 320 px; no new claim the code cannot keep |
 | Colours, radii, spacing, type scale | `apps/web/src/styles/tokens.css` | Contrast, focus rings, the map layer colours in `MapView.tsx`, screenshots at all five widths |
+| Anti-template design rules and UI audit | `docs/design/ANTI_VIBE_UI.md`, `docs/DESIGN_SYSTEM.md` | New pattern has a product reason; no nested cards, glow, glass, decorative gradients, pill spam or meaningless status marks |
 | Base page styles, fonts | `apps/web/src/styles/global.css` | Browser zoom to 200%, layout overflow |
 | Passenger layout | `apps/web/src/pages/RoutePage.tsx`, `route-page.css` | Map, controls and sheet at 320 / 390 / 1440 px |
 | Journey sheet and desktop drawer | `apps/web/src/features/journeys/JourneySheet.tsx`, `journey-sheet.css` | Collapsed height, expand/collapse, internal scrolling, Escape |
@@ -40,8 +41,8 @@ AI to change — open the file in an ordinary editor and edit it.
 
 ## The routine loop
 
-1. Branch, and run the app locally (`npm run dev`).
-2. Change the smallest relevant file. Vite reloads ordinary UI edits on its own. Restart `npm run dev` after shared/geometry edits: shared packages are built once, not watched.
+1. Branch, and run the app locally (`npm run dev`). This starts the web app, API, and demo worker together.
+2. Change the smallest relevant file. Vite reloads ordinary UI edits on its own, and the API and demo worker recompile on changes. Restart `npm run dev` after shared/geometry edits: shared packages are built once, not watched.
 3. Look at the affected screen at a narrow mobile width and at a desktop width.
 4. Run the checks that match what you touched. Text and spacing need
    `npm run lint` and a look; maths, authorisation and persistence need
@@ -115,8 +116,10 @@ and **I got off** cleanup.
 
 **Replace the approximate route geometry.** The current registry retains only one geometry per route ID; storing `routeVersion` does not preserve an old fixture. Resolve the version-handling gap in [implementation context](IMPLEMENTATION_CONTEXT.md) before replacing geometry used by retained journeys. Run
 `node scripts/fetch-route-geometry.mjs` with a routing provider, inspect the line
-on a street map, bump `version`, run `npm run routes:validate`, and only then set
-`isApproximateGeometry` to false by hand.
+on a street map and against the supplied corridor references, bump `version`,
+and run `npm run routes:validate`. Keep `isApproximateGeometry` true until a
+reviewed GPS/GPX trace or equally authoritative full-route shape supports every
+section; a screenshot-guided correction alone is not exact geometry.
 
 ## Style
 

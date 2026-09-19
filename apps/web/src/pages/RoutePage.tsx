@@ -64,6 +64,7 @@ export function RoutePage() {
     setContributorSession(next);
     saveSession(next);
   });
+  const pauseSharing = sharing.pause;
 
   useEffect(() => {
     const refresh = () => setAccount(loadAccountSession());
@@ -152,8 +153,8 @@ export function RoutePage() {
   const announcement = useAnnouncement(mode, activeJourneyId);
 
   useEffect(() => {
-    if (mode === 'ENDED' && onboardSession !== null) sharing.pause();
-  }, [mode, onboardSession, sharing.pause]);
+    if (mode === 'ENDED' && onboardSession !== null) pauseSharing();
+  }, [mode, onboardSession, pauseSharing]);
 
   const board = async () => {
     if (account === null || activeJourneyId === null || selectedStopId === null) return;
