@@ -12,13 +12,14 @@
  * specifiers, and this project's ESM imports end in `.js` — running the source
  * would fail on the first import with a confusing "cannot find module app.js".
  */
-import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { existsSync } from 'node:fs';
-import process, { loadEnvFile } from 'node:process';
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import process, { loadEnvFile } from "node:process";
 
-const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const API_URL = 'http://localhost:3001';
+const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const npmSpawnOptions = process.platform === "win32" ? { shell: true } : {};
+const API_URL = "http://localhost:3001";
 const children = [];
 let shuttingDown = false;
 
@@ -26,17 +27,23 @@ let shuttingDown = false;
 // the same per-run credential even when the developer has not created an .env
 // yet. A configured value still wins, which keeps manual simulator commands and
 // restart-persistent local setups working as documented.
-if (existsSync('apps/api/.env')) loadEnvFile('apps/api/.env');
+if (existsSync("apps/api/.env")) loadEnvFile("apps/api/.env");
 const simulatorToken =
-  process.env.SIMULATOR_TOKEN ?? randomBytes(32).toString('hex');
+  process.env.SIMULATOR_TOKEN ?? randomBytes(32).toString("hex");
 const localEnv = { ...process.env, SIMULATOR_TOKEN: simulatorToken };
 
 function run(name, command, args, options = {}) {
-  const child = spawn(command, args, { stdio: 'inherit', shell: false, ...options });
-  child.on('exit', (code, signal) => {
+  const child = spawn(command, args, {
+    stdio: "inherit",
+    shell: false,
+    ...options,
+  });
+  child.on("exit", (code, signal) => {
     if (shuttingDown) return;
     if (code !== 0 && signal === null) {
-      console.error(`\n${name} exited with code ${code}. Shutting the rest down.`);
+      console.error(
+        `\n${name} exited with code ${code}. Shutting the rest down.`,
+      );
       shutdown(code ?? 1);
     }
   });
@@ -48,58 +55,78 @@ function shutdown(code = 0) {
   if (shuttingDown) return;
   shuttingDown = true;
   for (const { child } of children) {
-    if (child.exitCode === null) child.kill('SIGTERM');
+    if (child.exitCode === null) child.kill("SIGTERM");
   }
   setTimeout(() => {
     for (const { child } of children) {
-      if (child.exitCode === null) child.kill('SIGKILL');
+      if (child.exitCode === null) child.kill("SIGKILL");
     }
     process.exit(code);
   }, 2000).unref();
 }
 
-process.on('SIGINT', () => shutdown(0));
-process.on('SIGTERM', () => shutdown(0));
+process.on("SIGINT", () => shutdown(0));
+process.on("SIGTERM", () => shutdown(0));
 
 function npmRun(args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(npm, args, { stdio: 'inherit', shell: false });
-    child.on('exit', (code) =>
-      code === 0 ? resolve() : reject(new Error(`${args.join(' ')} failed with code ${code}`)),
+    const child = spawn(npm, args, { stdio: "inherit", ...npmSpawnOptions });
+    child.on("exit", (code) =>
+      code === 0
+        ? resolve()
+        : reject(new Error(`${args.join(" ")} failed with code ${code}`)),
     );
   });
 }
 
 try {
-  console.log('Building shared packages, the API, and the demo worker…');
-  await npmRun(['run', 'build:packages']);
-  await npmRun(['run', 'build', '-w', '@buskothay/api']);
-  await npmRun(['run', 'build', '-w', '@buskothay/simulator']);
+  console.log("Building shared packages, the API, and the demo worker…");
+  await npmRun(["run", "build:packages"]);
+  await npmRun(["run", "build", "-w", "@buskothay/api"]);
+  await npmRun(["run", "build", "-w", "@buskothay/simulator"]);
 } catch (error) {
   console.error(error.message);
   process.exit(1);
 }
 
 console.log(`\nAPI    → ${API_URL}`);
-console.log('Web    → http://localhost:5173');
-console.log('Worker → watching the admin demo switch');
-console.log(`Try    → open http://localhost:5173/admin and sign in with admin / admin\n`);
+console.log("Web    → http://localhost:5173");
+console.log("Worker → watching the admin demo switch");
+console.log(
+  `Try    → open http://localhost:5173/admin and sign in with admin / admin\n`,
+);
 
 // Recompile the API on change; `node --watch` then restarts on the new output.
-run('api:watch', npm, ['run', 'watch', '-w', '@buskothay/api'], { env: localEnv });
-run('api', process.execPath, [
-  '--watch',
-  // So that copying apps/api/.env.example to apps/api/.env actually does
-  // something. Missing file is fine — every setting has a default.
-  '--env-file-if-exists=apps/api/.env',
-  'apps/api/dist/server.js',
-], { env: localEnv });
-run('simulator:watch', npm, ['run', 'watch', '-w', '@buskothay/simulator'], { env: localEnv });
-run('fleet-worker', process.execPath, [
-  '--watch',
-  'apps/simulator/dist/fleet-worker.js',
-], { env: { ...localEnv, API_BASE_URL: API_URL } });
-run('web', npm, ['run', 'dev', '-w', '@buskothay/web'], { env: localEnv });
+run("api:watch", npm, ["run", "watch", "-w", "@buskothay/api"], {
+  env: localEnv,
+  ...npmSpawnOptions,
+});
+run(
+  "api",
+  process.execPath,
+  [
+    "--watch",
+    // So that copying apps/api/.env.example to apps/api/.env actually does
+    // something. Missing file is fine — every setting has a default.
+    "--env-file-if-exists=apps/api/.env",
+    "apps/api/dist/server.js",
+  ],
+  { env: localEnv },
+);
+run("simulator:watch", npm, ["run", "watch", "-w", "@buskothay/simulator"], {
+  env: localEnv,
+  ...npmSpawnOptions,
+});
+run(
+  "fleet-worker",
+  process.execPath,
+  ["--watch", "apps/simulator/dist/fleet-worker.js"],
+  { env: { ...localEnv, API_BASE_URL: API_URL } },
+);
+run("web", npm, ["run", "dev", "-w", "@buskothay/web"], {
+  env: localEnv,
+  ...npmSpawnOptions,
+});
 
 // Say clearly whether the API is actually up. A silent failure here is what
 // makes the simulator fail later with nothing but "fetch failed".
@@ -113,8 +140,8 @@ setTimeout(async () => {
     console.error(
       `\n✗ The API is not responding at ${API_URL}. The web app will show ` +
         '"The route information could not be loaded."\n' +
-        '  Look for an error above this line — the usual causes are a port already ' +
-        'in use, or a bad value in apps/api/.env.\n',
+        "  Look for an error above this line — the usual causes are a port already " +
+        "in use, or a bad value in apps/api/.env.\n",
     );
   }
 }, 4000).unref();
