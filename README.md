@@ -23,6 +23,7 @@ deliberately contain no invented coordinates or boarding points.
 | Run the whole app locally with a real development map and no AWS account | [Local quick start](#local-quick-start-no-aws-account) |
 | Put simulated buses on the local map | [Run the demo fleet](#run-the-demo-fleet) |
 | Use the real Amazon Location basemap locally | [Use Amazon Location locally](#use-amazon-location-locally) |
+| Understand or safely extend the interface design | [Design system](docs/DESIGN_SYSTEM.md) and [anti-template UI record](docs/design/ANTI_VIBE_UI.md) |
 | Test containers or persistent local data | [Docker and DynamoDB Local](#docker-and-dynamodb-local) |
 | Deploy the API, worker, database, map, and website to AWS | [Deploy to AWS](#deploy-to-aws) |
 
@@ -881,6 +882,7 @@ tokens never belong in them.
 - [Deployment design and environment contract](docs/DEPLOYMENT_INSTRUCTIONS.md).
 - [Testing and acceptance](docs/TESTING_AND_ACCEPTANCE.md).
 - [Current implementation limits](docs/IMPLEMENTATION_CONTEXT.md).
+- [Design system](docs/DESIGN_SYSTEM.md) and [anti-template UI record](docs/design/ANTI_VIBE_UI.md).
 - [Manual editing guide](docs/MANUAL_EDITING.md).
 - [Contributing workflow](CONTRIBUTING.md).
 - Official AWS references: [Lightsail container tooling](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-install-software.html), [push container images](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-pushing-container-images.html), [Amazon Location API keys](https://docs.aws.amazon.com/location/latest/developerguide/using-apikeys.html), [Amplify monorepos](https://docs.aws.amazon.com/amplify/latest/userguide/monorepo-configuration.html), and [Amplify SPA rewrites](https://docs.aws.amazon.com/amplify/latest/userguide/redirect-rewrite-examples.html).

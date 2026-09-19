@@ -16,8 +16,6 @@
   color: var(--color-ink);
   cursor: pointer;
   box-shadow: var(--shadow-float);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
   transition: border-color 120ms ease, color 120ms ease;
 }
 

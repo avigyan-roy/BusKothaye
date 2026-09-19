@@ -17,9 +17,9 @@
   max-height: var(--sheet-max);
   overflow: hidden;
   border-top: 1px solid var(--color-border);
-  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  border-radius: 0;
   background: var(--color-surface);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.32);
+  box-shadow: none;
 }
 
 .journey-sheet__summary {
@@ -36,7 +36,7 @@
   width: 34px;
   height: 3px;
   margin-bottom: 2px;
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--color-border-strong);
 }
 
@@ -175,7 +175,7 @@
       100dvh - var(--inset-top) - var(--inset-bottom) - var(--touch-min) - var(--space-7)
     );
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-panel);
+    border-radius: 0;
     box-shadow: var(--shadow-float);
   }
 

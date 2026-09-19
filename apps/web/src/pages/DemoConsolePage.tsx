@@ -80,7 +80,6 @@ export function DemoConsolePage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page demo-console stack">
         <div>
-          <p className="eyebrow">Simulation controls</p>
           <h1>Demo fleet</h1>
           <p className="muted">
             This switch controls the shared simulated fleet for everyone using this deployment.

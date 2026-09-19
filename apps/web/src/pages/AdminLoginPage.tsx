@@ -49,7 +49,6 @@ export function AdminLoginPage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page account-page stack">
         <div>
-          <p className="eyebrow">Restricted access</p>
           <h1>Demo administrator</h1>
           <p className="muted">
             Sign in with the server-configured administrator account to dispatch or change the
