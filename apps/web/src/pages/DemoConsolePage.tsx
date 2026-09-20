@@ -21,7 +21,7 @@ export function DemoConsolePage() {
   const [draft, setDraft] = useState<DemoFleetConfig | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { route } = useRoute(draft?.routeId ?? 'ac24-patuli-howrah');
+  const { route } = useRoute(draft?.routeId ?? '');
 
   const refresh = useCallback(async () => {
     if (account?.account.isAdmin !== true) return;

@@ -57,9 +57,9 @@ Use a real local API for the core flows. Browser geolocation may be injected for
 - Unauthenticated ops page exposes no diagnostics.
 - Every deep link refreshes after a production-style static build.
 - Ordinary accounts receive 403 from route administration; an administrator can list, validate, save and immediately read a new route revision.
-- In a configured browser, draggable stop pins update coordinates and an ordered Google road path can be generated without reordering stops.
+- In a configured browser, draggable stop pins update coordinates and an ordered Amazon Location road path can be generated without reordering stops.
 
-Routine CI omits the Google browser key and verifies the explicit, usable text fallback without billable calls. Separately verify actual Google street tiles, Advanced Markers, traffic, route generation, required attribution, and key restrictions in a configured browser before claiming production map integration.
+Routine CI omits the Location API key and verifies the explicit, usable basemap-free fallback without billable calls. Separately verify actual Amazon map tiles, traffic, route generation, required attribution, and key restrictions in a configured browser before claiming production map integration.
 
 ## Simulator contract
 
@@ -130,7 +130,7 @@ Phone screen lock can suspend capture. Confirm that guidance says sharing pauses
 ### Deployment verification, when cloud access is available
 
 - [ ] Actual public HTTPS URLs are recorded and tested.
-- [ ] Google map tiles, attribution, traffic, route editor computation, API CORS, direct route refresh, and ingestion work publicly.
+- [ ] Amazon map tiles, attribution, traffic, route editor computation, API CORS, direct route refresh, and ingestion work publicly.
 - [ ] At least one deployed simulator run passed with saved measured results.
 - [ ] Device testing results and any untested areas are stated accurately.
 

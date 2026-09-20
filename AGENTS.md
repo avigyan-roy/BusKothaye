@@ -29,7 +29,7 @@ These files are the current implementation brief. Explicit user requests take pr
 - Mobile first; desktop is a fully designed layout, not a stretched phone screen.
 - Visual direction: follow `buskothay-prototype final.html` as the current visual reference — Archivo typography, near-black gridded canvas, charcoal panels, cyan accent, compact Kolkata header, stop-first home screen, and a balanced map/detail split on desktop. A light theme is supported. Follow the exact tokens and layouts in the design guide.
 - Start at the useful stop-and-route finder from the reference prototype. No marketing landing page, giant slogan, decorative gradient, fake statistics, testimonial cards, or AI/chat interface.
-- Stack: TypeScript throughout; React + Vite + Google Maps JavaScript API (Maps, Marker, and Routes libraries); Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; CloudWatch logging. See the decision record for the provider and Node updates.
+- Stack: TypeScript throughout; React + Vite + MapLibre GL JS with Amazon Location Maps V2 and Routes V2; Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; CloudWatch logging. See the decision record for the provider and Node updates.
 - Ordinary HTTP ingestion and approximately one-second passenger polling. No WebSockets, ML, Bedrock, login platform, payment flow, or native app in this build.
 - Region default: `ap-south-1`; route timezone default: `Asia/Kolkata`. Both are configuration, not scattered string literals.
 - A simulator uses the same public API as real contributors. Mark simulated journeys as **Demo** everywhere they appear.

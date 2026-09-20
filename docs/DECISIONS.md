@@ -48,13 +48,13 @@ Add `PENDING` before the first accepted fix. Cover `DWELLING → ESTIMATED → S
 
 Do not promise a calibrated probability from an unvalidated Kalman sigma. The UI says **Approximate accuracy**. Record empirical coverage in simulator output. Browser location accuracy is a 95% radial measure, not directly the filter's one-dimensional standard deviation; make the approximation explicit in measurement-noise code. [Geolocation accuracy definition](https://developer.mozilla.org/en-US/docs/Web/API/GeolocationCoordinates/accuracy)
 
-## 10. Google Maps, route geometry, and scheduling
+## 10. Amazon Location maps, route geometry, and scheduling
 
-Google Maps JavaScript API is the only browser map provider. The passenger view uses the Maps and Advanced Marker libraries, Google traffic, provider-owned attribution, and a referrer-restricted browser key. The old Amazon Location and MapLibre integration is removed.
+Amazon Location Service is the only street-map and route-computation provider. The passenger view renders Maps V2 with MapLibre GL JS, Amazon traffic, provider-owned attribution, and a referrer/action/expiry-restricted browser key. A basemap-free local surface is used only for missing credentials and deterministic tests; it is not a second map provider.
 
-The administrator route editor uses the Google Maps Routes library to compute a high-quality driving path through ordered stop pins. A computed road path is not automatically an operator-verified bus alignment: AC24 must still be checked against WBTC's published corridor and local route evidence. Keep `isApproximateGeometry` and `areStopsApproximate` true until that review is complete. Live tracking and ETA fusion continue to use the versioned route saved by the administrator, not a fresh external routing call on every poll.
+The administrator route editor uses Amazon Location Routes V2 `CalculateRoutes` to compute a driving path through ordered stop pins. A computed road path is not automatically an operator-verified bus alignment: AC24 must still be checked against WBTC's published corridor and local route evidence. Keep `isApproximateGeometry` and `areStopsApproximate` true until that review is complete. Live tracking and ETA fusion continue to use the versioned route saved by the administrator, not a fresh external routing call on every poll.
 
-Routine CI omits the browser key and verifies the honest text fallback. A configured browser smoke test is required before claiming Google tiles, traffic, markers, route computation, restrictions, or attribution work in production. Google Maps Platform usage and storage terms must be reviewed by the deployment owner before retaining generated path data.
+Routine CI omits the browser key and verifies the honest basemap-free fallback. A configured browser smoke test is required before claiming Amazon tiles, traffic, markers, route computation, key restrictions, or attribution work in production. AWS service terms must be reviewed by the deployment owner before retaining generated path data.
 
 Snapshot timers no longer define durability. Read-time projection computes current state; operational tasks such as log flushing and cleanup may use timers, but correctness and expiry must not depend on a background timer running on an idle container.
 

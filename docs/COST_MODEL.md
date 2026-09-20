@@ -85,19 +85,18 @@ Dockerfile stay exactly as they are — only the thing that runs the image chang
 **Recommendation: Lightsail for the API and worker; keep App Runner documented
 as the scale-up path.**
 
-### 4. Google Maps and Routes must be checked separately
+### 4. Amazon Location Maps V2 and Routes V2 must be checked
 
-The AWS application costs and Google Maps Platform costs now come from separate
-billing systems. `scripts/cost-model.mjs` uses an explicitly labelled planning
-placeholder for dynamic map loads and does not yet include Routes-library
-computations from the administrator console. Current SKU prices, regional terms,
-free usage, quotas, and taxes can change.
+Amazon Location stays on the AWS bill, but its request-based costs are separate
+from compute and storage. `scripts/cost-model.mjs` uses explicitly labelled
+planning placeholders for Maps V2 tile requests and Core Routes V2 calls from
+the administrator console. Current rates, pricing buckets, free usage, quotas,
+and taxes can change.
 
-**Check the current Maps JavaScript dynamic-map and Routes prices in the Google
-Cloud billing console before enabling the key.** Set API quotas and budget alerts
-there as well as the AWS budget. Do not infer the bill from tile counts: Google
-bills the configured SKUs, and generating an admin route is distinct from
-opening a passenger map.
+**Check the current Maps V2 GetTiles and Routes V2 CalculateRoutes prices in the
+AWS pricing table before enabling the key.** Set service quotas and budget alerts
+in the same AWS account. Maps V2 charges by tile request, while generating an
+admin route is a separate Routes V2 request.
 
 ## What I propose
 
@@ -113,7 +112,7 @@ opening a passenger map.
 | Log retention | 7 days | Bounded on purpose |
 | Demo duty cycle | Your choice | 12 h/day saves a further $7 |
 
-That lands at **about $30 plus Google Maps/Routes usage** for 30 continuous days.
+That lands at **about $30 plus Amazon Location usage** for 30 continuous days.
 
 If map usage turns out to be expensive and free usage does not apply, the
 next levers in order of least damage: cut the demo to 5 buses (−$7), duty-cycle
@@ -126,7 +125,7 @@ one driver at 3 s is 1/10th of the fleet traffic.
 
 ## Before you enable anything billed
 
-1. Confirm the AWS `ap-south-1` rates and the current Google Maps/Routes SKUs,
+1. Confirm the AWS `ap-south-1` rates and the current Amazon Location Maps/Routes pricing buckets,
    and put the selected planning rate in `scripts/cost-model.mjs`.
 2. Confirm what your student account actually includes. Do not assume credits.
 3. Re-run the model and check the total.
@@ -143,4 +142,4 @@ one driver at 3 s is 1/10th of the fleet traffic.
 - [App Runner pricing](https://aws.amazon.com/apprunner/pricing/) — provisioned vs active billing; no `ap-south-1` rate listed.
 - [App Runner in Mumbai](https://aws.amazon.com/about-aws/whats-new/2023/11/aws-app-runner-london-mumbai-paris-regions/) — region availability confirmed.
 - [Lightsail pricing](https://aws.amazon.com/lightsail/pricing/) — $5 instance, container plans, halved transfer allowance in Mumbai.
-- [Google Maps Platform pricing](https://mapsplatform.google.com/pricing/) — verify current Maps and Routes SKU pricing, quotas, and free usage for the deployment account.
+- [Amazon Location Service pricing](https://aws.amazon.com/location/pricing/) — verify current Maps V2 tile and Routes V2 request pricing, quotas, and free usage for the deployment account.

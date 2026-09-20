@@ -1,92 +1,85 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { RouteStop } from '@buskothay/shared';
+import type { DirectoryStop, RouteSummary } from '@buskothay/shared';
 import { Header } from '../components/Header.js';
-import { useRoute } from '../hooks/useRoute.js';
+import { StopPicker } from '../features/passenger/StopPicker.js';
+import { useStopDirectory } from '../hooks/useStopDirectory.js';
 import { useRoutes } from '../hooks/useRoutes.js';
-import { site } from '../config/site.js';
+import { en } from '../content/en.js';
 import './home-page.css';
 
-type PickerTarget = 'nearest' | 'from' | 'to';
+type PickerTarget = 'mine' | 'from' | 'to';
 
+/**
+ * "Where are you, and how do you want to find your bus?"
+ *
+ * Two paths, because there are two kinds of passenger: one who knows the
+ * journey and not the bus, and one who knows the bus and wants a time. Both
+ * start from the same stop, which is why the stop selector sits above the fork
+ * rather than inside either branch.
+ *
+ * Everything on this screen — stops, route numbers, which routes can be tracked
+ * — comes from the server. Nothing about any particular city or route is
+ * written here.
+ */
 export function HomePage() {
   const navigate = useNavigate();
-  const directory = useRoutes();
-  const { route } = useRoute(site.defaultRouteId);
-  const stops = route?.dto.stops ?? [];
-  const [selectedStopId, setSelectedStopId] = useState<string | null>(stops[0]?.id ?? null);
-  const [fromId, setFromId] = useState<string | null>(stops[0]?.id ?? null);
-  const [toId, setToId] = useState<string | null>(null);
+  const directory = useStopDirectory();
+  const routes = useRoutes();
+
+  const [fromKey, setFromKey] = useState<string | null>(null);
+  const [toKey, setToKey] = useState<string | null>(null);
   const [picker, setPicker] = useState<PickerTarget | null>(null);
-  const [search, setSearch] = useState('');
-  const [routeSearch, setRouteSearch] = useState('');
-  const [locating, setLocating] = useState(false);
-  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [routeQuery, setRouteQuery] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const first = stops[0];
-    if (!first) return;
-    setSelectedStopId((current) => current ?? first.id);
-    setFromId((current) => current ?? first.id);
-  }, [stops]);
+  // The journey's starting point defaults to the passenger's own stop, and stops
+  // following it the moment they choose something else.
+  const from = byKey(directory.stops, fromKey) ?? directory.selected;
+  const to = byKey(directory.stops, toKey);
 
-  const selectedStop = stopById(stops, selectedStopId) ?? stops[0] ?? null;
-  const shownRoutes = directory.routes.filter((item) =>
-    `${item.code} ${item.name}`.toLocaleLowerCase().includes(routeSearch.toLocaleLowerCase()),
-  );
-  const shownStops = useMemo(
-    () => stops.filter((stop) => stop.name.toLocaleLowerCase().includes(search.toLocaleLowerCase())),
-    [search, stops],
-  );
+  const routeGroups = useMemo(() => groupByCode(routes.routes), [routes.routes]);
+  const shownRoutes = useMemo(() => {
+    const needle = routeQuery.trim().toLocaleLowerCase();
+    if (needle.length === 0) return routeGroups;
+    return routeGroups.filter((group) =>
+      `${group.code} ${group.directions.map((route) => route.name).join(' ')}`
+        .toLocaleLowerCase()
+        .includes(needle),
+    );
+  }, [routeGroups, routeQuery]);
+  const trackedCount = routeGroups.filter((group) => group.trackingAvailable).length;
 
-  const chooseStop = (stop: RouteStop) => {
-    if (picker === 'to') setToId(stop.id);
-    else if (picker === 'from') setFromId(stop.id);
+  const choose = (stop: DirectoryStop) => {
+    if (picker === 'to') setToKey(stop.key);
+    else if (picker === 'from') setFromKey(stop.key);
     else {
-      setSelectedStopId(stop.id);
-      setFromId(stop.id);
+      directory.select(stop.key);
+      setFromKey(null);
     }
     setPicker(null);
-    setSearch('');
-  };
-
-  const locate = () => {
-    if (!navigator.geolocation || stops.length === 0) {
-      setPicker('nearest');
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const nearest = [...stops].sort((a, b) =>
-          squaredDistance(a, position.coords) - squaredDistance(b, position.coords),
-        )[0];
-        if (nearest) {
-          setSelectedStopId(nearest.id);
-          setFromId(nearest.id);
-        }
-        setLocating(false);
-      },
-      () => {
-        setLocating(false);
-        setPicker('nearest');
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
+    setMessage(null);
   };
 
   const findBuses = () => {
-    if (!route || !fromId || !toId) {
-      setResultMessage('Choose both stops to find a bus.');
+    if (from === null || to === null) {
+      setMessage(en.find.chooseBothStops);
       return;
     }
-    const fromIndex = route.dto.stops.findIndex((stop) => stop.id === fromId);
-    const toIndex = route.dto.stops.findIndex((stop) => stop.id === toId);
-    if (fromIndex < 0 || toIndex <= fromIndex) {
-      setResultMessage('No direct outbound route is available between those stops yet.');
+    if (from.key === to.key) {
+      setMessage(en.find.sameStop);
       return;
     }
-    navigate(`/r/${route.dto.id}?stop=${encodeURIComponent(fromId)}`);
+    navigate(`/find?from=${encodeURIComponent(from.key)}&to=${encodeURIComponent(to.key)}`);
+  };
+
+  const openRoute = (code: string) => {
+    if (directory.selected === null) {
+      setMessage(en.find.pickStopFirst);
+      setPicker('mine');
+      return;
+    }
+    navigate(`/bus/${encodeURIComponent(code)}?stop=${encodeURIComponent(directory.selected.key)}`);
   };
 
   return (
@@ -94,78 +87,178 @@ export function HomePage() {
       <Header />
       <main className="home-screen">
         <div className="home-screen__wrap">
-          <section className="stop-selector" aria-labelledby="nearest-stop">
-            <span className={`location-status${locating ? ' is-locating' : ''}`}>
-              <span className="pip" />{locating ? 'Finding your nearest stop…' : 'Nearest tracked stop to you'}
+          <section className="stop-selector" aria-labelledby="my-stop">
+            <span className={`location-status is-${directory.locating}`}>
+              <span className="pip" />
+              {directory.locating === 'locating'
+                ? en.find.locating
+                : directory.locating === 'unavailable'
+                  ? en.find.locationUnavailable
+                  : en.find.nearestStop}
             </span>
-            <h1 className="stop-name" id="nearest-stop">{selectedStop?.name ?? 'Choose a stop'}</h1>
-            <p className="stop-meta">AC24 corridor · Kolkata</p>
+            <h1 className="stop-name" id="my-stop">
+              {directory.selected?.name ?? (directory.isLoading ? en.common.loading : en.find.noStopYet)}
+            </h1>
+            <p className="stop-meta">{stopMeta(directory.selected)}</p>
             <div className="stop-actions">
-              <button className="button button--secondary" type="button" onClick={locate}>Use my location</button>
-              <button className="button button--secondary" type="button" onClick={() => setPicker('nearest')}>Change stop</button>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={directory.locate}
+                disabled={directory.stops.length === 0}
+              >
+                {en.find.useLocation}
+              </button>
+              <button
+                className="button button--secondary"
+                type="button"
+                onClick={() => setPicker('mine')}
+                disabled={directory.stops.length === 0}
+              >
+                {directory.selected === null ? en.find.chooseStop : en.find.changeStop}
+              </button>
             </div>
+            {directory.error === null ? null : (
+              <p className="notice notice--warning home-screen__error">
+                {en.errors.routeUnavailable}{' '}
+                <button className="back-btn" type="button" onClick={directory.reload}>
+                  {en.common.retry}
+                </button>
+              </p>
+            )}
           </section>
 
-          <p className="spine-ask">How do you want to find your bus?</p>
+          <p className="spine-ask">{en.find.ask}</p>
           <div className="spine" aria-hidden="true"><i /><b><span /></b><i /></div>
 
           <div className="home-paths">
-            <section className="path-card">
-              <h2>I know where I’m going</h2>
-              <p>Pick two stops and see every tracked bus that runs between them.</p>
+            <section className="path-card" aria-labelledby="path-a">
+              <h2 id="path-a">{en.find.pathATitle}</h2>
+              <p>{en.find.pathABody}</p>
               <div className="path-card__fields">
-                <button type="button" className="journey-field" onClick={() => setPicker('from')}>
-                  <span className="journey-field__pin">A</span><span><small>From</small><b>{stopById(stops, fromId)?.name ?? 'Choose a stop'}</b></span>
+                <button
+                  type="button"
+                  className="journey-field"
+                  onClick={() => setPicker('from')}
+                  disabled={directory.stops.length === 0}
+                >
+                  <span className="journey-field__pin">A</span>
+                  <span>
+                    <small>{en.find.from}</small>
+                    <b>{from?.name ?? en.find.chooseStop}</b>
+                  </span>
                 </button>
-                <button type="button" className="journey-field" onClick={() => setPicker('to')}>
-                  <span className="journey-field__pin is-end">B</span><span><small>To</small><b>{stopById(stops, toId)?.name ?? 'Choose a stop'}</b></span>
+                <button
+                  type="button"
+                  className="journey-field"
+                  onClick={() => setPicker('to')}
+                  disabled={directory.stops.length === 0}
+                >
+                  <span className="journey-field__pin is-end">B</span>
+                  <span>
+                    <small>{en.find.to}</small>
+                    <b>{to?.name ?? en.find.chooseStop}</b>
+                  </span>
                 </button>
               </div>
-              <button className="button home-screen__primary" type="button" onClick={findBuses}>Find buses</button>
-              {resultMessage ? <p className="home-screen__message">{resultMessage}</p> : null}
+              <button className="button home-screen__primary" type="button" onClick={findBuses}>
+                {en.find.findBuses}
+              </button>
+              {message === null ? null : <p className="home-screen__message">{message}</p>}
             </section>
 
-            <section className="path-card">
-              <h2>I know which bus I want</h2>
-              <p>Pick a route and we’ll show its live position and arrival times.</p>
-              <input className="home-search" value={routeSearch} onChange={(event) => setRouteSearch(event.target.value)} placeholder="Route number, e.g. AC24" aria-label="Search route number" />
+            <section className="path-card" aria-labelledby="path-b">
+              <h2 id="path-b">{en.find.pathBTitle}</h2>
+              <p>{en.find.pathBBody}</p>
+              <input
+                className="home-search"
+                value={routeQuery}
+                onChange={(event) => setRouteQuery(event.target.value.slice(0, 40))}
+                placeholder={en.find.routeSearchPlaceholder}
+                aria-label={en.find.routeSearchLabel}
+              />
               <div className="route-chips">
-                {shownRoutes.map((item) => (
-                  <button key={item.id} type="button" disabled={!item.trackingAvailable} onClick={() => navigate(`/r/${item.id}${selectedStop ? `?stop=${encodeURIComponent(selectedStop.id)}` : ''}`)}>
-                    {item.code}
+                {shownRoutes.map((group) => (
+                  <button
+                    key={group.code}
+                    type="button"
+                    disabled={!group.trackingAvailable}
+                    title={group.trackingAvailable ? undefined : group.missing ?? undefined}
+                    onClick={() => openRoute(group.code)}
+                  >
+                    {group.code}
                   </button>
                 ))}
               </div>
-              <p className="path-card__hint">{shownRoutes.filter((item) => item.trackingAvailable).length} route with map geometry is ready to track.</p>
+              <p className="path-card__hint">
+                {routes.isLoading
+                  ? en.common.loading
+                  : trackedCount === 0
+                    ? en.find.noTrackedRoutes
+                    : en.find.trackedRouteCount(trackedCount)}
+              </p>
             </section>
           </div>
         </div>
       </main>
 
-      {picker ? (
-        <div className="stop-picker" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setPicker(null); }}>
-          <section role="dialog" aria-modal="true" aria-labelledby="stop-picker-title">
-            <header>
-              <h2 id="stop-picker-title">{picker === 'to' ? 'Where are you going?' : picker === 'from' ? 'Where are you starting?' : 'Choose your stop'}</h2>
-              <input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} className="home-search" placeholder="Type a stop name" />
-            </header>
-            <div className="stop-picker__list">
-              {shownStops.map((stop) => <button key={stop.id} type="button" onClick={() => chooseStop(stop)}><i /><span><b>{stop.name}</b><small>AC24 corridor</small></span></button>)}
-            </div>
-            <footer><button className="button button--secondary" type="button" onClick={() => setPicker(null)}>Cancel</button></footer>
-          </section>
-        </div>
-      ) : null}
+      {picker === null ? null : (
+        <StopPicker
+          title={
+            picker === 'to'
+              ? en.find.to
+              : picker === 'from'
+                ? en.find.from
+                : en.find.chooseStop
+          }
+          stops={directory.stops}
+          onChoose={choose}
+          onClose={() => setPicker(null)}
+        />
+      )}
     </>
   );
 }
 
-function stopById(stops: readonly RouteStop[], id: string | null): RouteStop | null {
-  return stops.find((stop) => stop.id === id) ?? null;
+export interface RouteGroup {
+  readonly code: string;
+  readonly directions: readonly RouteSummary[];
+  readonly trackingAvailable: boolean;
+  readonly missing: string | null;
 }
 
-function squaredDistance(stop: RouteStop, coords: GeolocationCoordinates): number {
-  const lat = stop.lat - coords.latitude;
-  const lon = (stop.lon - coords.longitude) * Math.cos((stop.lat * Math.PI) / 180);
-  return lat * lat + lon * lon;
+/**
+ * One chip per route number.
+ *
+ * A route in this data model is a number *and* a direction, so "AC24" is two
+ * records. A passenger asking for AC24 has not yet said which way they are
+ * going, so the directions are collapsed here and offered as the next question.
+ */
+export function groupByCode(routes: readonly RouteSummary[]): RouteGroup[] {
+  const groups = new Map<string, RouteSummary[]>();
+  for (const route of routes) {
+    const existing = groups.get(route.code);
+    if (existing) existing.push(route);
+    else groups.set(route.code, [route]);
+  }
+  return [...groups.entries()]
+    .map(([code, directions]) => ({
+      code,
+      directions,
+      trackingAvailable: directions.some((route) => route.trackingAvailable),
+      missing: directions.find((route) => route.missing !== null)?.missing ?? null,
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+}
+
+function byKey(stops: readonly DirectoryStop[], key: string | null): DirectoryStop | null {
+  if (key === null) return null;
+  return stops.find((stop) => stop.key === key) ?? null;
+}
+
+/** "AC24, AC30" — what actually calls here. Never a city or corridor name. */
+function stopMeta(stop: DirectoryStop | null): string {
+  if (stop === null) return '';
+  const codes = [...new Set(stop.routes.map((route) => route.code))];
+  return `${codes.join(' · ')}`;
 }

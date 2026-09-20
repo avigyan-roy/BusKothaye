@@ -674,6 +674,35 @@ export class JourneyService {
       .sort((a, b) => Number(a.isDemo) - Number(b.isDemo) || b.startedAtMs - a.startedAtMs);
   }
 
+  /**
+   * The journey a passenger should be shown on this route, already derived.
+   *
+   * The ranking is the same one the passenger app applies to the journey list —
+   * a real journey before a demonstration, the most recent first — with one
+   * addition that only matters here: a journey that has never reported a
+   * position cannot answer "when does it reach my stop", so one that has is
+   * preferred over one that has not. Null means nothing is being tracked, which
+   * is an answer, not an error.
+   */
+  async bestState(routeId: string): Promise<JourneyStateDto | null> {
+    const route = this.registry.get(routeId);
+    if (route === null) return null;
+    const nowMs = this.clock.nowMs();
+    const snapshots = await this.guardStorage(() => this.repo.listJourneys(routeId));
+    const live = snapshots
+      .filter((snapshot) => snapshot.baseMode !== 'ENDED' && impliedEnd(snapshot, nowMs) === null)
+      .sort(
+        (a, b) => Number(a.isDemo) - Number(b.isDemo) || b.createdAtMs - a.createdAtMs,
+      );
+    const chosen =
+      live.find((snapshot) => snapshot.lastConfirmedSM !== null) ?? live[0] ?? null;
+    if (chosen === null) return null;
+    // A journey keeps the route version it began with; the current one is only a
+    // fallback for a version that has since been superseded and dropped.
+    const journeyRoute = this.registry.get(chosen.routeId, chosen.routeVersion) ?? route;
+    return this.stateOf(chosen, journeyRoute, nowMs);
+  }
+
   // -------------------------------------------------------------------------
   // Helpers.
   // -------------------------------------------------------------------------

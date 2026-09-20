@@ -1,15 +1,16 @@
 /**
- * Branding and the one route this release ships.
+ * Branding, and nothing else.
  *
- * Components read these values; the strings "BusKothay", "AC24" and "Patuli" do
- * not appear scattered through JSX. Changing the product name is a one-line edit
- * here plus the browser title, which is derived from it.
+ * There is deliberately no default route, no city and no example stop here. Any
+ * such value would be a second opinion about what the system contains, and the
+ * database is the only one there should be: the passenger app discovers routes
+ * and stops from the API, so a deployment with a completely different network
+ * needs no change in this file.
  */
 export const site = {
   name: 'BusKothay',
-  /** Kept short. It is omitted from the map header when space is tight. */
+  /** Kept short. It is omitted from the header when space is tight. */
   tagline: 'Know where your bus is.',
-  defaultRouteId: 'ac24-patuli-howrah',
   /** Locale of the copy dictionary in `content/`. */
   locale: 'en',
   /** Where a person goes to contribute. */
@@ -21,25 +22,29 @@ export const site = {
  *
  * Every `VITE_*` value is public in the built JavaScript. The map key belongs
  * here because a browser map key is public by design and is restricted by
- * permitted actions, referrers and expiry — no other kind of credential does.
+ * permitted actions, origins and expiry — no other kind of credential does.
  */
 export interface WebConfig {
   readonly apiBaseUrl: string;
-  /** Public, HTTP-referrer-restricted Google Maps JavaScript API key. */
-  readonly googleMapsApiKey: string;
-  /** Google cloud map ID; DEMO_MAP_ID is acceptable for local development. */
-  readonly googleMapsMapId: string;
+  /** Amazon Location in normal builds; `none` is reserved for deterministic tests. */
+  readonly mapProvider: 'amazon' | 'none';
+  /** Region containing the Amazon Location browser API key. */
+  readonly awsRegion: string;
+  /** Public Amazon Location key restricted by action, origin, expiry and quota. */
+  readonly locationApiKey: string;
 }
 
 export function loadWebConfig(env: {
   VITE_API_BASE_URL?: string | undefined;
-  VITE_GOOGLE_MAPS_API_KEY?: string | undefined;
-  VITE_GOOGLE_MAPS_MAP_ID?: string | undefined;
+  VITE_MAP_PROVIDER?: string | undefined;
+  VITE_AWS_REGION?: string | undefined;
+  VITE_LOCATION_API_KEY?: string | undefined;
 }): WebConfig {
   return {
     apiBaseUrl: (env.VITE_API_BASE_URL ?? 'http://localhost:3001').replace(/\/$/, ''),
-    googleMapsApiKey: env.VITE_GOOGLE_MAPS_API_KEY ?? '',
-    googleMapsMapId: env.VITE_GOOGLE_MAPS_MAP_ID ?? 'DEMO_MAP_ID',
+    mapProvider: env.VITE_MAP_PROVIDER === 'none' ? 'none' : 'amazon',
+    awsRegion: env.VITE_AWS_REGION ?? 'ap-south-1',
+    locationApiKey: env.VITE_LOCATION_API_KEY ?? '',
   };
 }
 
@@ -59,11 +64,14 @@ export function productionConfigProblems(config: WebConfig): string[] {
   if (!config.apiBaseUrl.startsWith('https://')) {
     problems.push('VITE_API_BASE_URL must be an https origin');
   }
-  if (config.googleMapsApiKey.length === 0) {
-    problems.push('VITE_GOOGLE_MAPS_API_KEY is required for a deployment build');
+  if (config.mapProvider !== 'amazon') {
+    problems.push('VITE_MAP_PROVIDER must be "amazon" for a deployment build');
   }
-  if (config.googleMapsMapId.length === 0 || config.googleMapsMapId === 'DEMO_MAP_ID') {
-    problems.push('VITE_GOOGLE_MAPS_MAP_ID must be a production Google Cloud map ID');
+  if (config.locationApiKey.length === 0) {
+    problems.push('VITE_LOCATION_API_KEY is required for a deployment build');
+  }
+  if (!/^[a-z]{2}(?:-[a-z]+)+-\d+$/.test(config.awsRegion)) {
+    problems.push('VITE_AWS_REGION must be a valid AWS region name');
   }
   return problems;
 }

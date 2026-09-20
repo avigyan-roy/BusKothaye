@@ -62,3 +62,6 @@
   .route-admin__publish { align-items: stretch; flex-direction: column; }
   .route-admin__publish .button { width: 100%; }
 }
+
+.route-admin__publish-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.route-admin__confirm { color: var(--color-danger); font-size: var(--text-sm); font-weight: 600; }

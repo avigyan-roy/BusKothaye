@@ -73,6 +73,14 @@ export async function startDemoJourney(request: APIRequestContext): Promise<Demo
       await request.post(`${API_URL}/v1/journeys/${body.journeyId}/end`, {
         headers: { authorization: `Bearer ${TEST_SIMULATOR_TOKEN}` },
       });
+      // `startDemoJourney` temporarily enables the global demo control because
+      // the simulator capability is intentionally rejected while Demo is OFF.
+      // Restore the safe default so an optional persistent E2E worker cannot
+      // resurrect a fleet between otherwise independent browser tests.
+      await request.put(`${API_URL}/v1/demo`, {
+        headers: { authorization: `Bearer ${controller.token}` },
+        data: { enabled: false },
+      });
     },
   };
 }
@@ -142,32 +150,34 @@ async function register(request: APIRequestContext, role: 'driver' | 'passenger'
 }
 
 /**
- * Open the journey sheet.
+ * Wait for the details pane to have rendered its stop timeline.
  *
- * The passenger screen is a full-screen map with a collapsed sheet over it, and
- * the collapsed detail region is `inert` — so the stop list, the journey
- * selector and the route catalogue are deliberately not reachable until it is
- * opened, exactly as they are for a person. Anything asserting on that content
- * opens the sheet first. On a wide screen the drawer already starts open, and
- * this is then a no-op.
+ * On a phone the pane is a sheet over the map; the grabber raises it. It is
+ * never `inert`, so everything in it is reachable either way — this only waits
+ * for the first render so an assertion does not race the initial fetch.
  */
-export async function expandSheet(page: Page): Promise<void> {
-  const toggle = page.locator('.journey-sheet__toggle');
-  await toggle.waitFor({ timeout: 15_000 }).catch(() => undefined);
-  if ((await toggle.count()) === 0) return;
-  if ((await toggle.getAttribute('aria-expanded')) === 'false') await toggle.click();
+export async function openDetailsPane(page: Page): Promise<void> {
+  await page.locator('.stop-timeline .timeline-row').first().waitFor({ timeout: 20_000 });
+}
+
+/** Remember a stop the way the application does, before the first paint. */
+export async function withStop(page: Page, stopKey: string): Promise<void> {
+  await page.addInitScript((key) => {
+    if (window.sessionStorage.getItem('buskothay.e2e.stop-seeded') === 'yes') return;
+    window.localStorage.setItem('buskothay.stop', key as string);
+    window.sessionStorage.setItem('buskothay.e2e.stop-seeded', 'yes');
+  }, stopKey);
 }
 
 export async function selectJourney(page: Page, journeyId: string): Promise<void> {
   // The journey list is polled, so wait for the page to have picked something up
   // before deciding whether a selector exists at all.
   await page
-    .locator('.route-page__panel')
-    .getByText(/Demo journey|No bus is sharing|Waiting for the first location/)
+    .locator('.info-pane')
+    .getByText(/Live|No live bus|Waiting for the first location|No active bus/)
     .first()
-    .waitFor({ timeout: 15_000 })
+    .waitFor({ timeout: 20_000 })
     .catch(() => undefined);
-  await expandSheet(page);
 
   const selector = page.locator('.journey-selector select');
   if ((await selector.count()) === 0) return;

@@ -8,8 +8,9 @@
 # Set these in the Amplify build environment before the first deployment. The
 # build fails rather than shipping a bundle that points at localhost:
 #   VITE_API_BASE_URL       the App Runner https origin
-#   VITE_GOOGLE_MAPS_API_KEY  restricted public browser key
-#   VITE_GOOGLE_MAPS_MAP_ID   production JavaScript map ID
+#   VITE_MAP_PROVIDER         amazon
+#   VITE_AWS_REGION           Amazon Location key region, normally ap-south-1
+#   VITE_LOCATION_API_KEY     restricted public Maps V2 + Routes V2 browser key
 #
 # Afterwards, add the Amplify origin to the API's CORS_ORIGINS and to the map
 # key's permitted referrers, then test a preflight request and the map assets.

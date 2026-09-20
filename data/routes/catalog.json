@@ -227,6 +227,21 @@
       "color": "#38D0FF"
     },
     {
+      "id": "ac24-howrah-patuli",
+      "code": "AC24",
+      "name": "AC24 Howrah to Patuli",
+      "origin": "Howrah",
+      "destination": "Patuli",
+      "listedOrigin": "Howrah",
+      "listedDestination": "Patuli",
+      "direction": "inbound",
+      "activeVersion": "2026-09-19-reference-approx-3-inbound",
+      "officialSourceUrl": "https://wbtconline.in/home",
+      "retrievedOn": "2026-09-19",
+      "missing": null,
+      "color": "#1FB6E8"
+    },
+    {
       "id": "ac24a-kamalgazi-howrah",
       "code": "AC24A",
       "name": "AC24A Kamalgazi to Howrah Station",

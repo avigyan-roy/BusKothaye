@@ -125,6 +125,10 @@ export class MemoryJourneyRepository implements JourneyRepository {
     return [...this.routeOverrides.values()];
   }
 
+  async deleteRouteOverride(routeId: string): Promise<void> {
+    this.routeOverrides.delete(routeId);
+  }
+
   async putRouteOverride(record: RouteOverrideRecord): Promise<void> {
     this.routeOverrides.set(record.route.id, record);
   }

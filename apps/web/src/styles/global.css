@@ -70,7 +70,7 @@ h2 {
 }
 
 h3 {
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 p {
@@ -131,7 +131,7 @@ textarea {
 
 .muted {
   color: var(--color-muted);
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .meta {
@@ -164,7 +164,7 @@ textarea {
   border: 1px solid transparent;
   background: var(--color-accent);
   color: var(--color-on-accent);
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
@@ -209,7 +209,7 @@ textarea {
 .field__label {
   display: block;
   margin-bottom: var(--space-1);
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -230,7 +230,7 @@ textarea {
 .field__error {
   margin-top: var(--space-1);
   color: var(--color-danger);
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 /*
@@ -242,7 +242,7 @@ textarea {
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   background: transparent;
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .notice--warning {
@@ -258,6 +258,70 @@ textarea {
 .notice--quiet {
   border-color: var(--color-border-strong);
   color: var(--color-muted);
+}
+
+/*
+ * Shared primitives lifted from the design prototype: they appear on the home,
+ * results, answer and details screens alike, so they belong here rather than in
+ * whichever screen happened to need them first.
+ */
+
+.search-input {
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--color-ink);
+  font-size: var(--text-body);
+}
+
+.search-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.search-input::placeholder { color: var(--color-faint); }
+
+.crumb {
+  display: flex;
+  margin-bottom: 6px;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.back-btn {
+  padding: 8px 10px 8px 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.back-btn:hover { color: var(--color-accent-hover); }
+
+.empty-state {
+  padding: 26px 22px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+
+.empty-state h3 { font-size: 19px; font-weight: 700; }
+.empty-state p { margin-top: 6px; color: var(--color-muted); font-size: 15px; }
+.empty-state .button { margin-top: 14px; }
+
+/* One pulse for the whole application, so "live" always looks the same. */
+@keyframes soft-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -24,9 +24,9 @@ shares an ephemeral private token with the API automatically. Sign in at
 journeys through the normal API and does not write state directly. A configured
 `SIMULATOR_TOKEN` overrides the ephemeral token and is required when API and
 worker are started separately. No AWS credentials are necessary for this local
-memory-mode flow. Google map rendering and road-path generation require a
-configured browser key and internet; without one, the textual route UI shows an
-explicit fallback.
+memory-mode flow. Amazon map rendering and road-path generation require a
+configured Location API key and internet; without one, the route UI keeps its
+text and overlays on an explicit basemap-free fallback.
 
 For a measured scenario instead of the persistent worker, first leave the fleet
 control ON, then run at honest wall-clock speed:
@@ -85,14 +85,15 @@ through the signed-in account flow.
 | Variable | Local example/default | Cloud requirement |
 | --- | --- | --- |
 | `VITE_API_BASE_URL` | `http://localhost:3001` | Actual public HTTPS API origin |
-| `VITE_GOOGLE_MAPS_API_KEY` | blank | Public browser key restricted to exact production referrers and required APIs |
-| `VITE_GOOGLE_MAPS_MAP_ID` | `DEMO_MAP_ID` | Production Google Cloud map ID used by Advanced Markers |
+| `VITE_MAP_PROVIDER` | `amazon` | Must remain `amazon` for a deployable build |
+| `VITE_AWS_REGION` | `ap-south-1` | Region that serves Maps V2 and Routes V2 |
+| `VITE_LOCATION_API_KEY` | blank | Public Location API key restricted to exact production origins and the Maps/Routes actions used by the app |
 
-Every `VITE_*` value is public in the built JavaScript. A browser map key is public by design; restrict it by exact HTTP referrer and to the Maps JavaScript API plus the route-computation capability the editor needs. Configure billing quotas and alerts. It is not a place for an AWS secret key, backend capability, or unrestricted service credential.
+Every `VITE_*` value is public in the built JavaScript. A browser Location key is public by design; restrict it by exact allowed origin and to the Maps V2 and Routes V2 actions the app needs. Configure quotas and AWS budget alerts. It is not a place for an AWS secret key, backend capability, or unrestricted service credential.
 
-Enable Maps JavaScript API and the required Routes functionality in the selected Google Cloud project. Create a production map ID for Advanced Markers. Verify tiles, dark scheme, markers, traffic, route computation, attribution, quota, and key rejection from an unapproved origin in a browser. Credential-free builds intentionally use the in-app fallback; there is no second basemap provider.
+Create the Location API key in the selected AWS account and region. Verify Maps V2 tiles, dark/light schemes, markers, traffic, Routes V2 computation, attribution, quota, and rejection from an unapproved origin in a browser. Credential-free builds intentionally use the in-app basemap-free surface; there is no second map provider.
 
-Keep brand, default stop, and design tokens in editable source files, not an expanding list of build variables. The implemented `npm run build:deploy` validates deployment settings and rejects localhost, a missing Google key, or `DEMO_MAP_ID`. Ordinary `npm run build` creates an optimized local preview without this deployment guard; do not publish it as a configured release.
+Keep brand, default stop, and design tokens in editable source files, not an expanding list of build variables. The implemented `npm run build:deploy` validates deployment settings and rejects localhost, a non-Amazon provider, a missing Location key, or an invalid region. Ordinary `npm run build` creates an optimized local preview without this deployment guard; do not publish it as a configured release.
 
 ## Docker and local persistence verification
 
@@ -127,11 +128,11 @@ Create one regional on-demand table with `PK`/`SK` string keys and TTL attribute
 
 The authoritative-state design is in [the backend guide](BACKEND_INSTRUCTIONS.md). Do not deploy the five-second-memory-snapshot design from the old plan instead.
 
-### 2. Google Maps Platform
+### 2. Amazon Location Service
 
-Create separate development and production browser keys. Restrict the production key to the final Amplify origins and only the enabled Maps/Routes APIs; keep localhost on the development key. Configure billing quotas and a team-owned budget alert, then create the production map ID.
+Create separate development and production Location API keys. Restrict the production key to the final Amplify origins and only the Maps V2/Routes V2 actions used by this app; keep localhost on the development key. Configure quotas and a team-owned AWS budget alert.
 
-Verify actual browser requests rather than merely creating a key. Open the passenger map and `/admin/routes`, confirm Google attribution remains visible, drag a stop, generate a road path through all ordered stops, inspect the entire AC24 alignment, and publish only after its verification flags are truthful. Review current Google Maps Platform terms before retaining generated geometry; record route identity and geometry provenance separately.
+Verify actual browser requests rather than merely creating a key. Open the passenger map and `/admin/routes`, confirm Amazon attribution remains visible, drag a stop, generate a road path through all ordered stops, inspect the entire AC24 alignment, and publish only after its verification flags are truthful. Review current AWS service terms before retaining generated geometry; record route identity and geometry provenance separately.
 
 ### 3. Lightsail Containers
 
@@ -166,7 +167,7 @@ suitable SPA rewrite so refreshing `/r/ac24-patuli-howrah`, `/account`,
 `/drive`, `/admin`, `/admin/routes`, `/demo`, and `/ops/<id>` works without swallowing asset
 404s.
 
-Add the final Amplify origin to API CORS and the Google key's permitted referrers. Test preflight requests, Google assets, and route computation. If setting Content Security Policy, allow only the Google Maps origins actually observed and test it instead of pasting a policy that breaks the map. Give hashed assets long caching and the HTML shell short caching.
+Add the final Amplify origin to API CORS and the Location key's allowed origins. Test preflight requests, Amazon map assets, and route computation. If setting Content Security Policy, allow only the Amazon Location endpoints actually observed and test it instead of pasting a policy that breaks the map. Give hashed assets long caching and the HTML shell short caching.
 
 ### 5. Logs and cost control
 

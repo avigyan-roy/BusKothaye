@@ -6,7 +6,7 @@ import {
   SCHEMA_VERSION,
 } from '@buskothay/shared';
 import { bearerToken } from '../auth/capabilities.js';
-import { ApiProblem, badRequest } from '../http/errors.js';
+import { ApiProblem, badRequest, routeNotFound } from '../http/errors.js';
 import type { AccountService } from '../service/account-service.js';
 import { requireAdmin } from '../service/demo-service.js';
 import type { JourneyRepository } from '../store/types.js';
@@ -74,6 +74,30 @@ export function createAdminRoutesRouter(
     registry.upsert(record);
     res.setHeader('Cache-Control', 'no-store');
     res.json(record);
+  });
+
+  router.delete('/:routeId', async (req, res) => {
+    const principal = await accounts.authenticate(bearerToken(req.get('Authorization')));
+    requireAdmin(principal);
+    const routeId = req.params.routeId;
+    if (!registry.has(routeId)) throw routeNotFound();
+
+    // Order matters: the durable record goes first, so a failed write leaves the
+    // route exactly as it was rather than live-but-unpersisted.
+    await repo.deleteRouteOverride(routeId);
+    const outcome = registry.removeOverride(routeId);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      schemaVersion: SCHEMA_VERSION,
+      routeId,
+      outcome,
+      message:
+        outcome === 'removed'
+          ? 'The route was withdrawn and is no longer published.'
+          : outcome === 'reverted'
+            ? 'Your edits were withdrawn. The route reverted to its bundled version.'
+            : 'That route has no administrator edits to withdraw.',
+    });
   });
 
   return router;

@@ -98,7 +98,7 @@ export const en = {
     listUnavailable:
       'Live journey listings could not be refreshed. The stops and route information below are still available.',
     noneHelp:
-      'When someone on an AC24 bus shares their location, it will appear here within a few seconds.',
+      'When someone on board shares their location, this bus will appear within a few seconds.',
     waitingFirstFix: 'Waiting for the first location.',
     waitingHelp: 'A journey has started but no location has been accepted yet.',
     selectJourney: 'Journey',
@@ -110,6 +110,7 @@ export const en = {
 
   freshness: {
     live: 'Live',
+    positionMayBeOld: 'Position may be old',
     dwelling: 'Stopped',
     estimated: 'Estimated',
     stale: 'Out of date',
@@ -129,6 +130,90 @@ export const en = {
     passed: 'Passed',
     near: 'At or near the stop',
     upcoming: 'Ahead',
+  },
+
+  /* The two ways a person looks for a bus, and the answer they get back. */
+  find: {
+    nearestStop: 'Nearest tracked stop to you',
+    locating: 'Finding your nearest stop…',
+    locationUnavailable: 'Location unavailable — choose your stop',
+    noStopYet: 'Where are you?',
+    useLocation: 'Use my location',
+    chooseStop: 'Choose a stop',
+    changeStop: 'Change stop',
+    ask: 'How do you want to find your bus?',
+    pathATitle: 'I know where I’m going',
+    pathABody: 'Pick two stops and see every tracked bus that runs between them.',
+    pathBTitle: 'I know which bus I want',
+    pathBBody: 'Pick a route and we’ll tell you when it reaches your stop.',
+    from: 'From',
+    to: 'To',
+    findBuses: 'Find buses',
+    routeSearchLabel: 'Search for a route number',
+    routeSearchPlaceholder: 'Route number',
+    stopSearchPlaceholder: 'Type a stop name',
+    chooseBothStops: 'Choose both stops to find a bus.',
+    sameStop: 'Choose two different stops.',
+    pickStopFirst: 'Choose your stop first, so we know where to time the bus to.',
+    noTrackedRoutes: 'No route has tracking geometry yet. An administrator adds one in the route console.',
+    trackedRouteCount: (count: number) =>
+      `${count} route${count === 1 ? '' : 's'} with map geometry ${count === 1 ? 'is' : 'are'} ready to track.`,
+    noStopMatch: (query: string) => `No stop called “${query}”`,
+    noStopMatchHelp: 'Check the spelling, or try a nearby landmark.',
+    changeStops: 'Change stops',
+    resultsHeading: (from: string, to: string) => `${from} → ${to}`,
+    resultsCount: (count: number) =>
+      count === 0
+        ? 'No direct bus'
+        : `${count} bus${count === 1 ? '' : 'es'} run${count === 1 ? 's' : ''} this way`,
+    noDirectBus: 'No direct bus between these stops',
+    noDirectBusHelp:
+      'Only routes with recorded geometry can be searched. Try a different pair of stops, or travel in two legs.',
+    arrivingAt: (stop: string) => `Arriving at ${stop}`,
+    expectedArrival: 'EXPECTED ARRIVAL',
+    noArrivalTime: 'NO ARRIVAL TIME',
+    arrivalEstimateOld: 'ARRIVAL — ESTIMATE IS OLD',
+    atYourStop: 'AT YOUR STOP',
+    busHasPassed: 'BUS HAS PASSED',
+    now: 'NOW',
+    gone: 'GONE',
+    minutesAway: (minutes: number) => `~${minutes} min away`,
+    noLiveBus: 'No live bus',
+    noLiveBusOn: (code: string) => `No live bus on ${code} right now`,
+    noLiveBusHelp: (stop: string) =>
+      `Nobody on board is sharing their location, so we cannot say where the bus is or when it will reach ${stop}. The stops below are still in order of travel.`,
+    shareGps: 'Share my GPS on this bus',
+    details: 'Details',
+    directionQuestion: 'Which way is your bus going?',
+    directionHelp: 'Choose the direction you are travelling in.',
+    towards: (destination: string) => `Towards ${destination}`,
+    startsAt: (origin: string) => `Starts at ${origin}`,
+    onlyOneDirection: 'Only one direction of this route is tracked.',
+    routeDoesNotStop: (code: string, stop: string) => `${code} does not stop at ${stop}`,
+    routeDoesNotStopHelp: (origin: string) =>
+      `This route runs from ${origin}. Pick a different stop, or go back and choose another bus.`,
+    changeMyStop: 'Change my stop',
+    yourStop: 'Your stop',
+    stopPosition: (index: number, total: number) => `stop ${index} of ${total}`,
+    alongRoute: (text: string) => `${text} along the route`,
+    nearStop: (stop: string) => `near ${stop}`,
+    stopsBefore: (count: number) =>
+      count === 0 ? 'at your stop' : `${count} stop${count === 1 ? '' : 's'} before yours`,
+    busStandingAt: (stop: string) => `Bus is standing at ${stop}`,
+    busPassedCount: (passed: number, total: number) => `Bus has passed ${passed} of ${total} stops`,
+    busPositionUnknown: 'Bus position unknown',
+    statusPassed: 'Bus has passed',
+    statusAt: 'Bus is here now',
+    statusApproaching: 'Bus approaching',
+    statusAhead: 'Still to come',
+    statusUnknown: 'Waiting for a live bus',
+    passedShort: 'passed',
+    atStopShort: 'at stop',
+    noEstimate: 'no estimate',
+    howWorkedOut: 'How this position is worked out',
+    howWorkedOutBody:
+      'The bus position comes from a passenger or crew member on board sharing GPS. ETAs are estimates based on recent speed along the route.',
+    otherRoutes: 'Other tracked routes',
   },
 
   contribute: {
@@ -233,16 +318,14 @@ export const en = {
       'This browser cannot draw the map, so the stop list is shown on its own.',
     notFoundTitle: 'That page does not exist',
     notFoundBody: 'The link may be out of date.',
-    goToRoute: 'Go to the AC24 map',
+    goToRoute: 'Find your bus',
     offline: 'Cannot reach the server.',
   },
 
   map: {
-    developmentBasemap:
-      'Development basemap. This is not the production street map, and it has limited street detail.',
-    testBasemap: 'Street tiles are disabled for this deterministic test build.',
+    testBasemap: 'Amazon street tiles are disabled for this deterministic test build.',
     missingKey:
-      'Google Maps is not configured. Set VITE_GOOGLE_MAPS_API_KEY, then rebuild the website.',
+      'Amazon Location is not configured. Set VITE_LOCATION_API_KEY, then rebuild the website.',
     providerFailed:
       'The street-map style could not load. The route remains available on a plain surface.',
     tileDegraded:

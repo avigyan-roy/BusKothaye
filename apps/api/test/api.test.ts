@@ -209,6 +209,129 @@ describe('routes', () => {
     expect(publicRoute.body.schedule?.source).toBe('API route editor test');
     expect(await server.repo.listRouteOverrides()).toHaveLength(1);
   });
+
+  it('publishes a brand-new route to passengers without any code change', async () => {
+    const admin = await loginAdmin();
+    const listing = await http<AdminRouteListResponse>(server.url, 'GET', '/v1/admin/routes', {
+      token: admin,
+    });
+    // Derived from committed geometry so the coordinates are real, but given a
+    // new ID, code, colour and stop names: this is the proof that the passenger
+    // API serves whatever the administrator creates, not a known route.
+    const source = listing.body.routes.find((record) => record.route.id === ROUTE_ID)!.route;
+    const created = structuredClone(source);
+    created.id = 'test-new-corridor';
+    created.code = 'TX9';
+    created.color = '#123456';
+    created.name = 'TX9 test corridor';
+    created.version = 'test-new-1';
+    created.stops = created.stops.map((stop, index) => ({
+      ...stop,
+      id: `tx9-${index}`,
+      name: `TX9 stop ${index}`,
+    }));
+    created.segments = created.stops.slice(0, -1).map((stop, index) => ({
+      fromStopId: stop.id,
+      toStopId: created.stops[index + 1]!.id,
+      typicalSpeedMps: 6,
+      dwellAllowanceS: 20,
+    }));
+
+    const saved = await http(server.url, 'PUT', '/v1/admin/routes/test-new-corridor', {
+      token: admin,
+      body: { route: created },
+    });
+    expect(saved.status).toBe(200);
+
+    const routes = await http<{ routes: { id: string; code: string }[] }>(
+      server.url,
+      'GET',
+      '/v1/routes',
+    );
+    expect(routes.body.routes.some((route) => route.code === 'TX9')).toBe(true);
+
+    // And its stops are immediately searchable by a passenger.
+    const stops = await http<{ stops: { key: string }[] }>(server.url, 'GET', '/v1/stops');
+    expect(stops.body.stops.some((stop) => stop.key === 'tx9stop0')).toBe(true);
+    const arrivals = await http<{ arrivals: { routeId: string }[] }>(
+      server.url,
+      'GET',
+      '/v1/arrivals?from=tx9stop0&to=tx9stop7',
+    );
+    expect(arrivals.status).toBe(200);
+    expect(arrivals.body.arrivals.map((arrival) => arrival.routeId)).toEqual([
+      'test-new-corridor',
+    ]);
+  });
+
+  it('withdraws an administrator route without destroying bundled seed data', async () => {
+    const admin = await loginAdmin();
+    const passenger = await register('passenger');
+
+    const refused = await http(server.url, 'DELETE', `/v1/admin/routes/${ROUTE_ID}`, {
+      token: passenger,
+    });
+    expect(refused.status).toBe(403);
+
+    const listing = await http<AdminRouteListResponse>(server.url, 'GET', '/v1/admin/routes', {
+      token: admin,
+    });
+    const edited = structuredClone(listing.body.routes.find((r) => r.route.id === ROUTE_ID)!.route);
+    edited.version = 'withdraw-test-1';
+    edited.name = 'Edited name that should not survive';
+    await http(server.url, 'PUT', `/v1/admin/routes/${ROUTE_ID}`, {
+      token: admin,
+      body: { route: edited },
+    });
+
+    const withdrawn = await http<{ outcome: string }>(
+      server.url,
+      'DELETE',
+      `/v1/admin/routes/${ROUTE_ID}`,
+      { token: admin },
+    );
+    expect(withdrawn.status).toBe(200);
+    expect(withdrawn.body.outcome).toBe('reverted');
+    expect(await server.repo.listRouteOverrides()).toHaveLength(0);
+
+    // The bundled route is still published, at its committed version.
+    const publicRoute = await http<RouteDto>(server.url, 'GET', `/v1/routes/${ROUTE_ID}`);
+    expect(publicRoute.status).toBe(200);
+    expect(publicRoute.body.version).not.toBe('withdraw-test-1');
+    expect(publicRoute.body.name).not.toBe('Edited name that should not survive');
+  });
+
+  it('removes an administrator-created route entirely when it is withdrawn', async () => {
+    const admin = await loginAdmin();
+    const listing = await http<AdminRouteListResponse>(server.url, 'GET', '/v1/admin/routes', {
+      token: admin,
+    });
+    const created = structuredClone(listing.body.routes.find((r) => r.route.id === ROUTE_ID)!.route);
+    created.id = 'test-disposable-route';
+    created.code = 'TX8';
+    created.color = '#654321';
+    created.version = 'test-disposable-1';
+
+    expect(
+      (await http(server.url, 'PUT', '/v1/admin/routes/test-disposable-route', {
+        token: admin,
+        body: { route: created },
+      })).status,
+    ).toBe(200);
+
+    const removed = await http<{ outcome: string }>(
+      server.url,
+      'DELETE',
+      '/v1/admin/routes/test-disposable-route',
+      { token: admin },
+    );
+    expect(removed.body.outcome).toBe('removed');
+
+    expect((await http(server.url, 'GET', '/v1/routes/test-disposable-route')).status).toBe(404);
+    expect((await http(server.url, 'DELETE', '/v1/admin/routes/test-disposable-route', {
+      token: admin,
+    })).status).toBe(404);
+  });
 });
 
 describe('the full contributor path', () => {

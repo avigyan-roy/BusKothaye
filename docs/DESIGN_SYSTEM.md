@@ -65,15 +65,15 @@ On phones, the map stays visible behind/above a compact journey sheet. On deskto
 - Demo appears beside every simulated journey representation;
 - freshness, ETA absence, approximate geometry, stale, ended, and disconnected states are written explicitly;
 - map and stop list select the same stop and update the `?stop=` URL;
-- map controls and Google attribution remain unobstructed.
+- map controls and Amazon Location/data-provider attribution remain unobstructed.
 
-The Google map uses a dark scheme, route-colour polyline, Advanced Markers, live traffic, real-metre confidence circle, and restrained custom HTML marker content. Do not cover or restyle away Google's required attribution.
+The Amazon Location Maps V2 basemap follows the light/dark theme and uses MapLibre for the route-colour polyline, stop layers, live traffic, real-metre confidence area, and restrained custom vehicle marker. Do not cover or restyle away required attribution.
 
 ## Admin route console
 
 The route console is an operations tool in the same visual language. Desktop uses a narrow route directory plus a map/form editor; mobile stacks them. Number form sections and keep the map prominent. Ordered stops appear both as draggable numbered pins and editable rows. “Generate road path” is the primary geometry action; “Publish route” is a separate sticky action after review.
 
-Verification checkboxes must look consequential. A Google-generated path is not automatically labelled verified. Notices say what remains to review, not merely that an action succeeded.
+Verification checkboxes must look consequential. An Amazon-generated path is not automatically labelled verified. Notices say what remains to review, not merely that an action succeeded.
 
 ## Type, controls, and accessibility
 

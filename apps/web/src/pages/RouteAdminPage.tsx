@@ -23,6 +23,7 @@ export function RouteAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [routeVerified, setRouteVerified] = useState(false);
   const [stopsVerified, setStopsVerified] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!session?.account.isAdmin) return;
@@ -122,15 +123,47 @@ export function RouteAdminPage() {
       geometry: { type: 'LineString', coordinates: details.coordinates },
       provenance: {
         ...draft.provenance,
-        geometrySource: 'Google Maps Routes library road path from the ordered administrator stop pins',
-        geometryLicense: 'Google Maps Platform terms apply; the deployment owner must confirm permitted retention and display.',
-        geometrySourceUrl: 'https://developers.google.com/maps/documentation/javascript/routes/routes-class',
+        geometrySource: 'Amazon Location Routes V2 road path from the ordered administrator stop pins',
+        geometryLicense: 'AWS service terms apply; the deployment owner must confirm permitted retention and display.',
+        geometrySourceUrl: 'https://docs.aws.amazon.com/location/latest/developerguide/calculate-routes.html',
         isApproximateGeometry: true,
       },
     });
     setRouteVerified(false);
     const distance = details.distanceM === null ? '' : ` ${(details.distanceM / 1000).toFixed(1)} km.`;
-    setNotice(`Road path generated.${distance} Mark it verified only after checking the complete AC24 alignment.`);
+    setNotice(`Road path generated.${distance} Mark it verified only after checking the whole alignment against the road the bus uses.`);
+  }
+
+  /**
+   * Withdraw a route.
+   *
+   * A route that also exists as bundled seed data reverts to the bundled
+   * version rather than disappearing: the seed file is in version control, and
+   * a database delete must not look like it removed something it cannot touch.
+   * The server decides which happened and says so in its reply.
+   */
+  async function withdraw() {
+    if (!draft || selectedRecord === null) return;
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await api.deleteAdminRoute(accountToken, selectedRecord.route.id);
+      const refreshed = await api.listAdminRoutes(accountToken);
+      setRecords(refreshed.routes);
+      const next = refreshed.routes[0];
+      if (next) selectRecord(next);
+      else {
+        setDraft(null);
+        setSelectedId(null);
+      }
+      setNotice(result.message);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Could not withdraw the route.');
+    } finally {
+      setSaving(false);
+      setConfirmingDelete(false);
+    }
   }
 
   async function save() {
@@ -185,7 +218,7 @@ export function RouteAdminPage() {
           <div>
             <p className="route-admin__eyebrow">Operations console</p>
             <h1>Routes, stops & timetables</h1>
-            <p>Arrange stop pins, ask Google for a road-following path, review it, then publish a new immutable route revision.</p>
+            <p>Arrange stop pins, ask Amazon Location for a road-following path, review it, then publish a new immutable route revision.</p>
           </div>
           <button className="button" type="button" onClick={startNewRoute}>Add bus route</button>
         </header>
@@ -282,7 +315,24 @@ export function RouteAdminPage() {
 
               <footer className="route-admin__publish">
                 <div><b>Publish a new revision</b><span>The server validates stop order, line proximity, segments, and timetable before activation.</span></div>
-                <button className="button" type="button" onClick={save} disabled={saving}>{saving ? 'Publishing…' : 'Publish route'}</button>
+                <div className="route-admin__publish-actions">
+                  {selectedRecord === null ? null : confirmingDelete ? (
+                    <>
+                      <span className="route-admin__confirm">Withdraw {selectedRecord.route.code}?</span>
+                      <button className="button button--danger" type="button" onClick={withdraw} disabled={saving}>
+                        {saving ? 'Withdrawing…' : 'Yes, withdraw'}
+                      </button>
+                      <button className="button button--secondary" type="button" onClick={() => setConfirmingDelete(false)} disabled={saving}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button className="button button--secondary" type="button" onClick={() => setConfirmingDelete(true)} disabled={saving}>
+                      Withdraw route
+                    </button>
+                  )}
+                  <button className="button" type="button" onClick={save} disabled={saving}>{saving ? 'Publishing…' : 'Publish route'}</button>
+                </div>
               </footer>
             </div>
           ) : loading ? null : <p className="panel">Choose a route or add a new one.</p>}
@@ -314,7 +364,7 @@ function createBlankRoute(): RouteFixture {
     origin: stops[0]!.name,
     destination: stops[1]!.name,
     direction: 'outbound',
-    timezone: 'Asia/Kolkata',
+    timezone: localTimezone(),
     geometry: { type: 'LineString', coordinates: stops.map((stop) => [stop.lon, stop.lat]) },
     stops,
     segments: rebuildSegments(stops, []),
@@ -327,9 +377,9 @@ function createBlankRoute(): RouteFixture {
       verifiedOn: new Date().toISOString().slice(0, 10),
       isApproximateGeometry: true,
       areStopsApproximate: true,
-      notes: 'Verify the source, stop pins, and Google-generated road path before publishing.',
+      notes: 'Verify the source, stop pins, and Amazon-generated road path before publishing.',
     },
-    schedule: defaultSchedule('Asia/Kolkata'),
+    schedule: defaultSchedule(localTimezone()),
   };
 }
 
@@ -361,6 +411,8 @@ function mean(values: readonly number[], fallback: number): number {
 function meanSpeed(route: RouteFixture): number { return Number(mean(route.segments.map((segment) => segment.typicalSpeedMps), 6).toFixed(1)); }
 function meanDwell(route: RouteFixture): number { return Math.round(mean(route.segments.map((segment) => segment.dwellAllowanceS), 20)); }
 function roundCoordinate(value: number): number { return Number(value.toFixed(6)); }
+/** A sensible starting point for a new route, not a fact about the deployment. */
+function localTimezone(): string { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
 function lines(value: string): string[] { return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).slice(0, 200); }
 function nullableUrl(value: string): string | null { return value.trim() === '' ? null : value.trim(); }
 function slug(value: string): string { return value.toLocaleLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }

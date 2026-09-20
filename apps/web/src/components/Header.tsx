@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { en } from '../content/en.js';
 import { site } from '../config/site.js';
 import { loadAccountSession } from '../lib/auth-session.js';
+import { setTheme, useTheme } from '../lib/theme.js';
 import './header.css';
-
-const THEME_KEY = 'buskothay.theme';
 
 export function Header({
   routeCode,
@@ -18,9 +17,7 @@ export function Header({
 }) {
   const [account, setAccount] = useState(() => loadAccountSession()?.account);
   const [now, setNow] = useState(() => new Date());
-  const [theme, setTheme] = useState<'dark' | 'light'>(() =>
-    document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark',
-  );
+  const theme = useTheme();
 
   useEffect(() => {
     const refresh = () => setAccount(loadAccountSession()?.account);
@@ -32,12 +29,7 @@ export function Header({
     };
   }, []);
 
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    document.documentElement.setAttribute('data-theme', next);
-    try { window.localStorage.setItem(THEME_KEY, next); } catch { /* storage can be disabled */ }
-  };
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark');
 
   return (
     <header className="site-header">
@@ -50,7 +42,6 @@ export function Header({
           </svg>
           <span>Bus<strong>Kothay</strong></span>
         </Link>
-        <span className="site-header__city">Kolkata</span>
         {routeCode ? (
           <div className="site-header__route">
             <span className="route-badge">{routeCode}</span>
@@ -59,8 +50,15 @@ export function Header({
         ) : null}
         <nav className="site-header__actions" aria-label="Account and page navigation">
           <span className="site-header__clock"><b>{now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</b><small>NOW</small></span>
-          <button className="site-header__action" type="button" onClick={toggleTheme} aria-pressed={theme === 'light'}>
-            ◐ <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+          <button
+            className="site-header__action"
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={theme === 'light'}
+            title={theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+          >
+            <span aria-hidden="true">◐</span>
+            <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
           {account?.isAdmin === true ? <Link to="/admin/routes" className="site-header__action">Routes</Link> : null}
           {account?.isAdmin === true ? <Link to="/demo" className="site-header__action">Demo</Link> : null}

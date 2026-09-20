@@ -18,7 +18,7 @@ AI to change — open the file in an ordinary editor and edit it.
 | Journey sheet and desktop drawer | `apps/web/src/features/journeys/JourneySheet.tsx`, `journey-sheet.css` | Collapsed height, expand/collapse, internal scrolling, Escape |
 | Floating map controls and their icons | `apps/web/src/components/MapControlButton.tsx` | 44px targets, focus ring, active state on follow |
 | Map behaviour, layers, markers | `apps/web/src/features/map/MapView.tsx`, `map-view.css` | Stop selection, recentre, attribution never cropped, resize |
-| Google Maps loader and public settings | `apps/web/src/features/map/googleMaps.ts`, `apps/web/src/config/site.ts`, `apps/web/.env.local` | Referrer/API restrictions, map ID, attribution, missing-key fallback |
+| Amazon map style and public settings | `apps/web/src/features/map/mapStyle.ts`, `apps/web/src/config/site.ts`, `apps/web/.env.local` | Allowed origins, API-key restrictions, region, attribution, missing-key fallback |
 | Stop-and-route finder | `apps/web/src/pages/HomePage.tsx`, `home-page.css` | Both paths work from real route data; picker and geolocation recovery work |
 | Route administration | `apps/web/src/pages/RouteAdminPage.tsx`, `apps/web/src/features/admin/RouteMapEditor.tsx`, `apps/api/src/routes/admin-routes.ts` | Admin-only access, ordered pins, new version, validation, durable override |
 | Arrival panel and stop list | `apps/web/src/features/journeys/` | Null ETA states, passed stops, long stop names |
@@ -56,7 +56,7 @@ AI to change — open the file in an ordinary editor and edit it.
 `--color-accent-hover`, `--color-accent-soft` and `--color-on-accent` together in
 `tokens.css`, then review the selected-stop and status paint literals in
 `MapView.tsx`. The route line itself uses the selected route's data-owned
-`color`, not the global accent. Google map overlays receive concrete colour
+`color`, not the global accent. MapLibre overlays receive concrete colour
 values from the selected route. Do not search and replace every hex.
 Check primary buttons, selected rows, focus rings, and the dark basemap; status
 must still read correctly in words because colour never carries meaning alone.
@@ -121,7 +121,7 @@ path**. Inspect the complete line against the supplied corridor references,
 then publish; the console creates a new immutable version and the server validates
 the geometry. Keep `isApproximateGeometry` true until an operator-reviewed
 GPS/GPX trace or equally authoritative full-route shape supports every section;
-a Google driving path alone is not proof of the bus alignment.
+an Amazon Location driving path alone is not proof of the bus alignment.
 
 ## Style
 

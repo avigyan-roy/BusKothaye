@@ -44,7 +44,6 @@
 .stop-picker__list b, .stop-picker__list small { display: block; }
 .stop-picker__list small { color: var(--text-faint); }
 .stop-picker footer { padding: 12px 18px calc(12px + var(--inset-bottom)); text-align: right; }
-@keyframes soft-pulse { 50% { opacity: .45; transform: scale(.8); } }
 
 @media (max-width: 760px) {
   .home-screen { padding-top: 24px; }

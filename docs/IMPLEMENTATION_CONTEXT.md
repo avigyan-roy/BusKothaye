@@ -1,6 +1,6 @@
 # Current implementation context
 
-Last updated **2026-09-19**. This is a historical handoff plus current provider/design correction; the decision record and source code are authoritative when this file describes superseded work.
+Last updated **2026-09-20**. This is a historical handoff plus current provider/design correction; the decision record and source code are authoritative when this file describes superseded work.
 technical handoff for Claude, Codex, or another maintainer. Read it with
 [PROGRESS.md](../PROGRESS.md) and the authoritative build request at
 `../Claude outputs/CLAUDE_BUILD_PROMPT.md` in the supplied workspace.
@@ -15,7 +15,7 @@ those counts have not been reproduced from this checkout.
 
 | Phase | Status in this working tree |
 | --- | --- |
-| 1 — Google Maps | Maps/Advanced Markers/traffic and Routes-based admin editor implemented; real provider remains unverified without a configured Google key/network access. |
+| 1 — Amazon Location | Maps V2/MapLibre/traffic and Routes V2 admin editor implemented; the real provider remains unverified without a configured Location API key and network access. |
 | 2 — Accounts and authorization | Implemented; compiles. Tests still need migration and expansion. |
 | 3 — 20-route WBTC catalogue | Implemented. AC24 has approximate geometry; 19 entries deliberately have no coordinate fields. |
 | 4 — demo console and persistent fleet | Console, API control plane, lease, and worker implemented; compile verified, live end-to-end run still pending. |
@@ -72,8 +72,8 @@ disposable copy `/tmp/buskothay-check-45BXsN/repo` is used with Node **24.21**.
   this did not include the new changes.
 - After the continuation changes above: `npm run build` passed for geometry,
   shared, API, simulator, and web.
-- No post-change lint, unit/API, Playwright, Docker, DynamoDB Local, real map, or
-  physical-device result has been claimed yet.
+- Verification notes in this historical handoff may be stale. Use the latest
+  command output and final implementation report rather than this snapshot.
 
 Refresh the verification copy after edits:
 
@@ -96,7 +96,8 @@ rsync -a --delete --exclude node_modules --exclude .git ./ /tmp/buskothay-check-
 
 - Do not deploy and do not spend time on Git push work.
 - No Docker command is installed, so image and DynamoDB Local checks are currently blocked.
-- Amazon/OSM/OSRM hosts were unreachable and no Location API key is present.
+- No production Location API key is present, so real AWS tiles and route calls
+  require configured-browser verification.
 - Preserve unrelated documentation edits already in the dirty worktree.
 - Use Node 24; system Node 22 is unsupported for this project.
 

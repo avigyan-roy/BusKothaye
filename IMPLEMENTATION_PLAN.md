@@ -1,6 +1,6 @@
 # Community-Powered Transport Information Layer — 3-Day Implementation Plan
 
-> Historical background only. The 2026-09-19 decision record replaces this plan's Amazon Location/MapLibre provider choice, route-editing deferral, and visual direction with Google Maps Platform, an authenticated route editor, and the supplied HTML prototype. Do not copy provider-specific pseudocode from this file into the current application.
+> Historical background only. The current decision record keeps this plan's Amazon Location/MapLibre provider choice, while replacing its route-editing deferral and visual direction with an authenticated route editor and the supplied HTML prototype. Current docs and source override provider-specific pseudocode in this file.
 
 **Target event:** WeMakeDevs × AWS *Bharat Builds Tour*, Event 01 — **First Commit**, 17–20 Sept 2026
 **Track we are targeting:** **Ship It** (deployed on AWS, live URL, architecture is scored)
@@ -321,7 +321,7 @@ const map = new maplibregl.Map({
 
 | Option | Why not |
 |---|---|
-| Google Maps JS API | Needs a billing-enabled Google Cloud project and a card; weakens the AWS story for zero technical gain; per-load pricing. |
+| Third-party proprietary map SDK | Adds another account and billing surface while weakening the AWS architecture story for no product gain. |
 | Leaflet + raster OSM tiles | Leaflet is fine, but raster tiles look dated and, more practically, the public OSM tile server's usage policy is not appropriate for an app. We would need a tile provider anyway. |
 | MapLibre + Protomaps/MapTiler | Perfectly good, but it is one more third-party account and it throws away the free AWS alignment. |
 | Mapbox GL JS | Licence change is why MapLibre exists; needs a token. |
@@ -1610,7 +1610,7 @@ Keep it to **under 25 seconds total**, in quick cuts. The console is evidence, n
 |---|---|
 | App Runner service page: status Running, the live `.awsapprunner.com` URL | Proves Ship It deployment, which is the track requirement |
 | DynamoDB item view: a journey plus its update items, including a **rejected** one with its reason | Proves persistence and that rejection is real |
-| Amazon Location API key with its restrictions | Proves the maps are AWS, not Google |
+| Amazon Location API key with its restrictions | Proves the maps are served by the selected AWS provider |
 | CloudWatch dashboard: confidence over time with the blackout visible, and rejections by reason | Proves observability and *visually reinforces the core feature* |
 
 Do **not** film: IAM policy editors, the Amplify build log, VPC screens (we have none), or the billing page.

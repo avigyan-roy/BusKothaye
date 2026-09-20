@@ -1,6 +1,6 @@
 # Frontend build instructions
 
-Build the mobile experience first, using React, Vite, TypeScript, and the Google Maps JavaScript API. Follow [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) precisely and use [API_CONTRACT.md](API_CONTRACT.md) for every real interaction. Product name and route follow [ROUTE_AND_CONTENT.md](ROUTE_AND_CONTENT.md).
+Build the mobile experience first, using React, Vite, TypeScript, MapLibre GL JS, and Amazon Location Maps V2. Follow [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) precisely and use [API_CONTRACT.md](API_CONTRACT.md) for every real interaction. Product name and route follow [ROUTE_AND_CONTENT.md](ROUTE_AND_CONTENT.md).
 
 ## Pages and navigation
 
@@ -19,22 +19,22 @@ Avoid a large component framework. Use plain CSS/CSS modules plus shared design 
 
 ## Passenger map: real integration
 
-1. Fetch route geometry and active journeys. Load Google Maps with `@googlemaps/js-api-loader` only when a map surface mounts; keep a nonzero responsive container height.
-2. Use a public browser key restricted by exact HTTPS referrers and only the required Maps JavaScript/Routes services. The key is public by design but it is still never hard-coded or logged.
-3. Draw the versioned route LineString with a Google polyline and stops/bus/user positions with Advanced Markers. Select a stop from either the list or map; update both representations together.
+1. Fetch route geometry and active journeys. Mount MapLibre only when a map surface exists and keep a nonzero responsive container height.
+2. Use a public Amazon Location key restricted by exact HTTPS referrers, expiry, quota, Maps V2 reads, and Routes V2 `CalculateRoutes`. The key is public by design but it is still never hard-coded or logged.
+3. Load the Amazon Location Maps V2 `Standard` descriptor, then draw the versioned route LineString, stop layers, bus/user markers, and uncertainty polygon with MapLibre. Select a stop from either the list or map; update both representations together.
 4. Fit the route bounds once with padding for the real layout. Do not refit on every poll or fight the user when they pan. Provide a working “Show route”/recenter control.
 5. Add a bus marker only when position exists. Show no invented bus when `PENDING` or when the route has no active journey.
 6. Poll the selected journey about once per second. Use one in-flight request at a time, an abort controller, timeout, and backoff on errors. Pause when hidden and refetch when visible.
 7. Use shared bounded projection between responses. Never advance the marker forever after a network failure.
-8. Keep Google's logo, terms, and attribution UI visible and unobstructed. Use `ResizeObserver` when the layout changes. Dispose of overlays, markers, and listeners on unmount and avoid duplicate construction in React development mode.
+8. Keep Amazon Location/data-provider attribution visible and unobstructed. Use `ResizeObserver` when the layout changes. Dispose of maps, sources, markers, and listeners on unmount and avoid duplicate construction in React development mode.
 
-A credential-free test build shows an honest fallback rather than loading a second provider. A fully verified release requires actual Google tiles, route alignment, readable labels, provider attribution, traffic, and key restrictions. A blank map is an error state, not an acceptable finished feature.
+A credential-free test build shows an honest basemap-free surface rather than loading a second provider. A fully verified release requires actual Amazon tiles, route alignment, readable labels, provider attribution, traffic, and key restrictions. A blank map is an error state, not an acceptable finished feature.
 
 Handle loader/tile failures with an inline explanation and Retry. Retain the textual stop/arrival view if the provider is unavailable. Do not silently change providers and mislabel the source.
 
 ## Route editor
 
-The admin editor uses ordered stop pins as waypoints. Pins are draggable, map click can add a stop, and manual latitude/longitude fields remain available for precise correction. “Generate road path” is an explicit operator action because it calls Google's billable Routes library. Use high-quality driving geometry through the stops without reordering them. Show distance and a review warning, then let the administrator mark the line and boarding points verified independently.
+The admin editor uses ordered stop pins as waypoints. Pins are draggable, map click can add a stop, and manual latitude/longitude fields remain available for precise correction. “Generate road path” is an explicit operator action because it calls Amazon Location Routes V2. Preserve waypoint order and request simple leg geometry. Show distance and a review warning, then let the administrator mark the line and boarding points verified independently.
 
 Publishing creates a new version through `PUT /v1/admin/routes/:routeId`; never mutate only frontend state or write route JSON from the browser. Edit identity, direction, route colour, timezone, typical speed, dwell, source, departures, and provenance. Preserve honest `illustrative` and `approximate` flags. The editor must remain usable on a narrow phone, but its desktop map/form workspace is intentionally denser than the passenger screen.
 

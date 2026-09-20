@@ -14,6 +14,8 @@ import type {
   LocationResponse,
   RouteDto,
   RouteListResponse,
+  StopDirectoryResponse,
+  ArrivalsResponse,
   AdminRouteListResponse,
   AdminRouteRecord,
   RouteFixture,
@@ -140,6 +142,22 @@ export const api = {
   listRoutes: (signal?: AbortSignal) =>
     request<RouteListResponse>('GET', '/v1/routes', { signal }),
 
+  listStops: (signal?: AbortSignal) =>
+    request<StopDirectoryResponse>('GET', '/v1/stops', { signal }),
+
+  listArrivals: (
+    query: { from: string; to?: string | null; routeId?: string | null },
+    signal?: AbortSignal,
+  ) => {
+    const params = new URLSearchParams({ from: query.from });
+    if (query.to) params.set('to', query.to);
+    if (query.routeId) params.set('routeId', query.routeId);
+    return request<ArrivalsResponse>('GET', `/v1/arrivals?${params.toString()}`, {
+      signal,
+      timeoutMs: 6000,
+    });
+  },
+
   listAdminRoutes: (accountToken: string, signal?: AbortSignal) =>
     request<AdminRouteListResponse>('GET', '/v1/admin/routes', {
       token: accountToken,
@@ -151,6 +169,13 @@ export const api = {
       'PUT',
       `/v1/admin/routes/${encodeURIComponent(route.id)}`,
       { token: accountToken, body: { route }, timeoutMs: 15_000 },
+    ),
+
+  deleteAdminRoute: (accountToken: string, routeId: string) =>
+    request<{ routeId: string; outcome: 'reverted' | 'removed' | 'absent'; message: string }>(
+      'DELETE',
+      `/v1/admin/routes/${encodeURIComponent(routeId)}`,
+      { token: accountToken },
     ),
 
   register: (username: string, password: string, role: AccountRole) =>

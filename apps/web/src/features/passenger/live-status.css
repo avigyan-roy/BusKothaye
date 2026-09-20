@@ -1,0 +1,40 @@
+.live-status {
+  display: inline-flex;
+  padding: 4px 10px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: var(--passed-soft);
+  color: var(--live);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.live-status__dot {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 8px currentcolor;
+}
+
+.live-status.is-live .live-status__dot { animation: soft-pulse 2.4s ease-in-out infinite; }
+
+.live-status.is-stale { background: var(--current-soft); color: var(--current); }
+.live-status.is-stale .live-status__dot { box-shadow: none; }
+
+.live-status.is-none {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+.live-status.is-none .live-status__dot { background: var(--text-faint); box-shadow: none; }
+
+.live-status__age {
+  color: var(--text-faint);
+  font-size: 13px;
+  font-weight: 400;
+}

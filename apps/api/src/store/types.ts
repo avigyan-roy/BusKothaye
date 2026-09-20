@@ -127,6 +127,12 @@ export interface JourneyRepository {
   /** Administrator-authored routes override the bundled seed catalogue. */
   listRouteOverrides(): Promise<RouteOverrideRecord[]>;
   putRouteOverride(record: RouteOverrideRecord): Promise<void>;
+  /**
+   * Withdraw an administrator's route. A route that also exists as bundled seed
+   * data reverts to the bundled version rather than vanishing, because the seed
+   * file is in Git and deleting a database row must not appear to delete it.
+   */
+  deleteRouteOverride(routeId: string): Promise<void>;
 
   /**
    * Create the journey, its route-membership entry and any idempotency marker

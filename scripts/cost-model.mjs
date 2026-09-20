@@ -42,10 +42,13 @@ const RATES = {
   lightsailContainerNano: 7.0, // 0.25 vCPU, 512 MB
   lightsailContainerMicro: 10.0, // 0.25 vCPU, 1 GB
 
-  // Google Maps JavaScript dynamic map loads. This is only an editable planning
-  // placeholder. CHECK the current Maps SKU, regional terms, free usage and
-  // Routes calls in the Google Cloud billing console before provisioning.
-  googleMapLoadsPer1000: 7.0,
+  // Amazon Location Maps V2 bills dynamic maps by GetTiles requests; style,
+  // glyph, and sprite requests are not billed. Routes V2 CalculateRoutes with
+  // Car is in the Core bucket. Both rates are editable planning placeholders:
+  // CHECK the current AWS pricing table and the response PricingBucket before
+  // provisioning.
+  locationTilesPer1000: 0.04,
+  locationCoreRoutesPer1000: 0.50,
 
   // CloudWatch Logs ingestion. CHECK for Mumbai.
   logsPerGbIngested: 0.57,
@@ -81,6 +84,10 @@ const input = {
   dutyCycle: arg('duty', 1),
   /** New interactive map sessions per day across all viewers. */
   mapSessionsPerDay: arg('sessions', 120),
+  /** Approximate Maps V2 tile requests made by a fresh interactive session. */
+  tilesPerMapSession: arg('tiles', 100),
+  /** Admin route-generation requests over the full 30-day period. */
+  routeCalculations: arg('routes', 20),
 };
 
 // ---------------------------------------------------------------------------
@@ -154,8 +161,9 @@ function model(variant, compute) {
   const logGb = (loggedRequests * 300) / 1e9;
   const logCost = logGb * RATES.logsPerGbIngested + logGb * RATES.logsPerGbStored;
 
-  const mapLoads = input.mapSessionsPerDay * DAYS;
-  const mapCost = (mapLoads / 1000) * RATES.googleMapLoadsPer1000;
+  const mapTileRequests = input.mapSessionsPerDay * DAYS * input.tilesPerMapSession;
+  const mapCost = (mapTileRequests / 1000) * RATES.locationTilesPer1000;
+  const routeCost = (input.routeCalculations / 1000) * RATES.locationCoreRoutesPer1000;
 
   // Amplify: ~30 builds of ~3 minutes, a 1 MB bundle, modest transfer.
   const amplifyCost =
@@ -178,7 +186,8 @@ function model(variant, compute) {
       ['DynamoDB reads', readCost],
       ['DynamoDB storage', storageCost],
       ['CloudWatch Logs', logCost],
-      ['Google dynamic map loads', mapCost],
+      ['Amazon map tile requests', mapCost],
+      ['Amazon core route calls', routeCost],
       ['Amplify Hosting', amplifyCost],
       ['ECR storage', ecrCost],
       ['Cognito', cognitoCost],
@@ -242,36 +251,36 @@ report(model(VARIANTS.optimised, COMPUTE.lightsail));
 report(model(VARIANTS.lean, COMPUTE.lightsail));
 
 // ---------------------------------------------------------------------------
-// Sensitivity: browser map pricing is the one cost this model cannot pin down, so show
-// the headroom rather than pretending to a total.
+// Sensitivity: Location usage depends on how many tiles each viewport fetches,
+// so show the headroom rather than pretending the placeholder is exact.
 // ---------------------------------------------------------------------------
 const lean = model(VARIANTS.lean, COMPUTE.lightsail);
-const withoutMaps = lean.lines
-  .filter(([name]) => name !== 'Google dynamic map loads')
+const withoutLocation = lean.lines
+  .filter(([name]) => !name.startsWith('Amazon '))
   .reduce((sum, [, cost]) => sum + cost, 0);
 
 const TARGET = 35;
 const CEILING = 50;
 
-console.log('\n--- Google Maps sensitivity ---');
+console.log('\n--- Amazon Location sensitivity ---');
 console.log(
-  `Everything except Google Maps, lean on Lightsail: ${money(withoutMaps)} for ${DAYS} days.`,
+  `Everything except Amazon Location, lean on Lightsail: ${money(withoutLocation)} for ${DAYS} days.`,
 );
 console.log(
-  `Headroom for maps and route computations: ${money(TARGET - withoutMaps)} to the $${TARGET} target, ` +
-    `${money(CEILING - withoutMaps)} to the $${CEILING} ceiling.`,
+  `Headroom for map tiles and route computations: ${money(TARGET - withoutLocation)} to the $${TARGET} target, ` +
+    `${money(CEILING - withoutLocation)} to the $${CEILING} ceiling.`,
 );
 console.log(
-  `At the placeholder $${RATES.googleMapLoadsPer1000}/1,000 that is ` +
-    `${(((TARGET - withoutMaps) / RATES.googleMapLoadsPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} dynamic map loads ` +
-    `to target, about ${Math.round(((TARGET - withoutMaps) / RATES.googleMapLoadsPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
+  `At the placeholder $${RATES.locationTilesPer1000}/1,000 GetTiles requests that is ` +
+    `${(((TARGET - withoutLocation) / RATES.locationTilesPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} tile requests ` +
+    `to target, about ${Math.round(((TARGET - withoutLocation) / RATES.locationTilesPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
 );
-console.log('Routes-library computations are a separate billable SKU and are not modelled here.');
+console.log(`The scenario also includes ${input.routeCalculations} Core CalculateRoutes requests.`);
 
 console.log(
-  '\nRates marked CHECK in this file are unverified. Google Maps pricing and free usage',
+  '\nRates marked CHECK in this file are unverified. Amazon Location pricing and free usage',
 );
 console.log(
   'can change and the value above is a placeholder.',
 );
-console.log('Confirm Maps and Routes SKUs first: they can decide the outcome.');
+console.log('Confirm Maps V2 and Routes V2 pricing buckets first: they can decide the outcome.');

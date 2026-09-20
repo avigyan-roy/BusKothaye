@@ -6,18 +6,50 @@
  * caller decides what to say instead.
  */
 
-/** "6–9 min" for a range, "7 min" for a point, null when there is nothing to say. */
-export function formatEtaRange(
-  seconds: number | null,
-  range: readonly [number, number] | null,
-): string | null {
-  if (range !== null) {
-    const low = Math.max(1, Math.round(range[0] / 60));
-    const high = Math.max(low, Math.round(range[1] / 60));
-    return low === high ? `${low}` : `${low}–${high}`;
+/**
+ * The arrival, as a clock time.
+ *
+ * A passenger standing at a stop compares what the screen says with the clock on
+ * their own phone, so the answer is a time of day — one time, in 24-hour form,
+ * matching every printed timetable and station board in the country. "15–20
+ * minutes" is the same information in a shape nobody can act on: it cannot be
+ * compared with anything, and two people reading it disagree about when to look
+ * up. The spread has not been hidden — it is why `minutes` is offered beside the
+ * clock as a rough "how long", and why a stale journey is labelled rather than
+ * given a more precise-looking number.
+ *
+ * `fromMs` is the device clock on purpose. The number has to agree with the
+ * watch the person is wearing, not with the server's idea of now.
+ */
+export interface Arrival {
+  /** "18:53" — 24-hour, zero-padded, always exactly five characters. */
+  readonly clock: string;
+  /** Whole minutes from now, at least 1. Secondary to the clock, never instead. */
+  readonly minutes: number;
+  readonly atMs: number;
+}
+
+export function arrivalAt(
+  etaSeconds: number | null | undefined,
+  fromMs: number = Date.now(),
+): Arrival | null {
+  if (etaSeconds === null || etaSeconds === undefined || !Number.isFinite(etaSeconds)) {
+    return null;
   }
-  if (seconds === null) return null;
-  return String(Math.max(1, Math.round(seconds / 60)));
+  const seconds = Math.max(0, etaSeconds);
+  const atMs = fromMs + seconds * 1000;
+  return {
+    clock: formatClock(atMs),
+    minutes: Math.max(1, Math.round(seconds / 60)),
+    atMs,
+  };
+}
+
+/** 24-hour wall-clock time for an instant, in the device's own timezone. */
+export function formatClock(atMs: number): string {
+  const at = new Date(atMs);
+  if (Number.isNaN(at.getTime())) return '--:--';
+  return `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
 }
 
 /** Short, human elapsed time: "8 sec", "2 min", "1 hr 5 min". */

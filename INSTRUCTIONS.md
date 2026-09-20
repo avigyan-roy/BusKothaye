@@ -21,7 +21,7 @@ This is an application, not a visual prototype. Finish real data flow before dec
 7. One-dimensional route fusion, disagreement rejection, bounded prediction, recovery, and basic deterministic ETA.
 8. Local in-memory mode and a tested DynamoDB adapter for AWS. Both follow the same behaviour contract.
 9. Simulator that starts its own labelled demo journey, adds multiple sources, injects outages, and prints measured results.
-10. An authenticated route console at `/admin/routes` for routes, ordered stop pins, Google-generated road paths, operating assumptions, and timetables.
+10. An authenticated route console at `/admin/routes` for routes, ordered stop pins, Amazon Location-generated road paths, operating assumptions, and timetables.
 11. A reproducible npm workspace, lockfile, environment examples, Docker image, CI checks, Amplify configuration, and documented AWS setup.
 
 Do not cut the real map, real API connection, mobile usability, or honest state handling to add extra features.
@@ -107,7 +107,7 @@ flowchart LR
   SIM[Labelled simulator] -->|Same HTTP contract| API
   WEB[React passenger view on Amplify] -->|Poll fused state| API
   API <-->|Versioned authoritative state| DB[(DynamoDB)]
-  WEB -->|Maps, markers, traffic, route computation| MAPS[Google Maps Platform]
+  WEB -->|Maps V2 tiles, markers, traffic, Routes V2 computation| MAPS[Amazon Location Service]
   API --> LOGS[CloudWatch logs]
   ROUTE[Committed AC24 route fixture] --> API
 ```

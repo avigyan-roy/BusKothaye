@@ -353,6 +353,19 @@ export class DynamoJourneyRepository implements JourneyRepository {
     }
   }
 
+  async deleteRouteOverride(routeId: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteCommand({
+          TableName: this.table,
+          Key: { PK: 'CONFIG#ROUTES', SK: `ROUTE#${routeId}` },
+        }),
+      );
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not delete route override: ${errorName(error)}`);
+    }
+  }
+
   async createJourney(
     snapshot: JourneySnapshot,
     idempotency: { scope: string; keyHash: string; contributorId: string } | null,

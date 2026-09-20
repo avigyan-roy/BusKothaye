@@ -11,7 +11,6 @@ import {
   type ContributorSession,
 } from '../lib/session.js';
 import { en } from '../content/en.js';
-import { site } from '../config/site.js';
 import { useRoute } from '../hooks/useRoute.js';
 import { useRoutes } from '../hooks/useRoutes.js';
 import { RouteSwitcher } from '../features/journeys/RouteSwitcher.js';
@@ -32,9 +31,12 @@ import './drive-page.css';
  */
 export function DrivePage() {
   const [searchParams] = useSearchParams();
-  const [selectedRouteId, setSelectedRouteId] = useState<string>(site.defaultRouteId);
-  const { route } = useRoute(selectedRouteId);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const { routes, error: routesError } = useRoutes();
+  // No hardcoded starting route: the first one the server says can be tracked.
+  const routeId =
+    selectedRouteId ?? routes.find((candidate) => candidate.trackingAvailable)?.id ?? '';
+  const { route } = useRoute(routeId);
   const [account, setAccount] = useState<AccountSession | null>(() => loadAccountSession());
   const [session, setSession] = useState<ContributorSession | null>(() => loadSession());
   const [busy, setBusy] = useState(false);
@@ -57,11 +59,15 @@ export function DrivePage() {
       setFormError(en.account.requiredForCrew);
       return;
     }
+    if (routeId === '') {
+      setFormError('No route with tracking geometry is available yet.');
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
       const created = await api.createJourney(
-        selectedRouteId,
+        routeId,
         crypto.randomUUID(),
         account.token,
       );
@@ -207,7 +213,7 @@ export function DrivePage() {
             <section className="panel stack">
               <h2>{en.contribute.startJourney}</h2>
               <p className="muted">
-                {en.contribute.routeLabel}: {route ? route.dto.name : site.defaultRouteId}
+                {en.contribute.routeLabel}: {route ? route.dto.name : en.common.loading}
               </p>
               <button type="button" className="button" onClick={startJourney} disabled={busy}>
                 {en.contribute.startJourney}
@@ -216,7 +222,7 @@ export function DrivePage() {
               {routes.length > 0 ? (
                 <RouteSwitcher
                   routes={routes}
-                  currentRouteId={selectedRouteId}
+                  currentRouteId={routeId}
                   onSelect={setSelectedRouteId}
                   compact
                 />

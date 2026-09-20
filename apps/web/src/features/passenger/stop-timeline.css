@@ -1,0 +1,161 @@
+.stop-timeline {
+  margin: 0;
+  padding: 6px 0 10px;
+  list-style: none;
+}
+
+.timeline-row {
+  position: relative;
+  display: grid;
+  width: 100%;
+  padding: 11px 22px;
+  grid-template-columns: 38px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The spine. Trimmed at the ends so the line starts and stops at a stop dot. */
+.timeline-row::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 38px;
+  width: 1px;
+  background: var(--border-strong);
+  content: '';
+}
+.stop-timeline li:first-child .timeline-row::before { top: 50%; }
+.stop-timeline li:last-child .timeline-row::before { bottom: 50%; }
+
+.timeline-row:hover { background: var(--surface-elevated); }
+
+.timeline-row__blob {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  place-items: center;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.timeline-row__name { display: block; font-size: 16.5px; font-weight: 600; }
+
+.timeline-row__sub {
+  display: flex;
+  margin-top: 2px;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: var(--text-faint);
+  font-size: 12.5px;
+}
+
+.timeline-row__status { font-weight: 600; }
+.timeline-row__status.is-passed { color: var(--passed); }
+.timeline-row__status.is-at { color: var(--current); }
+.timeline-row__status.is-approaching,
+.timeline-row__status.is-ahead { color: var(--approaching); }
+
+.timeline-row__eta {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-row__eta small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-weight: 400;
+}
+
+/* --- the three transport states ---------------------------------------- */
+
+.timeline-row.is-passed .timeline-row__blob { border-color: var(--passed); background: var(--passed); }
+.timeline-row.is-passed .timeline-row__name { color: var(--text-secondary); font-weight: 500; }
+.timeline-row.is-passed .timeline-row__eta { color: var(--text-faint); font-weight: 400; }
+
+.timeline-row.is-at { background: var(--current-soft); }
+.timeline-row.is-at .timeline-row__blob {
+  border-color: var(--current);
+  background: var(--current);
+  box-shadow: 0 0 12px var(--current-soft);
+}
+.timeline-row.is-at .timeline-row__eta { color: var(--current); }
+
+.timeline-row.is-approaching .timeline-row__blob {
+  border-color: var(--approaching);
+  background: var(--approaching);
+}
+.timeline-row.is-ahead .timeline-row__blob {
+  border-color: var(--approaching);
+  background: transparent;
+  color: var(--approaching);
+}
+.timeline-row.is-unknown .timeline-row__blob { background: transparent; }
+
+/*
+ * The live indicator. It marks the one stop the bus is actually at, and it
+ * pulses so that "live" is visible at a glance rather than only readable. Slow
+ * and low-contrast on purpose: this sits beside an arrival time people are
+ * trying to read.
+ */
+.timeline-row__pulse {
+  position: absolute;
+  inset: -7px;
+  border: 1.5px solid var(--current);
+  border-radius: 50%;
+  animation: stop-pulse 2.6s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes stop-pulse {
+  0% { opacity: 0.55; transform: scale(0.7); }
+  70% { opacity: 0; transform: scale(1.45); }
+  100% { opacity: 0; transform: scale(1.45); }
+}
+
+/* --- selection --------------------------------------------------------- */
+
+.timeline-row.is-selected { background: var(--accent-soft); }
+.timeline-row.is-selected.is-at { background: var(--current-soft); }
+.timeline-row.is-selected::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--accent);
+  content: '';
+}
+.timeline-row.is-selected .timeline-row__eta { color: var(--accent); }
+.timeline-row.is-selected.is-at .timeline-row__eta { color: var(--current); }
+
+.timeline-row__tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  vertical-align: 2px;
+}
+
+@media (max-width: 760px) {
+  .timeline-row { padding: 11px 16px; grid-template-columns: 34px 1fr auto; }
+  .timeline-row::before { left: 34px; }
+}

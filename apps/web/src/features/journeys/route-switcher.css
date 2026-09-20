@@ -34,7 +34,7 @@
   text-align: left;
   text-decoration: none;
   font: inherit;
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .route-switcher__list > button {

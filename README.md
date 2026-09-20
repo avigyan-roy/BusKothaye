@@ -1,28 +1,28 @@
 # BusKothay
 
-BusKothay is a mobile-first Kolkata bus tracker. The featured route is **AC24, Patuli → Howrah**. Passengers can find a route by stops or route number, open a Google street map, choose a stop, and see the bus position, next stops, arrival estimate, and freshness. Drivers/contributors send ordinary HTTP location reports; the API fuses them into one bounded route position.
+BusKothay is a mobile-first Kolkata bus tracker. The featured route is **AC24, Patuli → Howrah**. Passengers can find a route by stops or route number, open an Amazon Location street map, choose a stop, and see the bus position, next stops, arrival estimate, and freshness. Drivers/contributors send ordinary HTTP location reports; the API fuses them into one bounded route position.
 
 The UI follows the supplied `buskothay-prototype final.html`: Archivo type, a near-black gridded canvas, cyan accent, compact Kolkata header, stop-first finder, light/dark themes, and a map/detail passenger layout.
 
 ## What is implemented
 
 - React + Vite + TypeScript web app
-- Google Maps JavaScript API with dark map, Advanced Markers, traffic, route/stops, bus/user positions, and confidence area
+- Amazon Location Maps V2 rendered by MapLibre GL JS, with light/dark map styles, live traffic, route/stops, bus/user positions, and a real-metre confidence area
 - explicit missing-key/service fallback that leaves stop and arrival text usable
-- authenticated `/admin/routes` console for route identity, ordered draggable stop pins, Google-generated road paths, timetable, speed/dwell assumptions, sources, and verification flags
+- authenticated `/admin/routes` console for route identity, ordered draggable stop pins, Amazon Location Routes V2 road paths, timetable, speed/dwell assumptions, sources, and verification flags
 - Express + Zod API with shared runtime schemas
 - versioned route overrides in DynamoDB cloud mode and ephemeral memory mode locally
 - driver/conductor/passenger account flows, contributor GPS, protected diagnostics, and an admin-controlled Demo fleet
 - pure one-dimensional route fusion, bounded estimation/stale states, deterministic ETA, simulator, and automated checks
 
-Google Maps is the only map provider. Amazon Location and MapLibre are not part of the current application.
+Amazon Location Service is the only street-map and route-computation provider. MapLibre is the renderer for Amazon's Maps V2 style; the missing-key/test surface contains no third-party tiles and is never presented as a street map.
 
 ## Requirements
 
 - Node.js 24 LTS (see `.nvmrc`)
 - npm 10.9 or newer
-- an internet connection for Google maps and route computation
-- optional Google Maps browser key and map ID for the actual map; the rest of the local app works with an honest fallback when these are absent
+- an internet connection for Amazon Location maps and route computation
+- optional restricted Amazon Location browser key for actual streets and route generation; the rest of the local app works with an honest basemap-free fallback when it is absent
 
 ## Run locally
 
@@ -35,25 +35,33 @@ cp apps/web/.env.example apps/web/.env.local
 npm run dev
 ```
 
+PowerShell equivalents for the two copy steps are:
+
+```powershell
+Copy-Item apps/api/.env.example apps/api/.env
+Copy-Item apps/web/.env.example apps/web/.env.local
+```
+
 Open [http://localhost:5173](http://localhost:5173). The API listens at `http://localhost:3001`. Root development also starts the supervised Demo fleet worker.
 
 Local memory mode creates the development-only administrator `admin` / `admin`. Sign in at `/admin`, edit routes at `/admin/routes`, and dispatch simulated buses at `/demo`. Use different production credentials; the API rejects the development pair in production.
 
-## Configure Google Maps locally
+## Configure Amazon Location locally
 
-Create a browser key in a Google Cloud project and enable the Maps JavaScript API and the Routes functionality used by the JavaScript Routes library. Create a map ID for Advanced Markers. Restrict a development key to the exact local origins you use and only the required APIs.
+Create an Amazon Location API key in `ap-south-1` (or your configured region). Allow only Maps V2 read actions and Routes V2 `CalculateRoutes`, restrict it to the exact local/production HTTP referrers, set an expiry, and set quotas/budget alerts. Use separate development and production keys.
 
 Edit `apps/web/.env.local`:
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:3001
-VITE_GOOGLE_MAPS_API_KEY=your-referrer-restricted-browser-key
-VITE_GOOGLE_MAPS_MAP_ID=your-map-id
+VITE_MAP_PROVIDER=amazon
+VITE_AWS_REGION=ap-south-1
+VITE_LOCATION_API_KEY=your-referrer-and-action-restricted-public-key
 ```
 
 Every `VITE_*` value is embedded in public browser JavaScript. Never put an AWS secret, account password, simulator token, or unrestricted service key there. Restart Vite after changing the file.
 
-The passenger map should show Google attribution and live traffic. The route editor's **Generate road path** action makes a Google route-computation request, so use quota limits and billing alerts. A Google-generated driving path is not automatically an operator-verified bus route; inspect the complete path against route evidence before marking it verified.
+The passenger map should show Amazon/provider attribution and live traffic. The route editor's **Generate road path** action makes an Amazon Location Routes V2 request, so use quota limits and billing alerts. An Amazon-generated driving path is not automatically an operator-verified bus route; inspect the complete path against route evidence before marking it verified.
 
 ## Passenger and operator paths
 
@@ -73,7 +81,7 @@ The passenger map should show Google attribution and live traffic. The route edi
 1. Sign in as an administrator and open `/admin/routes`.
 2. Select an existing route or choose **Add bus route**.
 3. Name and order the stops. Drag numbered pins, edit coordinates, or add a pin by clicking the map.
-4. Choose **Generate road path**. Google computes a high-quality driving path through the stops without reordering them.
+4. Choose **Generate road path**. Amazon Location Routes V2 computes a driving path through the ordered stops.
 5. Inspect the whole line, timetable, source and notes. Mark the route and stop pins verified only when the evidence supports that statement.
 6. Choose **Publish route**. The browser sends a new immutable route version; the server validates stop ordering, line proximity, segments, and timetable before activation.
 
@@ -96,7 +104,16 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Routine Playwright runs intentionally omit a billable Google key and verify the explicit fallback. Before claiming the map integration works in a release, separately smoke-test actual Google tiles, attribution, markers, traffic, route generation, approved/refused referrers, and quotas in a configured browser.
+That default run omits the persistent fleet-worker scenario. Run the complete
+mobile/desktop suite, including administrator fleet dispatch, with:
+
+```bash
+E2E_FLEET_WORKER=true npm run test:e2e
+```
+
+In PowerShell, use `$env:E2E_FLEET_WORKER='true'; npm run test:e2e`.
+
+Routine Playwright runs intentionally omit a billable Amazon Location key and verify the explicit basemap-free fallback. Before claiming the map integration works in a release, separately smoke-test actual Amazon tiles, attribution, markers, traffic, route generation, approved/refused referrers, key actions, expiry, and quotas in a configured browser.
 
 The repository requires Node 24. Running checks on an older Node version may work by accident but is not the supported verification environment.
 
@@ -123,8 +140,9 @@ See:
 | Variable | Meaning |
 | --- | --- |
 | `VITE_API_BASE_URL` | Public API origin; production must be HTTPS |
-| `VITE_GOOGLE_MAPS_API_KEY` | Referrer- and API-restricted public browser key |
-| `VITE_GOOGLE_MAPS_MAP_ID` | Google Cloud map ID; production cannot use `DEMO_MAP_ID` |
+| `VITE_MAP_PROVIDER` | `amazon`; `none` is test-only and deployment builds reject it |
+| `VITE_AWS_REGION` | Region containing the Amazon Location API key; default `ap-south-1` |
+| `VITE_LOCATION_API_KEY` | Public browser key restricted to Maps V2 reads, Routes V2 calculation, exact referrers, expiry and quota |
 
 ### API/runtime
 
@@ -132,4 +150,13 @@ Copy `apps/api/.env.example` and read its comments. Important production values 
 
 ## Deployment boundary
 
-The repository contains Docker, worker, DynamoDB, Amplify, and infrastructure material. Follow [docs/DEPLOYMENT_INSTRUCTIONS.md](docs/DEPLOYMENT_INSTRUCTIONS.md) and [infra/RUNBOOK.md](infra/RUNBOOK.md). A successful local build is not evidence of a deployed site, Google key configuration, DynamoDB concurrency, or physical-phone behaviour. Record public URLs and release checks only after actually verifying them.
+The repository contains Docker, worker, DynamoDB, Amplify, and infrastructure material. Follow [docs/DEPLOYMENT_INSTRUCTIONS.md](docs/DEPLOYMENT_INSTRUCTIONS.md) and [infra/RUNBOOK.md](infra/RUNBOOK.md). A successful local build is not evidence of a deployed site, Amazon Location key configuration, DynamoDB concurrency, or physical-phone behaviour. Record public URLs and release checks only after actually verifying them.
+
+## Troubleshooting
+
+- `spawn EINVAL` on Windows: pull the current `scripts/dev.mjs`. It launches npm through `process.env.npm_execpath` with Node and has a Windows shell fallback; it does not directly spawn `npm.cmd` with `shell:false`. If it still fails, include the printed child-process error and verify Node 24/npm 10.9 from the same terminal.
+- The street map is a plain grid: set `VITE_MAP_PROVIDER=amazon`, `VITE_AWS_REGION`, and `VITE_LOCATION_API_KEY`, then restart Vite. Check the key region, referrer and Maps V2 actions in the browser network panel.
+- **Generate road path** is disabled: the same browser key also needs the Routes V2 `CalculateRoutes` action. The control intentionally remains unavailable when AWS routing is not configured.
+- API starts but the web app cannot load data: verify `VITE_API_BASE_URL`, API `CORS_ORIGINS`, and that `/health` answers on port 3001.
+- Playwright has no browser: run `npx playwright install chromium` once, then rerun `npm run test:e2e`.
+- Port 3001 or 5173 is busy: stop the existing BusKothay process before running root `npm run dev`; do not start a second root dev process beside the Compose API.

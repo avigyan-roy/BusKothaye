@@ -71,7 +71,7 @@ export function NavMenu({ onOpenRoutes }: { onOpenRoutes: () => void }) {
         <nav aria-label={en.nav.menuLabel}>
           <ul className="nav-menu__list">
             <li>
-              <Link className="nav-menu__item" to={`/r/${site.defaultRouteId}`} onClick={close}>
+              <Link className="nav-menu__item" to="/" onClick={close}>
                 {en.nav.map}
               </Link>
             </li>

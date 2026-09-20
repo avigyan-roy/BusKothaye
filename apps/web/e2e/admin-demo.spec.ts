@@ -77,6 +77,15 @@ test.describe('demo administrator access', () => {
     await page.goto('/demo');
     await expect(page.getByRole('heading', { name: 'Dispatch settings' })).toBeVisible();
 
+    // The API is shared by both Playwright device projects. Always establish a
+    // known OFF baseline in case a preceding journey enabled Demo or a worker
+    // was still reconciling the prior generation.
+    const endExistingFleet = page.getByRole('button', { name: 'End demo fleet' });
+    if (await endExistingFleet.isVisible().catch(() => false)) {
+      await endExistingFleet.click();
+      await expect(page.getByText('0 active demo buses')).toBeVisible({ timeout: 20_000 });
+    }
+
     await page.getByLabel('Starting checkpoint').selectOption('ruby');
     await page.getByLabel('Destination checkpoint').selectOption('exide');
     await page.getByLabel('Buses').fill('1');

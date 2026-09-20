@@ -51,7 +51,7 @@ The driver uses separate controls for **Pause location sharing** (stop watch wit
 
 The save body is `{ route: RouteFixture }`, using the same runtime schema as files in `data/routes/`. The path route ID and body ID must match. An update to an existing route must use a new version string; the server rejects reuse of the active version. Before the durable write it derives route length and stop distances, checks stop ordering and line proximity, validates contiguous segments, and validates a non-illustrative timetable has departures.
 
-The web editor may use Google Maps to propose a road-following path, but Google does not decide the verification flags. The administrator must explicitly record whether the full alignment and boarding-point pins were reviewed. The public route endpoint immediately serves the activated revision. Existing journeys stay bound to their route version.
+The web editor may use Amazon Location Routes V2 to propose a road-following path, but the provider does not decide the verification flags. The administrator must explicitly record whether the full alignment and boarding-point pins were reviewed. The public route endpoint immediately serves the activated revision. Existing journeys stay bound to their route version.
 
 ## Accounts and administrator bootstrap
 

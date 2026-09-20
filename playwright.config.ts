@@ -5,9 +5,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Two deliberate choices. The web app is *built and previewed*, not run through
  * the dev server, because "every deep link refreshes after a static build" is one
- * of the things being tested. Routine CI omits a Google browser key, so it
+ * of the things being tested. Routine CI omits an Amazon Location browser key, so it
  * verifies the honest map fallback without making billable calls. A configured
- * deployment smoke test covers Google tiles, markers, traffic and attribution.
+ * deployment smoke test covers Amazon tiles, markers, traffic and attribution.
  *
  * Prerequisite: `npx playwright install --with-deps chromium`.
  * On a machine that already has a browser, set `CHROMIUM_PATH` instead.
