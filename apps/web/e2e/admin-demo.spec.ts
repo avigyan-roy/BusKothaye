@@ -30,10 +30,10 @@ test.describe('demo administrator access', () => {
     await page.goto('/admin');
     await page.getByLabel('Admin username').fill('admin');
     await page.getByLabel('Admin password').fill('admin');
-    await page.getByRole('button', { name: 'Open demo console' }).click();
+    await page.getByRole('button', { name: 'Open operations console' }).click();
 
-    await expect(page).toHaveURL(/\/demo$/);
-    await expect(page.getByRole('heading', { name: 'Demo fleet' })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/routes$/);
+    await expect(page.getByRole('heading', { name: 'Routes, stops & timetables' })).toBeVisible();
   });
 
   test('a stale local admin session returns to login instead of trapping the console', async ({
@@ -41,7 +41,9 @@ test.describe('demo administrator access', () => {
   }) => {
     await page.goto('/admin');
     await page.getByLabel('Admin password').fill('admin');
-    await page.getByRole('button', { name: 'Open demo console' }).click();
+    await page.getByRole('button', { name: 'Open operations console' }).click();
+    await expect(page).toHaveURL(/\/admin\/routes$/);
+    await page.goto('/demo');
     await expect(page.getByRole('heading', { name: 'Dispatch settings' })).toBeVisible();
 
     await page.evaluate(() => {
@@ -56,7 +58,7 @@ test.describe('demo administrator access', () => {
     await page.goto('/demo');
 
     await expect(page).toHaveURL(/\/admin\?reason=session$/);
-    await expect(page.getByRole('heading', { name: 'Demo administrator' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations administrator' })).toBeVisible();
     await expect(page.getByText(/previous administrator session expired/i)).toBeVisible();
   });
 
@@ -70,8 +72,19 @@ test.describe('demo administrator access', () => {
     );
     await page.goto('/admin');
     await page.getByLabel('Admin password').fill('admin');
-    await page.getByRole('button', { name: 'Open demo console' }).click();
+    await page.getByRole('button', { name: 'Open operations console' }).click();
+    await expect(page).toHaveURL(/\/admin\/routes$/);
+    await page.goto('/demo');
     await expect(page.getByRole('heading', { name: 'Dispatch settings' })).toBeVisible();
+
+    // The API is shared by both Playwright device projects. Always establish a
+    // known OFF baseline in case a preceding journey enabled Demo or a worker
+    // was still reconciling the prior generation.
+    const endExistingFleet = page.getByRole('button', { name: 'End demo fleet' });
+    if (await endExistingFleet.isVisible().catch(() => false)) {
+      await endExistingFleet.click();
+      await expect(page.getByText('0 active demo buses')).toBeVisible({ timeout: 20_000 });
+    }
 
     await page.getByLabel('Starting checkpoint').selectOption('ruby');
     await page.getByLabel('Destination checkpoint').selectOption('exide');
@@ -136,25 +149,20 @@ test.describe('demo administrator access', () => {
     await signInAs(page, request, 'passenger');
     await page.goto('/r/ac24-patuli-howrah');
 
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    const navigation = page.getByRole('dialog', { name: 'BusKothay navigation' });
-    await expect(navigation).toBeVisible();
-    await expect(
-      navigation.getByRole('link', { name: 'Demo console', exact: true }),
-    ).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Demo', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Routes', exact: true })).toHaveCount(0);
 
     await page.goto('/demo');
     await expect(page).toHaveURL(/\/admin$/);
-    await expect(page.getByRole('heading', { name: 'Demo administrator' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Operations administrator' })).toBeVisible();
   });
 
   test('a driver cannot see or directly open the demo console', async ({ page, request }) => {
     await signInAs(page, request, 'driver');
     await page.goto('/r/ac24-patuli-howrah');
 
-    await page.getByRole('button', { name: 'Menu', exact: true }).click();
-    const navigation = page.getByRole('dialog', { name: 'BusKothay navigation' });
-    await expect(navigation.getByRole('link', { name: 'Demo console', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Demo', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: 'Routes', exact: true })).toHaveCount(0);
 
     await page.goto('/demo');
     await expect(page).toHaveURL(/\/admin$/);

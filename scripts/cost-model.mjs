@@ -42,10 +42,13 @@ const RATES = {
   lightsailContainerNano: 7.0, // 0.25 vCPU, 512 MB
   lightsailContainerMicro: 10.0, // 0.25 vCPU, 1 GB
 
-  // Amazon Location Maps V2 vector tiles. The pricing page did not expose a
-  // per-1,000 figure to this review. This is a placeholder. CHECK — it is the
-  // single least certain number here.
-  mapTilesPer1000: 0.05,
+  // Amazon Location Maps V2 bills dynamic maps by GetTiles requests; style,
+  // glyph, and sprite requests are not billed. Routes V2 CalculateRoutes with
+  // Car is in the Core bucket. Both rates are editable planning placeholders:
+  // CHECK the current AWS pricing table and the response PricingBucket before
+  // provisioning.
+  locationTilesPer1000: 0.04,
+  locationCoreRoutesPer1000: 0.50,
 
   // CloudWatch Logs ingestion. CHECK for Mumbai.
   logsPerGbIngested: 0.57,
@@ -79,9 +82,12 @@ const input = {
   pollS: arg('poll', 1),
   /** Fraction of the 30 days the demo fleet is actually ON. 1 = continuous. */
   dutyCycle: arg('duty', 1),
-  /** Map sessions per day across all viewers, and tiles fetched per session. */
+  /** New interactive map sessions per day across all viewers. */
   mapSessionsPerDay: arg('sessions', 120),
-  tilesPerSession: arg('tiles', 250),
+  /** Approximate Maps V2 tile requests made by a fresh interactive session. */
+  tilesPerMapSession: arg('tiles', 100),
+  /** Admin route-generation requests over the full 30-day period. */
+  routeCalculations: arg('routes', 20),
 };
 
 // ---------------------------------------------------------------------------
@@ -155,8 +161,9 @@ function model(variant, compute) {
   const logGb = (loggedRequests * 300) / 1e9;
   const logCost = logGb * RATES.logsPerGbIngested + logGb * RATES.logsPerGbStored;
 
-  const tiles = input.mapSessionsPerDay * input.tilesPerSession * DAYS;
-  const tileCost = (tiles / 1000) * RATES.mapTilesPer1000;
+  const mapTileRequests = input.mapSessionsPerDay * DAYS * input.tilesPerMapSession;
+  const mapCost = (mapTileRequests / 1000) * RATES.locationTilesPer1000;
+  const routeCost = (input.routeCalculations / 1000) * RATES.locationCoreRoutesPer1000;
 
   // Amplify: ~30 builds of ~3 minutes, a 1 MB bundle, modest transfer.
   const amplifyCost =
@@ -179,7 +186,8 @@ function model(variant, compute) {
       ['DynamoDB reads', readCost],
       ['DynamoDB storage', storageCost],
       ['CloudWatch Logs', logCost],
-      ['Location map tiles', tileCost],
+      ['Amazon map tile requests', mapCost],
+      ['Amazon core route calls', routeCost],
       ['Amplify Hosting', amplifyCost],
       ['ECR storage', ecrCost],
       ['Cognito', cognitoCost],
@@ -243,42 +251,36 @@ report(model(VARIANTS.optimised, COMPUTE.lightsail));
 report(model(VARIANTS.lean, COMPUTE.lightsail));
 
 // ---------------------------------------------------------------------------
-// Sensitivity: map tiles are the one cost this model cannot pin down, so show
-// the headroom rather than pretending to a total.
+// Sensitivity: Location usage depends on how many tiles each viewport fetches,
+// so show the headroom rather than pretending the placeholder is exact.
 // ---------------------------------------------------------------------------
 const lean = model(VARIANTS.lean, COMPUTE.lightsail);
-const withoutTiles = lean.lines
-  .filter(([name]) => name !== 'Location map tiles')
+const withoutLocation = lean.lines
+  .filter(([name]) => !name.startsWith('Amazon '))
   .reduce((sum, [, cost]) => sum + cost, 0);
 
 const TARGET = 35;
 const CEILING = 50;
 
-console.log('\n--- Map tile sensitivity ---');
+console.log('\n--- Amazon Location sensitivity ---');
 console.log(
-  `Everything except map tiles, lean on Lightsail: ${money(withoutTiles)} for ${DAYS} days.`,
+  `Everything except Amazon Location, lean on Lightsail: ${money(withoutLocation)} for ${DAYS} days.`,
 );
 console.log(
-  `Headroom for tiles: ${money(TARGET - withoutTiles)} to the $${TARGET} target, ` +
-    `${money(CEILING - withoutTiles)} to the $${CEILING} ceiling.`,
+  `Headroom for map tiles and route computations: ${money(TARGET - withoutLocation)} to the $${TARGET} target, ` +
+    `${money(CEILING - withoutLocation)} to the $${CEILING} ceiling.`,
 );
 console.log(
-  `At the placeholder $${RATES.mapTilesPer1000}/1,000 that is ` +
-    `${(((TARGET - withoutTiles) / RATES.mapTilesPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} tiles ` +
-    `to target, about ${Math.round(((TARGET - withoutTiles) / RATES.mapTilesPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
+  `At the placeholder $${RATES.locationTilesPer1000}/1,000 GetTiles requests that is ` +
+    `${(((TARGET - withoutLocation) / RATES.locationTilesPer1000) * 1000).toLocaleString('en-US', { maximumFractionDigits: 0 })} tile requests ` +
+    `to target, about ${Math.round(((TARGET - withoutLocation) / RATES.locationTilesPer1000) * 1000 / DAYS).toLocaleString('en-US')} per day.`,
 );
-console.log(
-  'Amazon Location advertises 500,000 free map tile requests a month for the first',
-);
-console.log(
-  'three months on a new account. If that applies, tiles are likely free for this',
-);
-console.log('demo — but do not plan on an allowance you have not confirmed.');
+console.log(`The scenario also includes ${input.routeCalculations} Core CalculateRoutes requests.`);
 
 console.log(
-  '\nRates marked CHECK in this file are unverified for ap-south-1. The map tile',
+  '\nRates marked CHECK in this file are unverified. Amazon Location pricing and free usage',
 );
 console.log(
-  'rate could not be confirmed from any reachable AWS page and is a placeholder.',
+  'can change and the value above is a placeholder.',
 );
-console.log('Confirm it first: it is the only figure that decides the outcome.');
+console.log('Confirm Maps V2 and Routes V2 pricing buckets first: they can decide the outcome.');

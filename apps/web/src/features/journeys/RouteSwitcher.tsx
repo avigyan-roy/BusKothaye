@@ -28,7 +28,7 @@ export function RouteSwitcher({
   return (
     <section
       className={`route-switcher${compact ? ' route-switcher--compact' : ''}`}
-      aria-label="WBTC route directory"
+      aria-label="Route directory"
     >
       <label className="field">
         <span className="field__label">Find a route by number or place</span>
@@ -37,7 +37,7 @@ export function RouteSwitcher({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="AC24, Howrah, Garia…"
+          placeholder="Route number or place"
         />
       </label>
       <div className="route-switcher__list">

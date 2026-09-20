@@ -47,7 +47,7 @@ const FLOATING = {
   'map actions': '.map-view__actions',
   'top controls': '.route-page__top',
   'map disclosure': '.map-view__disclosure',
-  attribution: '.maplibregl-ctrl-bottom-right',
+  attribution: '.gm-style-cc',
 };
 for (const viewport of VIEWPORTS) {
   const context = await browser.newContext({

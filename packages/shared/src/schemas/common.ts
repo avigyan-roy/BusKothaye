@@ -19,6 +19,7 @@ export const ErrorCodeSchema = z.enum([
   'UNAUTHENTICATED',
   'FORBIDDEN',
   'ROUTE_NOT_FOUND',
+  'STOP_NOT_FOUND',
   'JOURNEY_NOT_FOUND',
   'JOIN_CODE_INVALID',
   'USERNAME_TAKEN',

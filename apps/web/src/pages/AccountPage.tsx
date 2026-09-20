@@ -90,8 +90,8 @@ export function AccountPage() {
       <Header action={{ label: en.header.passengerLink, to: '/' }} />
       <main className="page account-page stack">
         <div>
-          <p className="eyebrow">{entry === 'crew' ? en.account.crewEntry : en.account.passengerEntry}</p>
           <h1>{session ? en.account.yourAccount : en.account.title}</h1>
+          <p className="meta">{entry === 'crew' ? en.account.crewEntry : en.account.passengerEntry}</p>
           <p className="muted">{en.account.honesty}</p>
         </div>
 

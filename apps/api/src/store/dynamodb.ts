@@ -25,6 +25,7 @@ import {
   type IdempotencyRecord,
   type JourneyRepository,
   type RawReportRecord,
+  type RouteOverrideRecord,
   type StorageHealth,
 } from "./types.js";
 
@@ -367,6 +368,61 @@ export class DynamoJourneyRepository implements JourneyRepository {
 
   async listDemoJourneys(): Promise<JourneySnapshot[]> {
     return this.listMembership("DEMO#ACTIVE");
+  }
+
+  async listRouteOverrides(): Promise<RouteOverrideRecord[]> {
+    try {
+      const records: RouteOverrideRecord[] = [];
+      let exclusiveStartKey: Record<string, unknown> | undefined;
+      do {
+        const result = await this.client.send(
+          new QueryCommand({
+            TableName: this.table,
+            KeyConditionExpression: 'PK = :pk AND begins_with(SK, :prefix)',
+            ExpressionAttributeValues: { ':pk': 'CONFIG#ROUTES', ':prefix': 'ROUTE#' },
+            ...(exclusiveStartKey ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+          }),
+        );
+        for (const item of result.Items ?? []) {
+          const record = item['record'] as RouteOverrideRecord | undefined;
+          if (record) records.push(record);
+        }
+        exclusiveStartKey = result.LastEvaluatedKey as Record<string, unknown> | undefined;
+      } while (exclusiveStartKey);
+      return records;
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not list route overrides: ${errorName(error)}`);
+    }
+  }
+
+  async putRouteOverride(record: RouteOverrideRecord): Promise<void> {
+    try {
+      await this.client.send(
+        new PutCommand({
+          TableName: this.table,
+          Item: {
+            PK: 'CONFIG#ROUTES',
+            SK: `ROUTE#${record.route.id}`,
+            record,
+          },
+        }),
+      );
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not save route override: ${errorName(error)}`);
+    }
+  }
+
+  async deleteRouteOverride(routeId: string): Promise<void> {
+    try {
+      await this.client.send(
+        new DeleteCommand({
+          TableName: this.table,
+          Key: { PK: 'CONFIG#ROUTES', SK: `ROUTE#${routeId}` },
+        }),
+      );
+    } catch (error) {
+      throw new StorageUnavailableError(`Could not delete route override: ${errorName(error)}`);
+    }
   }
 
   async createJourney(

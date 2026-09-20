@@ -7,9 +7,22 @@
     <meta name="theme-color" content="#111312" />
     <meta
       name="description"
-      content="Community bus tracking for AC24, Patuli to Howrah. See where the bus is, when it should reach your stop, and how current that information is."
+      content="Community bus tracking. See where your bus is, when it should reach your stop, and how current that information is."
     />
-    <title>BusKothay</title>
+    <title>BusKothay — know where your bus is</title>
+    <script>
+      (function () {
+        var theme = 'dark';
+        try {
+          var stored = localStorage.getItem('buskothay.theme');
+          if (stored === 'light' || stored === 'dark') theme = stored;
+        } catch (error) {}
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,300..800;1,62..125,400&display=swap" rel="stylesheet">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
   </head>

@@ -3,7 +3,7 @@ import type { JourneyMode, StopEta } from '@buskothay/shared';
 import type { AccountSession } from '../../lib/auth-session.js';
 import type { ContributorSession } from '../../lib/session.js';
 import type { SharingState } from '../contribution/useGeoSharing.js';
-import { formatEtaRange } from '../../lib/format.js';
+import { arrivalAt } from '../../lib/format.js';
 import './boarding-panel.css';
 
 export function BoardingPanel({
@@ -41,7 +41,7 @@ export function BoardingPanel({
 }) {
   if (session?.joinedVia === 'boarding') {
     return (
-      <section className="boarding journey-sheet__section" aria-labelledby="onboard-heading">
+      <section className="boarding info-pane__section" aria-labelledby="onboard-heading">
         <div className="boarding__heading">
           <span className="boarding__status" aria-hidden="true">✓</span>
           <div>
@@ -129,7 +129,7 @@ export function BoardingPanel({
   if (!canBoard) return null;
   if (account === null) {
     return (
-      <section className="boarding boarding--ready journey-sheet__section">
+      <section className="boarding boarding--ready info-pane__section">
         <h3>The bus is at {selectedStop?.name ?? 'this stop'}</h3>
         <p className="meta">Sign in as a passenger to mark that you boarded.</p>
         <Link className="button" to="/account">Sign in to board</Link>
@@ -139,7 +139,7 @@ export function BoardingPanel({
   if (account.account.kind !== 'community' || account.account.role !== 'passenger') return null;
 
   return (
-    <section className="boarding boarding--ready journey-sheet__section">
+    <section className="boarding boarding--ready info-pane__section">
       <h3>The bus is at {selectedStop?.name ?? 'this stop'}</h3>
       <p className="meta">
         Boarding unlocks the stops ahead. It does not request or send your location.
@@ -152,8 +152,9 @@ export function BoardingPanel({
   );
 }
 
+/** The same clock-first arrival the rest of the application shows. */
 function etaText(stop: StopEta): string {
   if (stop.status === 'near') return 'At stop';
-  const formatted = formatEtaRange(stop.etaSeconds, stop.etaRangeSeconds);
-  return formatted === null ? 'ETA unavailable' : `${formatted} min`;
+  const arrival = arrivalAt(stop.etaSeconds);
+  return arrival === null ? 'ETA unavailable' : `${arrival.clock} · ~${arrival.minutes} min`;
 }

@@ -1,4 +1,9 @@
-import type { AccountRole, DemoAuditEntry, DemoFleetConfig } from '@buskothay/shared';
+import type {
+  AccountRole,
+  DemoAuditEntry,
+  DemoFleetConfig,
+  RouteFixture,
+} from '@buskothay/shared';
 import type { JourneySnapshot } from '../fusion/types.js';
 
 export interface AccountRecord {
@@ -35,6 +40,12 @@ export interface DemoControlRecord {
     readonly generation: number;
     readonly expiresAtMs: number;
   } | null;
+}
+
+export interface RouteOverrideRecord {
+  readonly route: RouteFixture;
+  readonly updatedAtMs: number;
+  readonly updatedBy: string;
 }
 
 /**
@@ -112,6 +123,16 @@ export interface JourneyRepository {
     expiresAtMs: number;
   }): Promise<boolean>;
   listDemoJourneys(): Promise<JourneySnapshot[]>;
+
+  /** Administrator-authored routes override the bundled seed catalogue. */
+  listRouteOverrides(): Promise<RouteOverrideRecord[]>;
+  putRouteOverride(record: RouteOverrideRecord): Promise<void>;
+  /**
+   * Withdraw an administrator's route. A route that also exists as bundled seed
+   * data reverts to the bundled version rather than vanishing, because the seed
+   * file is in Git and deleting a database row must not appear to delete it.
+   */
+  deleteRouteOverride(routeId: string): Promise<void>;
 
   /**
    * Create the journey, its route-membership entry and any idempotency marker

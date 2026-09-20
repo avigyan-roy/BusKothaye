@@ -2,7 +2,7 @@
   "name": "buskothay",
   "private": true,
   "version": "0.1.0",
-  "description": "BusKothay — community bus tracking for AC24, Patuli to Howrah",
+  "description": "BusKothay \u2014 community bus tracking for AC24, Patuli to Howrah",
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
@@ -22,7 +22,7 @@
     "dev": "node scripts/dev.mjs",
     "lint": "eslint .",
     "typecheck": "npm run typecheck -w @buskothay/geometry && npm run typecheck -w @buskothay/shared && npm run typecheck -w @buskothay/api && npm run typecheck -w @buskothay/simulator && npm run typecheck -w @buskothay/web",
-    "test": "npm run build:packages && vitest run --project geometry --project shared --project api",
+    "test": "npm run build:packages && vitest run --project geometry --project shared --project api --project web",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "routes:validate": "npm run build:packages && node scripts/validate-routes.mjs",

@@ -21,7 +21,7 @@ export function DemoConsolePage() {
   const [draft, setDraft] = useState<DemoFleetConfig | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { route } = useRoute(draft?.routeId ?? 'ac24-patuli-howrah');
+  const { route } = useRoute(draft?.routeId ?? '');
 
   const refresh = useCallback(async () => {
     if (account?.account.isAdmin !== true) return;
@@ -80,7 +80,6 @@ export function DemoConsolePage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page demo-console stack">
         <div>
-          <p className="eyebrow">Simulation controls</p>
           <h1>Demo fleet</h1>
           <p className="muted">
             This switch controls the shared simulated fleet for everyone using this deployment.

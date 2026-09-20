@@ -15,7 +15,7 @@
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
+  border-radius: 0;
   background: var(--color-border);
 }
 
@@ -34,7 +34,7 @@
   text-align: left;
   text-decoration: none;
   font: inherit;
-  font-size: var(--text-secondary);
+  font-size: var(--text-sm);
 }
 
 .route-switcher__list > button {
@@ -65,9 +65,10 @@
 }
 
 .route-switcher__code > span {
-  width: 4px;
-  height: 24px;
-  border-radius: 2px;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 0;
   background: var(--route-color);
 }
 

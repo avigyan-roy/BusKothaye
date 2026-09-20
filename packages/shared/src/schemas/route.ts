@@ -173,3 +173,22 @@ export const RouteCatalogueSchema = z.object({
   schemaVersion: SchemaVersionSchema,
   routes: z.array(RouteCatalogueEntrySchema).min(1),
 });
+
+/** The route editor saves the same versionable fixture shape used by seed data. */
+export const AdminRouteSaveRequestSchema = z.object({
+  route: RouteFixtureSchema,
+});
+export type AdminRouteSaveRequest = z.infer<typeof AdminRouteSaveRequestSchema>;
+
+export const AdminRouteRecordSchema = z.object({
+  route: RouteFixtureSchema,
+  updatedAtMs: z.number().int().nonnegative(),
+  updatedBy: z.string().min(1).max(80),
+});
+export type AdminRouteRecord = z.infer<typeof AdminRouteRecordSchema>;
+
+export const AdminRouteListResponseSchema = z.object({
+  schemaVersion: SchemaVersionSchema,
+  routes: z.array(AdminRouteRecordSchema),
+});
+export type AdminRouteListResponse = z.infer<typeof AdminRouteListResponseSchema>;

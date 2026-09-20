@@ -17,6 +17,8 @@ import { AccountService } from './service/account-service.js';
 import { createAuthRouter } from './routes/auth.js';
 import { DemoService } from './service/demo-service.js';
 import { createDemoRouter } from './routes/demo.js';
+import { createAdminRoutesRouter } from './routes/admin-routes.js';
+import { createDiscoveryRouter } from './routes/discovery.js';
 import type { JourneyRepository } from './store/types.js';
 import { createLogger, type Logger } from './observability/logger.js';
 
@@ -93,6 +95,15 @@ export function createApp(deps: AppDeps): BuiltApp {
     }),
   );
 
+  // A high-quality Amazon Location route can contain thousands of coordinates. Keep the
+  // larger allowance scoped to the authenticated route editor; passenger and
+  // contributor payloads retain the deliberately small global limit below.
+  app.use(
+    '/v1/admin/routes',
+    json({ limit: 1024 * 1024 }),
+    createAdminRoutesRouter(accounts, deps.repo, deps.registry, () => clock.nowMs()),
+  );
+
   app.use(json({ limit: MAX_BODY_BYTES }));
 
   app.get('/health', (_req, res) => {
@@ -115,6 +126,10 @@ export function createApp(deps: AppDeps): BuiltApp {
   );
 
   app.use('/v1/demo', createDemoRouter(accounts, demo));
+
+  // Discovery is mounted before the journey router so that /v1/stops and
+  // /v1/arrivals cannot be shadowed by a future parameterised path there.
+  app.use('/v1', createDiscoveryRouter(deps.registry, service, () => clock.nowMs()));
 
   app.use(
     '/v1',

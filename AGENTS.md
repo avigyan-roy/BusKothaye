@@ -13,6 +13,7 @@ You are a senior full-stack web developer responsible for delivering a working, 
    - [Backend](docs/BACKEND_INSTRUCTIONS.md)
    - [Frontend](docs/FRONTEND_INSTRUCTIONS.md)
    - [Design system](docs/DESIGN_SYSTEM.md)
+   - [Anti-template UI record](docs/design/ANTI_VIBE_UI.md)
    - [Deployment](docs/DEPLOYMENT_INSTRUCTIONS.md)
    - [Testing and acceptance](docs/TESTING_AND_ACCEPTANCE.md)
    - [Team workflow](CONTRIBUTING.md)
@@ -26,9 +27,9 @@ These files are the current implementation brief. Explicit user requests take pr
 - Purpose: help a passenger see a bus journey's position, next stops, estimated arrival, and how current the information is.
 - Initial route: **AC24, Patuli → Howrah**, with eight selected checkpoints and one featured journey. Verify road geometry and exact stop coordinates; keep journey IDs independent from route IDs.
 - Mobile first; desktop is a fully designed layout, not a stretched phone screen.
-- Visual direction: a dark, map-first surface — near-black map, charcoal sheets, a single amber accent; flat surfaces, crisp typography, hairline borders, restrained space. This replaces the original warm off-white and forest-green direction. Follow the exact tokens and layouts in the design guide.
-- Start at the useful map screen. No marketing landing page, giant slogan, decorative gradient, purple glow, fake statistics, testimonial cards, or AI/chat interface.
-- Stack: TypeScript throughout; React + Vite + MapLibre GL JS; Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; Amazon Location Maps V2; CloudWatch logging. See the decision record for the Node version update.
+- Visual direction: follow `buskothay-prototype final.html` as the current visual reference — Archivo typography, near-black gridded canvas, charcoal panels, cyan accent, compact Kolkata header, stop-first home screen, and a balanced map/detail split on desktop. A light theme is supported. Follow the exact tokens and layouts in the design guide.
+- Start at the useful stop-and-route finder from the reference prototype. No marketing landing page, giant slogan, decorative gradient, fake statistics, testimonial cards, or AI/chat interface.
+- Stack: TypeScript throughout; React + Vite + MapLibre GL JS with Amazon Location Maps V2 and Routes V2; Node.js 24 LTS + Express + Zod; npm workspaces; DynamoDB; AWS App Runner via an ECR container; Amplify Hosting; CloudWatch logging. See the decision record for the provider and Node updates.
 - Ordinary HTTP ingestion and approximately one-second passenger polling. No WebSockets, ML, Bedrock, login platform, payment flow, or native app in this build.
 - Region default: `ap-south-1`; route timezone default: `Asia/Kolkata`. Both are configuration, not scattered string literals.
 - A simulator uses the same public API as real contributors. Mark simulated journeys as **Demo** everywhere they appear.
@@ -46,6 +47,20 @@ These files are the current implementation brief. Explicit user requests take pr
 - Preserve manual edits. Read existing code before changing it; make focused changes and do not rewrite working parts to match a personal preference.
 - Every visible action must work. Remove unfinished controls instead of attaching empty handlers.
 - Do not claim a deployment, test pass, physical-device check, API integration, or performance measurement that you did not actually verify.
+
+## Visual anti-template rules
+
+For any frontend, copy or visual change, read `docs/DESIGN_SYSTEM.md` before editing. BusKothay is a stop-first Kolkata transit utility, not a SaaS landing page or generic dashboard. Preserve the attached prototype's hierarchy: compact header, gridded dark canvas, cyan route/action accent, labelled operational colours, clean panels, restrained rounding, and a useful map/detail composition.
+
+Do not introduce decorative gradient/glow, glass blur, nested cards, rounded card grids, pill spam, arbitrary coloured side bars, emoji icons, generic marketing copy, fake product evidence or motion without state meaning. A circle, colour, border, animation or bounded panel is allowed only when it communicates geography, selection, focus, operational state or independent interaction.
+
+Before finishing a UI change:
+
+- explain the product reason for each new visual pattern;
+- reuse tokens and existing semantic components;
+- verify narrow phone and desktop layouts, keyboard focus and 200% zoom;
+- run lint, TypeScript, the web build and relevant browser tests;
+- update the design documents when the design rule itself changes.
 
 ## Questions and autonomy
 

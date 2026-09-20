@@ -1,108 +1,218 @@
 /*
- * The passenger screen is the map. Everything else is placed on top of it.
+ * The details screen.
  *
- * `--sheet-h` is how far up from the bottom of the viewport the map's own
- * furniture has to sit. The sheet measures itself into `--sheet-measured-h`
- * (see JourneySheet), so the map controls and the attribution move with it
- * instead of guessing at a fixed height and overlapping a long stop name.
+ * Wide: map and information side by side, each scrolling on its own, because
+ * the map is a reference you keep glancing at while reading the times beside it.
+ * Narrow: the map takes the top of the screen and the pane rises over it as a
+ * sheet, so the arrival time is above the fold and the map is still there when
+ * you want it. The grabber raises the sheet over more of the map; it never
+ * covers it entirely, because then the screen would just be a list.
  */
-.route-page {
-  position: fixed;
-  inset: 0;
-  height: 100dvh;
-  overflow: hidden;
-  background: var(--color-canvas);
-  --sheet-h: var(--sheet-measured-h, 128px);
-  --panel-inset: 0px;
+.details {
+  display: grid;
+  height: calc(100dvh - var(--header-h) - var(--inset-top));
+  grid-template-columns: minmax(0, 1.15fr) minmax(380px, 0.85fr);
 }
 
-@media (min-width: 900px) {
-  .route-page {
-    /* The drawer is beside the map, so the bottom of the map is clear and the
-       left edge is not. */
-    --sheet-h: var(--inset-bottom);
-    --panel-inset: calc(var(--panel-width) + var(--space-5));
-  }
+.details__map { position: relative; overflow: hidden; background: var(--map-land); }
+.details__map .map-view { position: absolute; inset: 0; }
+
+.info-pane {
+  display: flex;
+  overflow-y: auto;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  overscroll-behavior: contain;
 }
 
-/* The menu and the status strip, inside the safe area. */
-.route-page__top {
+.info-pane__grabber { display: none; }
+
+/* --- trip head ---------------------------------------------------------- */
+
+.trip-head { padding: 16px 22px 14px; border-bottom: 1px solid var(--border); }
+.trip-head .crumb { margin-bottom: 2px; }
+.trip-head__top { display: flex; align-items: center; gap: 12px; }
+.trip-head__dest { font-size: 18px; font-weight: 600; }
+.trip-head__route { margin-top: 3px; color: var(--text-faint); font-size: 13px; }
+.trip-head__live { display: flex; margin-top: 12px; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* --- the answer, pinned ------------------------------------------------- */
+
+.selected-stop {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  padding: 16px 22px 18px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-elevated);
+}
+
+.selected-stop::after {
   position: absolute;
-  top: calc(var(--space-3) + var(--inset-top));
-  left: max(var(--space-3), var(--inset-left));
-  right: max(var(--space-3), var(--inset-right));
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  /* Only the controls themselves take the pointer; the rest is map. */
-  pointer-events: none;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  content: '';
 }
 
-.route-page__top > * {
-  pointer-events: auto;
-}
-
-@media (min-width: 900px) {
-  .route-page__top {
-    /* Clear of the desktop drawer below it. */
-    right: auto;
-    max-width: calc(100% - var(--space-6));
-  }
-}
-
-/* The route catalogue inside the sheet. */
-.route-page__directory > summary {
-  min-height: var(--touch-min);
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: var(--color-muted);
-  font-size: var(--text-secondary);
+.selected-stop__label {
+  display: block;
+  color: var(--accent);
+  font-size: 11.5px;
   font-weight: 600;
+  letter-spacing: 0.16em;
 }
 
-.route-page__directory > summary:hover {
-  color: var(--color-ink);
+.selected-stop__name {
+  margin-top: 2px;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
-.route-page__directory[open] > summary {
-  margin-bottom: var(--space-3);
+.selected-stop__dist { display: block; margin-top: 4px; color: var(--text-faint); font-size: 12.5px; }
+
+/* --- route progress ----------------------------------------------------- */
+
+.progress-summary {
+  display: flex;
+  padding: 13px 22px;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
 }
 
-.route-details {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-panel);
-  padding: var(--space-3);
+.route-progress {
+  position: relative;
+  height: 5px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 99px;
+  background: var(--surface-sunken);
 }
+
+.route-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 99px;
+  background: var(--passed);
+  box-shadow: 0 0 10px var(--passed);
+  transition: width 400ms ease-out;
+}
+
+/* --- notices and empty states inside the pane --------------------------- */
+
+.info-pane__notice { margin: 14px 22px 0; }
+
+.no-live {
+  margin: 16px 22px;
+  padding: 22px 20px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.no-live h3 { font-size: 18px; font-weight: 700; }
+.no-live p { margin-top: 6px; color: var(--text-secondary); font-size: 14.5px; }
+.no-live .button { margin-top: 14px; }
+
+.journey-selector { margin: 12px 22px 0; }
+.info-pane__section { padding: 14px 22px; border-top: 1px solid var(--border); }
+
+/* --- disclosures -------------------------------------------------------- */
+
+.info-pane__secondary { padding: 8px 22px calc(26px + var(--inset-bottom)); border-top: 1px solid var(--border); }
+
+.route-details { padding: 0; border: 0; border-bottom: 1px solid var(--border); }
 
 .route-details summary {
-  cursor: pointer;
-  font-size: var(--text-secondary);
-  font-weight: 600;
-  min-height: var(--touch-min);
   display: flex;
+  min-height: var(--touch-min);
   align-items: center;
+  justify-content: space-between;
+  font-size: 15px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
 }
+.route-details summary::-webkit-details-marker { display: none; }
+.route-details summary::after { color: var(--text-faint); content: '+'; font-size: 18px; }
+.route-details[open] summary::after { content: '–'; }
+.route-details > *:not(summary) { padding-bottom: 14px; }
 
 .route-details__facts {
   display: grid;
+  margin: 0;
   grid-template-columns: minmax(96px, 34%) 1fr;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-  font-size: var(--text-secondary);
+  gap: 8px 12px;
+  font-size: 13px;
+}
+.route-details__facts dt { color: var(--text-faint); }
+.route-details__facts dd { margin: 0; overflow-wrap: anywhere; }
+
+/* --- narrow ------------------------------------------------------------- */
+
+@media (max-width: 920px) {
+  .details { height: auto; grid-template-columns: 1fr; }
+
+  .details__map {
+    position: sticky;
+    z-index: 1;
+    top: calc(var(--header-h) + var(--inset-top));
+    height: 46dvh;
+  }
+
+  .info-pane {
+    position: relative;
+    z-index: 10;
+    min-height: 54dvh;
+    margin-top: -18px;
+    border-top: 1px solid var(--border-strong);
+    border-left: 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    transition: margin-top 200ms ease-out;
+  }
+
+  .info-pane.is-expanded { min-height: 78dvh; margin-top: -32dvh; }
+
+  .info-pane__grabber {
+    position: sticky;
+    z-index: 6;
+    top: 0;
+    display: block;
+    width: 100%;
+    padding: 10px 0 4px;
+    border: 0;
+    background: var(--surface);
+    cursor: pointer;
+  }
+
+  .info-pane__grabber i {
+    display: block;
+    width: 40px;
+    height: 3px;
+    margin: 0 auto;
+    border-radius: 99px;
+    background: var(--border-strong);
+  }
 }
 
-.route-details__facts dt {
-  color: var(--color-faint);
-}
-
-.route-details__facts dd {
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.journey-selector {
-  margin: var(--space-3) var(--space-4) 0;
+@media (max-width: 760px) {
+  .trip-head { padding: 14px 16px 12px; }
+  .selected-stop { padding: 14px 16px 16px; }
+  .selected-stop__name { font-size: 24px; }
+  .progress-summary { padding: 13px 16px; gap: 12px; }
+  .info-pane__notice, .no-live, .journey-selector { margin-inline: 16px; }
+  .info-pane__section { padding-inline: 16px; }
+  .info-pane__secondary { padding-inline: 16px; }
 }

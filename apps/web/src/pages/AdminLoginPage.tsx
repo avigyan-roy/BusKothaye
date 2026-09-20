@@ -9,7 +9,7 @@ import {
 } from '../lib/auth-session.js';
 import './account-page.css';
 
-/** Login-only entrance to the server-protected demo console. */
+/** Login-only entrance to the server-protected operations console. */
 export function AdminLoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -21,7 +21,7 @@ export function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (existing?.account.isAdmin === true) {
-    return <Navigate to="/demo" replace />;
+    return <Navigate to="/admin/routes" replace />;
   }
 
   const submit = async (event: FormEvent) => {
@@ -32,11 +32,11 @@ export function AdminLoginPage() {
       const response = await api.login(username, password);
       if (response.account.isAdmin !== true) {
         await api.logout(response.token).catch(() => undefined);
-        throw new ApiError(403, 'FORBIDDEN', 'This account is not a demo administrator.');
+        throw new ApiError(403, 'FORBIDDEN', 'This account is not an administrator.');
       }
       clearAccountSession();
       saveAccountSession(response);
-      navigate('/demo', { replace: true });
+      navigate('/admin/routes', { replace: true });
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Could not reach the API.');
     } finally {
@@ -49,11 +49,10 @@ export function AdminLoginPage() {
       <Header action={{ label: 'Map', to: '/' }} />
       <main className="page account-page stack">
         <div>
-          <p className="eyebrow">Restricted access</p>
-          <h1>Demo administrator</h1>
+          <h1>Operations administrator</h1>
           <p className="muted">
-            Sign in with the server-configured administrator account to dispatch or change the
-            simulated fleet.
+            Sign in with the server-configured administrator account to manage routes, stops,
+            timetables, and the simulated fleet.
           </p>
         </div>
 
@@ -98,7 +97,7 @@ export function AdminLoginPage() {
               autoComplete="current-password"
             />
             <button className="button" disabled={busy}>
-              Open demo console
+              Open operations console
             </button>
           </form>
         </section>

@@ -1,0 +1,56 @@
+.arrival-clock {
+  margin: 0;
+  text-align: right;
+  flex: none;
+}
+
+.arrival-clock__value {
+  display: block;
+  color: var(--accent);
+  font-size: 46px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  text-shadow: 0 0 30px var(--accent-glow);
+  font-variant-numeric: tabular-nums;
+}
+
+.arrival-clock__unit {
+  display: block;
+  margin-top: 7px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  letter-spacing: 0.13em;
+}
+
+.arrival-clock__sub {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.arrival-clock.is-muted .arrival-clock__value {
+  color: var(--text-secondary);
+  font-size: 32px;
+  text-shadow: none;
+}
+
+.arrival-clock.is-now .arrival-clock__value {
+  color: var(--current);
+  font-size: 36px;
+  text-shadow: 0 0 28px var(--current-soft);
+}
+
+/* The hero form is the whole answer to a route-and-direction enquiry. */
+.arrival-clock--hero { text-align: left; }
+.arrival-clock--hero .arrival-clock__value {
+  font-size: clamp(52px, 10vw, 72px);
+}
+.arrival-clock--hero.is-muted .arrival-clock__value { font-size: clamp(30px, 6vw, 40px); }
+.arrival-clock--hero.is-now .arrival-clock__value { font-size: clamp(40px, 8vw, 56px); }
+.arrival-clock--hero .arrival-clock__unit { margin-top: 10px; }
+
+@media (max-width: 760px) {
+  .arrival-clock--panel .arrival-clock__value { font-size: 40px; }
+}

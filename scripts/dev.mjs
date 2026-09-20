@@ -23,6 +23,40 @@ const API_URL = "http://localhost:3001";
 const children = [];
 let shuttingDown = false;
 
+/**
+ * Run an npm command without ever asking the OS to execute `npm.cmd` directly.
+ *
+ * On Windows `npm` is a batch file, and since the CVE-2024-27980 fix Node
+ * refuses to spawn a `.cmd`/`.bat` without a shell — it throws `spawn EINVAL`
+ * before the command ever starts. That is the whole story behind the
+ * `spawn EINVAL` this script used to produce on Windows.
+ *
+ * The fix is to not go near the batch file. npm sets `npm_execpath` to its own
+ * JavaScript entry point for every script it runs, so the child is a plain
+ * `node npm-cli.js …` — no shell, no quoting rules, no platform branch. The
+ * fallback only matters when this file is run as `node scripts/dev.mjs`
+ * directly, and there Windows needs the shell that the batch file requires.
+ */
+const npmCli =
+  typeof process.env.npm_execpath === "string" &&
+  process.env.npm_execpath.endsWith(".js")
+    ? process.env.npm_execpath
+    : null;
+
+function spawnNpm(args, options = {}) {
+  if (npmCli !== null) {
+    return spawn(process.execPath, [npmCli, ...args], {
+      stdio: "inherit",
+      ...options,
+    });
+  }
+  return spawn(process.platform === "win32" ? "npm.cmd" : "npm", args, {
+    stdio: "inherit",
+    shell: process.platform === "win32",
+    ...options,
+  });
+}
+
 // Keep local demo dispatch genuinely one-command. The API and worker receive
 // the same per-run credential even when the developer has not created an .env
 // yet. A configured value still wins, which keeps manual simulator commands and
@@ -49,6 +83,19 @@ function run(name, command, args, options = {}) {
   });
   children.push({ name, child });
   return child;
+}
+
+/** A Node process (the API, the demo worker): always safe to spawn directly. */
+function runNode(name, args, options = {}) {
+  return track(
+    name,
+    spawn(process.execPath, args, { stdio: "inherit", ...options }),
+  );
+}
+
+/** An npm script in one of the workspaces. */
+function runNpm(name, args, options = {}) {
+  return track(name, spawnNpm(args, options));
 }
 
 function shutdown(code = 0) {

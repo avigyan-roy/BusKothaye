@@ -12,7 +12,7 @@ This is an application, not a visual prototype. Finish real data flow before dec
 
 ## Required first release
 
-1. Passenger route page at `/r/:routeId`; `/` opens the configured default route.
+1. Stop-and-route finder at `/`, plus the passenger route page at `/r/:routeId`, following the supplied HTML reference.
 2. Interactive map with real tiles, road-following route geometry, selectable stops, bus marker, and a visible attribution control.
 3. Stop list with distance, arrival ranges, schedule when available, and trustworthy freshness labels.
 4. Contributor page at `/drive`: create journey, share join code/link, join, consent to GPS, share position, stop sharing, and driver-only end journey.
@@ -21,13 +21,14 @@ This is an application, not a visual prototype. Finish real data flow before dec
 7. One-dimensional route fusion, disagreement rejection, bounded prediction, recovery, and basic deterministic ETA.
 8. Local in-memory mode and a tested DynamoDB adapter for AWS. Both follow the same behaviour contract.
 9. Simulator that starts its own labelled demo journey, adds multiple sources, injects outages, and prints measured results.
-10. A reproducible npm workspace, lockfile, environment examples, Docker image, CI checks, Amplify configuration, and documented AWS setup.
+10. An authenticated route console at `/admin/routes` for routes, ordered stop pins, Amazon Location-generated road paths, operating assumptions, and timetables.
+11. A reproducible npm workspace, lockfile, environment examples, Docker image, CI checks, Amplify configuration, and documented AWS setup.
 
 Do not cut the real map, real API connection, mobile usability, or honest state handling to add extra features.
 
 ## Deferred work
 
-Accounts, OTP, payment, chat, WhatsApp/SMS, native apps, ML, multiple cities, route CRUD, background web location promises, a light/dark theme switch, advanced analytics, journey replay, and a multi-bus comparison interface are outside the first release. The interface itself is now dark by design, not by preference; see the design guide.
+OTP, payment, chat, WhatsApp/SMS, native apps, ML, multiple cities, background web location promises, advanced analytics, journey replay, and a multi-bus comparison interface remain outside the first release. Route administration and the prototype's light/dark theme switch are now in scope.
 
 Keep the backend journey model independent enough to support two journeys and test their isolation. A sophisticated multi-bus UI is not required. Live traffic refresh, a CloudWatch dashboard, and advanced diversion recovery come after the required release; the app must work without them.
 
@@ -106,7 +107,7 @@ flowchart LR
   SIM[Labelled simulator] -->|Same HTTP contract| API
   WEB[React passenger view on Amplify] -->|Poll fused state| API
   API <-->|Versioned authoritative state| DB[(DynamoDB)]
-  WEB -->|MapLibre street tiles| MAPS[Amazon Location Maps V2]
+  WEB -->|Maps V2 tiles, markers, traffic, Routes V2 computation| MAPS[Amazon Location Service]
   API --> LOGS[CloudWatch logs]
   ROUTE[Committed AC24 route fixture] --> API
 ```

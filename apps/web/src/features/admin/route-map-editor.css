@@ -1,0 +1,18 @@
+.route-map-editor { position: relative; min-height: 560px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-sunken); }
+.route-map-editor__canvas { position: absolute; inset: 0; }
+.route-map-editor.is-adding .route-map-editor__canvas { cursor: crosshair; }
+.route-map-editor__fallback { position: absolute; inset: 0; display: grid; padding: 30px; place-content: center; gap: 8px; background: var(--surface-sunken); color: var(--text-secondary); text-align: center; }
+.route-map-editor__fallback strong { color: var(--text-primary); font-size: 18px; }
+.route-map-editor__tools { position: absolute; z-index: 2; right: 14px; bottom: 14px; left: 14px; display: flex; padding: 8px; align-items: center; justify-content: flex-end; gap: 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 92%, transparent); box-shadow: var(--shadow); }
+.route-map-editor__instruction, .route-map-editor__message { position: absolute; z-index: 2; top: 14px; left: 50%; width: max-content; max-width: calc(100% - 28px); margin: 0; padding: 8px 12px; transform: translateX(-50%); border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); font-size: 13px; box-shadow: var(--shadow); }
+.route-map-editor__provider { position: absolute; z-index: 2; top: 14px; left: 14px; max-width: min(520px, calc(100% - 86px)); padding: 8px 12px; border: 1px solid var(--current); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--text-primary); font-size: 13px; box-shadow: var(--shadow); }
+.route-map-editor__message { top: auto; bottom: 82px; border-color: var(--border-strong); color: var(--text-secondary); }
+.route-editor-pin { position: relative; display: grid; width: 30px; height: 30px; place-items: center; transform: translateY(-7px); border: 2px solid #03131c; border-radius: 50% 50% 50% 5px; background: #38d0ff; color: #03131c; box-shadow: 0 4px 14px rgba(0, 0, 0, .45); rotate: -45deg; }
+.route-editor-pin b { font-size: 11px; rotate: 45deg; }
+.route-editor-pin span { position: absolute; top: 34px; left: 17px; min-width: max-content; padding: 3px 7px; border: 1px solid rgba(255,255,255,.15); border-radius: 3px; background: #081018; color: #e9f3f9; font-size: 11px; font-weight: 600; rotate: 45deg; }
+@media (max-width: 720px) {
+  .route-map-editor { min-height: 460px; }
+  .route-map-editor__tools { align-items: stretch; flex-direction: column; }
+  .route-map-editor__message { bottom: 174px; }
+  .route-map-editor__tools .button { width: 100%; }
+}
